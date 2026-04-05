@@ -54,8 +54,12 @@ class MedicalSessionNotifier extends Notifier<SessionState> {
 }
 
 // Global Providers mapping
-final aiEngineServiceProvider = Provider<AiEngineService>((ref) => AiEngineService());
 final fhirRepositoryProvider = Provider<FhirRepository>((ref) => FhirRepository());
+
+final aiEngineServiceProvider = Provider<AiEngineService>((ref) {
+  final fhirRepo = ref.read(fhirRepositoryProvider);
+  return AiEngineService(fhirRepo);
+});
 
 final medicalSessionProvider = NotifierProvider<MedicalSessionNotifier, SessionState>(() {
   return MedicalSessionNotifier();

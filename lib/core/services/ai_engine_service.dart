@@ -7,6 +7,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
 
+import '../../data/repositories/fhir_repository.dart';
+
 /// Exception thrown when the AI rules engine detects life-threatening conditions.
 class EmergencyFlagException implements Exception {
   final double confidence;
@@ -21,7 +23,10 @@ class AiEngineService {
   static const MethodChannel _channel = MethodChannel('com.telemed_k/litert_lm');
   static const String _modelFileName = 'gemma4_e2b_4bit.gguf';
 
+  final FhirRepository _fhirRepository;
   bool _isModelInitialized = false;
+
+  AiEngineService(this._fhirRepository);
 
   /// Checks Wi-Fi connection, downloads the ~2.58 GB 4-bit quantized 
   /// Gemma 4 E2B model weights, and saves them to local device storage.
@@ -53,7 +58,8 @@ class AiEngineService {
   }
 
   /// Feeds the raw collected audio file DIRECTLY to the LiteRT-LM model.
-  /// Leverages Gemma 4 E2B's native audio input capabilities (No external STT used).
+  /// Executes a secure Local RAG: Retrieves the patient's FHIR history from SQLite and 
+  /// injects it perfectly into the System Prompt natively entirely via constraints.
   /// Expects constrained JSON output outlining the medical analysis.
   Future<Map<String, dynamic>> evaluateAudio(File audioFile) async {
     if (!_isModelInitialized) {
@@ -61,9 +67,28 @@ class AiEngineService {
     }
 
     try {
-      // Passes the raw audio path into the LiteRT-LM framework.
+      // 1. Local RAG Pipeline: Fetch historical medical profile strictly from offline SQLite Database
+      final List<Map<String, dynamic>> patientHistory = await _fhirRepository.getPatientHistory();
+
+      // 2. Format structure for injection into Gemma's Context Window
+      final StringBuffer systemPromptBuffer = StringBuffer();
+      systemPromptBuffer.writeln("You are a medical triage assistant. You must purely output valid JSON constrained to our schema.");
+      systemPromptBuffer.writeln("Evaluate the patient's incoming audio symptoms contextually against their known medical history.");
+      
+      if (patientHistory.isNotEmpty) {
+        systemPromptBuffer.writeln("LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):");
+        for (final resource in patientHistory) {
+          // Minimizing footprint by directly serializing JSON structures cleanly mapped into context bounds.
+          systemPromptBuffer.writeln("- ${resource['resourceType']}: ${jsonEncode(resource)}");
+        }
+      } else {
+        systemPromptBuffer.writeln("LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR): None documented.");
+      }
+
+      // 3. Pass raw audio + RAG augmented context natively evaluating bounds via LiteRT-LM limits
       final String? jsonResponse = await _channel.invokeMethod<String>('evaluateAudio', {
         'audioPath': audioFile.path,
+        'systemPrompt': systemPromptBuffer.toString(),
         'constraintFormat': 'json',
       });
 
@@ -73,11 +98,11 @@ class AiEngineService {
 
       final Map<String, dynamic> result = jsonDecode(jsonResponse) as Map<String, dynamic>;
 
-      // Rules Engine: Check for emergency flag based on constrained JSON response
+      // 4. Rules Engine: Check for emergency flag based on structured output limits resolving UI handoffs
       if (result.containsKey('emergency') && result['emergency'] == true) {
         final double confidence = (result['confidence'] as num?)?.toDouble() ?? 0.0;
         
-        // Throw an emergency state flag if confidence > 0.8
+        // Throw an emergency state flag if confidence > 0.8 ensuring routing routes optimally
         if (confidence > 0.8) {
           throw EmergencyFlagException(confidence);
         }

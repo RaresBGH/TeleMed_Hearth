@@ -52,4 +52,18 @@ class FhirRepository {
       throw Exception('Failed to get unsynced resources: ${e.message}');
     }
   }
+
+  /// Returns all historical Observation and Condition resources for the active patient
+  /// securely from the local encrypted SQLite DB to serve as context for the AI Engine.
+  Future<List<Map<String, dynamic>>> getPatientHistory() async {
+    try {
+      final String? result = await _channel.invokeMethod<String>('getPatientHistory');
+      if (result == null) return [];
+      
+      final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;
+      return parsed.cast<Map<String, dynamic>>();
+    } on PlatformException catch (e) {
+      throw Exception('Failed to get patient history: ${e.message}');
+    }
+  }
 }
