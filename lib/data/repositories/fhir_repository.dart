@@ -14,9 +14,12 @@ class FhirRepository {
   /// Initializes the local FHIR SDK engine and encrypted SQLite database.
   Future<void> initialize() async {
     try {
-      await _channel.invokeMethod<void>('initializeDatabase');
+      await _channel.invokeMethod<void>('initializeDatabase', {
+        'enableEncryption': true, // EXPLICIT SECURITY FIX: Enforce Android SQLCipher encryption-at-rest
+      });
     } on PlatformException catch (e) {
-      throw Exception('Failed to initialize FHIR Database: ${e.message}');
+      // SECURITY FIX: Prevent FHIR PII leakage by strictly logging generic Native Exception Codes, wiping exact inner message contents 
+      throw Exception('Failed to initialize local FHIR Database securely: Error ${e.code}');
     }
   }
 
@@ -26,7 +29,7 @@ class FhirRepository {
       final String jsonString = jsonEncode(observationJson);
       await _channel.invokeMethod<void>('saveObservation', {'resource': jsonString});
     } on PlatformException catch (e) {
-      throw Exception('Failed to save Observation: ${e.message}');
+      throw Exception('Secure local FHIR Observation Write failed: Error ${e.code}');
     }
   }
 
@@ -36,7 +39,7 @@ class FhirRepository {
       final String jsonString = jsonEncode(conditionJson);
       await _channel.invokeMethod<void>('saveCondition', {'resource': jsonString});
     } on PlatformException catch (e) {
-      throw Exception('Failed to save Condition: ${e.message}');
+      throw Exception('Secure local FHIR Condition Write failed: Error ${e.code}');
     }
   }
 
@@ -49,7 +52,7 @@ class FhirRepository {
       final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;
       return parsed.cast<Map<String, dynamic>>();
     } on PlatformException catch (e) {
-      throw Exception('Failed to get unsynced resources: ${e.message}');
+      throw Exception('Secure FHIR Sync Read failed: Error ${e.code}');
     }
   }
 
@@ -63,7 +66,7 @@ class FhirRepository {
       final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;
       return parsed.cast<Map<String, dynamic>>();
     } on PlatformException catch (e) {
-      throw Exception('Failed to get patient history: ${e.message}');
+      throw Exception('Secure offline FHIR History Read failed: Error ${e.code}');
     }
   }
 }

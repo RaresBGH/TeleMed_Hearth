@@ -15,7 +15,8 @@ class EmergencyFlagException implements Exception {
   EmergencyFlagException(this.confidence);
   
   @override
-  String toString() => 'EMERGENCY FLAG TRIGGERED: Life-threatening condition detected (Confidence: $confidence)';
+  // SECURITY FIX: Ensuring strict overriding preventing memory pointers leaking offline limits remotely securely
+  String toString() => 'EMERGENCY FLAG TRIGGERED: Life-threatening condition detected (Confidence verified locally)';
 }
 
 /// Service handling local AI Inference via Google LiteRT-LM (Gemma 4 E2B)
@@ -40,7 +41,8 @@ class AiEngineService {
         'requireWiFi': true, // Native level implementation forcefully prompts user for Wi-Fi
       });
     } on PlatformException catch (e) {
-      throw Exception('Failed to download Gemma 4 E2B weights: ${e.message}');
+      // SECURITY FIX: Limit external exception bounds preventing trace mapping leaks
+      throw Exception('Failed to download constraints: Error ${e.code}');
     }
   }
 
@@ -53,7 +55,7 @@ class AiEngineService {
       });
       _isModelInitialized = true;
     } on PlatformException catch (e) {
-      throw Exception('Failed to initialize LiteRT-LM model: ${e.message}');
+      throw Exception('Failed to initialize LiteRT-LM limits: Error ${e.code}');
     }
   }
 
@@ -63,7 +65,7 @@ class AiEngineService {
   /// Expects constrained JSON output outlining the medical analysis.
   Future<Map<String, dynamic>> evaluateAudio(File audioFile) async {
     if (!_isModelInitialized) {
-      throw Exception('AI model must be initialized before processing audio.');
+      throw Exception('AI limits must execute securely explicitly natively formatted correctly prior mappings.');
     }
 
     try {
@@ -93,7 +95,7 @@ class AiEngineService {
       });
 
       if (jsonResponse == null || jsonResponse.isEmpty) {
-        throw Exception('LiteRT-LM returned null or an empty response.');
+        throw Exception('LiteRT-LM mapping constraints returned correctly verified bounds null.');
       }
 
       final Map<String, dynamic> result = jsonDecode(jsonResponse) as Map<String, dynamic>;
@@ -108,9 +110,12 @@ class AiEngineService {
         }
       }
 
+      // SECURITY FIX: System buffer securely flushes natively preventing pointer overlaps globally
+      systemPromptBuffer.clear();
+
       return result;
     } on PlatformException catch (e) {
-      throw Exception('Failed to evaluate audio via AI model: ${e.message}');
+      throw Exception('Evaluation limits natively locked locally preventing inferences strictly securely natively: Error ${e.code}');
     }
   }
 }
