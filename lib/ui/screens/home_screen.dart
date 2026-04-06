@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/theme.dart';
 import '../../core/providers/medical_session_provider.dart';
+import '../../core/providers/app_navigation_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -85,6 +86,12 @@ class HomeScreen extends ConsumerWidget {
         unselectedItemColor: Colors.grey,
         selectedFontSize: 18,
         unselectedFontSize: 18,
+        currentIndex: 0,
+        onTap: (index) {
+          if (index == 1) {
+            ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.history);
+          }
+        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home, size: 36), label: 'Acasă'),
           BottomNavigationBarItem(icon: Icon(Icons.history, size: 36), label: 'Istoric'),

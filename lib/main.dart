@@ -11,7 +11,7 @@ import 'ui/theme/theme.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/confirmation_screen.dart';
 import 'ui/screens/emergency_screen.dart';
-
+import 'ui/screens/history_screen.dart';
 void main() {
   runApp(
     const ProviderScope(
@@ -39,6 +39,9 @@ class TeleMedApp extends ConsumerWidget {
         break;
       case AppRoute.home:
         screen = const HomeScreen();
+        break;
+      case AppRoute.history:
+        screen = const HistoryScreen();
         break;
     }
 
