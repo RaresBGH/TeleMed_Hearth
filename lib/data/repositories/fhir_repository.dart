@@ -69,4 +69,26 @@ class FhirRepository {
       throw Exception('Secure offline FHIR History Read failed: Error ${e.code}');
     }
   }
+
+  /// Returns the most recent Encounter resource for the patient.
+  Future<Map<String, dynamic>?> getMostRecentEncounter() async {
+    try {
+      final String? result = await _channel.invokeMethod<String>('getMostRecentEncounter');
+      if (result == null) return null;
+      return jsonDecode(result) as Map<String, dynamic>;
+    } on PlatformException catch (e) {
+      throw Exception('Secure offline FHIR Encounter Read failed: Error ${e.code}');
+    }
+  }
+
+  /// Returns the most recent MedicationRequest resource for the patient.
+  Future<Map<String, dynamic>?> getMostRecentMedicationRequest() async {
+    try {
+      final String? result = await _channel.invokeMethod<String>('getMostRecentMedicationRequest');
+      if (result == null) return null;
+      return jsonDecode(result) as Map<String, dynamic>;
+    } on PlatformException catch (e) {
+      throw Exception('Secure offline FHIR Medication Read failed: Error ${e.code}');
+    }
+  }
 }

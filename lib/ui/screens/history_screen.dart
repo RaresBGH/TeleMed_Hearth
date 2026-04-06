@@ -166,6 +166,8 @@ class HistoryScreen extends ConsumerWidget {
         onTap: (index) {
           if (index == 0) {
             ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home);
+          } else if (index == 2) {
+            ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.myDoctor);
           }
         },
         items: const [

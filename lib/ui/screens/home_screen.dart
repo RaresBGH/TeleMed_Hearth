@@ -90,6 +90,8 @@ class HomeScreen extends ConsumerWidget {
         onTap: (index) {
           if (index == 1) {
             ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.history);
+          } else if (index == 2) {
+            ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.myDoctor);
           }
         },
         items: const [
