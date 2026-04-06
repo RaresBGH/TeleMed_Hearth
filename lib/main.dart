@@ -13,6 +13,8 @@ import 'ui/screens/confirmation_screen.dart';
 import 'ui/screens/emergency_screen.dart';
 import 'ui/screens/history_screen.dart';
 import 'ui/screens/my_doctor_screen.dart';
+import 'ui/screens/waiting_room_screen.dart';
+import 'ui/screens/video_consultation_screen.dart';
 void main() {
   runApp(
     const ProviderScope(
@@ -46,6 +48,12 @@ class TeleMedApp extends ConsumerWidget {
         break;
       case AppRoute.myDoctor:
         screen = const MyDoctorScreen();
+        break;
+      case AppRoute.waitingRoom:
+        screen = const WaitingRoomScreen();
+        break;
+      case AppRoute.videoConsultation:
+        screen = const VideoConsultationScreen();
         break;
     }
 

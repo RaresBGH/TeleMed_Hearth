@@ -30,4 +30,6 @@ Our ultimate end goal is to create a perfect telemedicine app for rural areas la
 **# 6. Vibe Coding Diagnostics**
 - If you find yourself stuck in a loop or your performance degrades, you must stop immediately, explain succinctly how you are going to solve the problem, and state exactly what will be different this time compared to the previous attempt.
 
+Visual Verification First: Never write Flutter UI code from an MCP export until the user has provided a visual screenshot of the Stitch design for architectural review. The design must be verified against our accessibility constraints before logic wiring begins.
+
 UI STRICT RULE: Never generate frontend Flutter screens from scratch. You must always wait for the user to provide a Stitch MCP Export before writing UI code.

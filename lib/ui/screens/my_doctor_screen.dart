@@ -18,7 +18,6 @@ class MyDoctorScreen extends ConsumerStatefulWidget {
 
 class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
   bool _isCallActive = false;
-  String _activeCallId = '';
 
   @override
   void initState() {
@@ -41,7 +40,6 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
       if (mounted) {
         setState(() {
           _isCallActive = true;
-          _activeCallId = callData['callId'] ?? 'medplum_video_call_id';
         });
       }
     });
@@ -51,61 +49,14 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
       if (mounted && !_isCallActive) {
         setState(() {
           _isCallActive = true;
-          _activeCallId = 'medplum_video_call_id';
         });
       }
     });
   }
 
   void _showConsentAndAnswer() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFFF5F5F5), // High contrast off-white bg
-          title: const Text(
-            'Consimțământ Telemedicină',
-            style: TextStyle(color: Colors.black, fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          content: const Text(
-            'Sunteți de acord cu înregistrarea și procesarea datelor medicale conform normelor GD 1133/2022 pentru consultația video?',
-            style: TextStyle(color: Colors.black, fontSize: 20),
-          ),
-          actions: [
-            AccessibleTouchTarget(
-              semanticLabel: 'Refuză apelul',
-              onTap: () {
-                Navigator.of(context).pop();
-                setState(() => _isCallActive = false);
-              },
-              child: const Text('REFUZ', style: TextStyle(color: Colors.red, fontSize: 22, fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(width: 16),
-            AccessibleTouchTarget(
-              semanticLabel: 'Acceptă apelul video',
-              onTap: () async {
-                Navigator.of(context).pop(); // Close dialog
-                try {
-                  await ref.read(telemedicineServiceProvider).answerCall(_activeCallId);
-                  if (!context.mounted) return;
-                  setState(() => _isCallActive = false);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Consultație video conectată', style: TextStyle(fontSize: 18))),
-                  );
-                } catch (e) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Eroare conexiune: $e', style: const TextStyle(fontSize: 18))),
-                  );
-                }
-              },
-              child: const Text('ACCEPT', style: TextStyle(color: Color(0xFF0D631B), fontSize: 22, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-      },
-    );
+    // Navigates to waiting room for FCM listener replacement
+    ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.waitingRoom);
   }
 
   @override

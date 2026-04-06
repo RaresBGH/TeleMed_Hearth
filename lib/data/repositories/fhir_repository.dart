@@ -91,4 +91,13 @@ class FhirRepository {
       throw Exception('Secure offline FHIR Medication Read failed: Error ${e.code}');
     }
   }
+
+  /// Logs digital consent by securely updating the local FHIR Encounter.
+  Future<void> updateEncounterConsent(String callId) async {
+    try {
+      await _channel.invokeMethod<void>('updateEncounterConsent', {'callId': callId, 'consent': true});
+    } on PlatformException catch (e) {
+      throw Exception('Secure local FHIR Consent Write failed: Error ${e.code}');
+    }
+  }
 }

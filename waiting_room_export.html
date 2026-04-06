@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+
+<html lang="ro"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-container": "#ffeeeb",
+                    "on-primary-fixed-variant": "#005312",
+                    "secondary-fixed-dim": "#c6c6c6",
+                    "on-surface-variant": "#40493d",
+                    "error-container": "#ffdad6",
+                    "surface-dim": "#dadada",
+                    "secondary-fixed": "#e2e2e2",
+                    "error": "#ba1a1a",
+                    "on-surface": "#1a1c1c",
+                    "primary-container": "#2e7d32",
+                    "on-tertiary-fixed": "#410003",
+                    "on-secondary-fixed-variant": "#474747",
+                    "surface-bright": "#f9f9f9",
+                    "tertiary-fixed-dim": "#ffb4ac",
+                    "tertiary-fixed": "#ffdad6",
+                    "surface-container-low": "#f3f3f3",
+                    "secondary": "#5e5e5e",
+                    "outline": "#707a6c",
+                    "on-primary-container": "#cbffc2",
+                    "on-secondary": "#ffffff",
+                    "background": "#f9f9f9",
+                    "primary": "#0d631b",
+                    "on-primary": "#ffffff",
+                    "inverse-primary": "#88d982",
+                    "on-tertiary-fixed-variant": "#93000e",
+                    "tertiary-container": "#cf2f2d",
+                    "inverse-on-surface": "#f1f1f1",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-background": "#1a1c1c",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed": "#1b1b1b",
+                    "inverse-surface": "#2f3131",
+                    "tertiary": "#ab1118",
+                    "outline-variant": "#bfcaba",
+                    "on-error-container": "#93000a",
+                    "surface-container": "#eeeeee",
+                    "secondary-container": "#e2e2e2",
+                    "surface": "#f9f9f9",
+                    "primary-fixed-dim": "#88d982",
+                    "primary-fixed": "#a3f69c",
+                    "surface-tint": "#1b6d24",
+                    "on-primary-fixed": "#002204",
+                    "surface-variant": "#e2e2e2",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary-container": "#646464",
+                    "surface-container-high": "#e8e8e8",
+                    "on-error": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Lexend"],
+                    "body": ["Lexend"],
+                    "label": ["Lexend"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 48;
+        }
+        body {
+            font-family: 'Lexend', sans-serif;
+            background-color: #f5f5f5; /* Strict brand request */
+            color: #000000; /* Strict brand request */
+        }
+        .tonal-layer-card {
+            background-color: #ffffff;
+            box-shadow: 0 4px 32px -4px rgba(0,0,0,0.06);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen flex flex-col items-center justify-between selection:bg-primary-container selection:text-on-primary-container">
+<!-- Top Navigation Suppression (As per mandate: Task-focused pages hide global shell) -->
+<header class="w-full flex items-center justify-between px-6 py-6 bg-surface-container-low">
+<div class="flex items-center gap-4">
+<div class="w-16 h-16 rounded-full overflow-hidden flex-shrink-0 bg-secondary-container">
+<img class="w-full h-full object-cover" data-alt="Close up professional portrait of a kind male doctor with grey hair wearing a white coat and stethoscope in a bright clinic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpKQZ5CqdlCH-2GwHrc6xBCkRNxOG1HQNUVlx3eBspj-6OPseRgIJcLygC2X5w2ctIhJ36JtmlPG6s2knSjNB6Q8qW90D-JOGeibvUZS3Ptc4w1RkU2EGNE1fNokZTvVdSWnwWrlZmoKxF6G-B31KdUpFeQFQoP-udtyFIEd0aWsG0dEt7GZRmFmPDWyoHkJWOlDcJ8_odpyH5ZzlqC8FnPiGOkF5BizMM1YDiVEjz8GHl-91s90jmYQJsqkkZhGpjXQG3a0If3Nk"/>
+</div>
+<div>
+<p class="text-on-surface-variant text-lg font-medium">Cabinetul Medical</p>
+<h1 class="text-2xl font-bold tracking-tight">Dr. Bogheanu</h1>
+</div>
+</div>
+<div class="flex items-center">
+<span class="flex h-3 w-3 relative">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow w-full max-w-2xl px-6 py-8 flex flex-col justify-center gap-10">
+<!-- Status Message Section -->
+<section class="text-center">
+<h2 class="text-3xl font-extrabold leading-tight tracking-tight mb-4">
+                Conectare la cabinetul Dr. Bogheanu...
+            </h2>
+<div class="flex justify-center gap-2">
+<div class="w-3 h-3 bg-primary rounded-full opacity-40"></div>
+<div class="w-3 h-3 bg-primary rounded-full opacity-70"></div>
+<div class="w-3 h-3 bg-primary rounded-full"></div>
+</div>
+</section>
+<!-- Digital Consent Card (Bento-inspired Layering) -->
+<article class="tonal-layer-card p-8 rounded-xl border-l-8 border-primary">
+<div class="flex items-center gap-4 mb-6">
+<span class="material-symbols-outlined text-primary text-4xl" style="font-variation-settings: 'FILL' 1;">gavel</span>
+<h3 class="text-2xl font-bold">Acord de Consultanță</h3>
+</div>
+<div class="space-y-6">
+<p class="text-xl font-medium leading-relaxed">
+                    Prin acest serviciu, sunteți de acord cu partajarea datelor medicale cu <span class="font-bold">Dr. Bogheanu</span> pentru consultanță de la distanță.
+                </p>
+<ul class="space-y-4">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container mt-1">check_circle</span>
+<p class="text-lg text-on-surface-variant">Acces securizat la istoricul dumneavoastră medical.</p>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container mt-1">check_circle</span>
+<p class="text-lg text-on-surface-variant">Înregistrarea sesiunii pentru acuratețe clinică.</p>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container mt-1">check_circle</span>
+<p class="text-lg text-on-surface-variant">Confidențialitate garantată prin protocol medical.</p>
+</li>
+</ul>
+</div>
+</article>
+<!-- Ambient Instruction -->
+<div class="bg-surface-container-high p-4 rounded-lg flex items-center justify-center gap-3">
+<span class="material-symbols-outlined text-on-surface">info</span>
+<p class="text-lg font-semibold">Vă rugăm să citiți înainte de a începe.</p>
+</div>
+</main>
+<!-- Fixed Action Footer (Massive CTAs) -->
+<footer class="w-full max-w-2xl px-6 pb-12 pt-6 flex flex-col gap-4">
+<!-- Primary Action -->
+<button class="w-full min-h-[80px] bg-primary hover:bg-primary-container text-on-primary rounded-xl flex items-center justify-center gap-4 shadow-lg active:scale-95 transition-all duration-150 group">
+<span class="text-2xl font-extrabold">Sunt de acord</span>
+<span class="material-symbols-outlined text-3xl group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+<!-- Secondary Action -->
+<button class="w-full min-h-[72px] bg-transparent border-2 border-on-surface text-tertiary rounded-xl flex items-center justify-center gap-4 hover:bg-surface-container-highest active:scale-95 transition-all duration-150">
+<span class="material-symbols-outlined text-2xl">close</span>
+<span class="text-xl font-bold uppercase tracking-wide">Anulează</span>
+</button>
+<p class="text-center text-on-surface-variant text-sm px-4">
+            Consultul va începe imediat după ce apăsați butonul de confirmare.
+        </p>
+</footer>
+<!-- Decorative Texture (Asymmetric Subtle Gradient) -->
+<div class="fixed top-0 right-0 w-1/2 h-full -z-10 bg-gradient-to-l from-primary/5 to-transparent pointer-events-none"></div>
+</body></html>

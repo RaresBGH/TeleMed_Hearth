@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'medical_session_provider.dart';
 
-enum AppRoute { home, confirmation, emergency, history, myDoctor }
+enum AppRoute { home, confirmation, emergency, history, myDoctor, waitingRoom, videoConsultation }
 
 class AppNavigationNotifier extends Notifier<AppRoute> {
   @override

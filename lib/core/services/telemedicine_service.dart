@@ -3,6 +3,7 @@
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/providers/app_navigation_provider.dart';
 
 class TelemedicineService {
   static const MethodChannel _channel = MethodChannel('com.telemed_k/telemedicine');
@@ -39,5 +40,9 @@ class TelemedicineService {
 }
 
 final telemedicineServiceProvider = Provider<TelemedicineService>((ref) {
-  return TelemedicineService();
+  final service = TelemedicineService();
+  service.listenForIncomingCall((_) {
+    ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.waitingRoom);
+  });
+  return service;
 });
