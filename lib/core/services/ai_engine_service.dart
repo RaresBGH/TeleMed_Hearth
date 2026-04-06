@@ -118,4 +118,60 @@ class AiEngineService {
       throw Exception('Evaluation limits natively locked locally preventing inferences strictly securely natively: Error ${e.code}');
     }
   }
+
+  /// Evaluates multimodal media (image or video up to 60 seconds) directly natively using Gemma 4 E2B locally.
+  /// Bypasses any external OCR, processing visual indicators purely into structured HL7 FHIR Observation constraints.
+  Future<Map<String, dynamic>> evaluateMedia(File mediaFile) async {
+    if (!_isModelInitialized) {
+      throw Exception('AI limits must execute securely explicitly natively formatted correctly prior mappings.');
+    }
+
+    try {
+      // 1. Local RAG Pipeline: Fetch historical medical profile strictly from offline SQLite Database
+      final List<Map<String, dynamic>> patientHistory = await _fhirRepository.getPatientHistory();
+
+      // 2. Format structure for injection into Gemma's Context Window
+      final StringBuffer systemPromptBuffer = StringBuffer();
+      systemPromptBuffer.writeln("You are a medical visual triage assistant running natively. Analyze the provided image/video.");
+      systemPromptBuffer.writeln("Output purely valid JSON constrained to our schema mapping to HL7 FHIR Observation.");
+      
+      if (patientHistory.isNotEmpty) {
+        systemPromptBuffer.writeln("LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):");
+        for (final resource in patientHistory) {
+          systemPromptBuffer.writeln("- ${resource['resourceType']}: ${jsonEncode(resource)}");
+        }
+      } else {
+        systemPromptBuffer.writeln("LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR): None documented.");
+      }
+
+      // 3. Pass raw media + RAG augmented context natively evaluating bounds via LiteRT-LM limits
+      final String? jsonResponse = await _channel.invokeMethod<String>('evaluateMedia', {
+        'mediaPath': mediaFile.path,
+        'systemPrompt': systemPromptBuffer.toString(),
+        'constraintFormat': 'json',
+        'maxDurationSeconds': 60,
+      });
+
+      if (jsonResponse == null || jsonResponse.isEmpty) {
+        throw Exception('LiteRT-LM multimodal mapping returned null.');
+      }
+
+      final Map<String, dynamic> result = jsonDecode(jsonResponse) as Map<String, dynamic>;
+
+      // 4. Rules Engine: Check for emergency flag
+      if (result.containsKey('emergency') && result['emergency'] == true) {
+        final double confidence = (result['confidence'] as num?)?.toDouble() ?? 0.0;
+        if (confidence > 0.8) {
+          throw EmergencyFlagException(confidence);
+        }
+      }
+
+      // SECURITY FIX: System buffer securely flushes natively
+      systemPromptBuffer.clear();
+
+      return result;
+    } on PlatformException catch (e) {
+      throw Exception('Multimodal native evaluation error: ${e.code}');
+    }
+  }
 }

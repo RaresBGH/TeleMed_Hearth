@@ -27,7 +27,15 @@ class HomeScreen extends ConsumerWidget {
           ),
           AccessibleTouchTarget(
             semanticLabel: 'Deschide Camera',
-            onTap: () {}, // Future camera routing
+            onTap: () {
+              ref.read(medicalSessionProvider.notifier).startRecording();
+              
+              // Mocking a multimodal processing flow wait
+              Future.delayed(const Duration(seconds: 1), () {
+                final dummyMedia = File('dummy_multimodal_path.jpg');
+                ref.read(medicalSessionProvider.notifier).processMedia(dummyMedia);
+              });
+            },
             child: const Icon(Icons.camera_alt, size: 32),
           ),
         ],

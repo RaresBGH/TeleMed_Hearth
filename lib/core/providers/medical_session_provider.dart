@@ -51,6 +51,28 @@ class MedicalSessionNotifier extends Notifier<SessionState> {
     state = SessionState.idle;
     errorMessage = null;
   }
+
+  Future<void> processMedia(File mediaFile) async {
+    state = SessionState.processing;
+    try {
+      final result = await _aiEngineService.evaluateMedia(mediaFile);
+      
+      // Save valid FHIR resources mapped from result
+      if (result.containsKey('observation')) {
+        await _fhirRepository.saveObservation(result['observation'] as Map<String, dynamic>);
+      }
+      if (result.containsKey('condition')) {
+        await _fhirRepository.saveCondition(result['condition'] as Map<String, dynamic>);
+      }
+      
+      state = SessionState.success;
+    } on EmergencyFlagException catch (_) {
+      state = SessionState.emergency;
+    } catch (e) {
+      errorMessage = e.toString();
+      state = SessionState.error;
+    }
+  }
 }
 
 // Global Providers mapping
