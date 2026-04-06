@@ -20,9 +20,13 @@ class MockAiEngineService extends AiEngineService {
   MockAiEngineService(super.fhirRepository);
 
   @override
-  Future<Map<String, dynamic>> evaluateAudio(File audioFile) async {
-    // SECURITY LIMITS: Triggering synthetic 112 emergency routing constraints accurately directly without local leaks 
-    throw EmergencyFlagException(0.95);
+  Future<Map<String, dynamic>> evaluateAudio(File audioFile, {String? customPrompt}) async {
+    return {'emergency': false, 'confidence': 0.9};
+  }
+
+  @override
+  Future<Map<String, dynamic>> evaluateMedia(File mediaFile, {String? customPrompt}) async {
+    return {'emergency': false, 'confidence': 0.9};
   }
 }
 

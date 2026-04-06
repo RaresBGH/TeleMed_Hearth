@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+
+<html lang="ro"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline-variant": "#bfcaba",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "inverse-surface": "#2f3131",
+                    "on-secondary-fixed-variant": "#474747",
+                    "surface-container-highest": "#e2e2e2",
+                    "tertiary-fixed": "#ffdad6",
+                    "surface-container": "#eeeeee",
+                    "on-primary-fixed": "#002204",
+                    "on-tertiary": "#ffffff",
+                    "inverse-on-surface": "#f1f1f1",
+                    "surface-bright": "#f9f9f9",
+                    "primary-container": "#2e7d32",
+                    "error": "#ba1a1a",
+                    "on-surface": "#1a1c1c",
+                    "secondary-fixed-dim": "#c6c6c6",
+                    "on-primary-container": "#cbffc2",
+                    "error-container": "#ffdad6",
+                    "secondary-fixed": "#e2e2e2",
+                    "primary-fixed-dim": "#88d982",
+                    "surface-tint": "#1b6d24",
+                    "on-primary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "surface-container-high": "#e8e8e8",
+                    "on-tertiary-fixed-variant": "#93000e",
+                    "tertiary": "#ab1118",
+                    "primary-fixed": "#a3f69c",
+                    "on-tertiary-fixed": "#410003",
+                    "tertiary-fixed-dim": "#ffb4ac",
+                    "primary": "#0d631b",
+                    "surface-container-low": "#f3f3f3",
+                    "outline": "#707a6c",
+                    "on-secondary-container": "#646464",
+                    "secondary": "#5e5e5e",
+                    "on-primary-fixed-variant": "#005312",
+                    "on-error-container": "#93000a",
+                    "inverse-primary": "#88d982",
+                    "on-background": "#1a1c1c",
+                    "background": "#f9f9f9",
+                    "surface-dim": "#dadada",
+                    "surface": "#f9f9f9",
+                    "secondary-container": "#e2e2e2",
+                    "on-tertiary-container": "#ffeeeb",
+                    "on-secondary-fixed": "#1b1b1b",
+                    "surface-variant": "#e2e2e2",
+                    "tertiary-container": "#cf2f2d",
+                    "on-surface-variant": "#40493d"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Lexend"],
+                    "body": ["Lexend"],
+                    "label": ["Lexend"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Lexend', sans-serif;
+            background-color: #f9f9f9;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen flex flex-col">
+<!-- TopAppBar from JSON -->
+<header class="w-full top-0 flex items-center justify-center h-20 px-6 bg-[#f3f3f3] dark:bg-[#252828] no-border tonal-shift">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#0d631b] dark:text-[#2e7d32] text-3xl" data-icon="shield_person">shield_person</span>
+<h1 class="font-lexend text-[18sp] font-bold text-[#0d631b] dark:text-[#2e7d32]">Autentificare</h1>
+</div>
+</header>
+<main class="flex-grow flex flex-col items-center px-6 pt-12 pb-24 max-w-2xl mx-auto w-full">
+<!-- Hero Section -->
+<div class="w-full text-center mb-12">
+<h2 class="text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-4 leading-tight">
+                Sănătatea ta, la un click distanță
+            </h2>
+<div class="h-1.5 w-24 bg-primary mx-auto rounded-full"></div>
+</div>
+<!-- Visual Anchor Card -->
+<div class="w-full mb-10 overflow-hidden rounded-xl bg-surface-container-low p-1">
+<img alt="Senior caring hands" class="w-full h-48 object-cover rounded-lg" data-alt="Close-up of two warm, wrinkled hands holding each other gently with soft natural morning light in a bright interior" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCiw1QLbEDTpIGK3s_Eu7yCEMjiQFvCbvBMdj5zUPxmgOrPCzb-FsZWtLQraRFMZCsU3pbDxEy-pW-1LZu40mjEH-4c-2qIkNLzf5R5Ro3xYU8FbYPYZ6D6nx6CkHQKSQyK8CMeIB6ri1ZL0uWXliof189pKPY3rrP6BgOwr-vNTdXh0rRosP6HXP6DgYLBSG881j3aSHI7Jp-MczDkN6Z1dnLxRRGz_2DqTPvrhYTv0xqPzzPMEW7lLtMV1HG_k6YoUYx8Zng7Z7k"/>
+</div>
+<!-- Login Form -->
+<div class="w-full space-y-8">
+<!-- CNP Field -->
+<div class="space-y-3">
+<label class="block text-xl font-bold text-on-surface ml-1" for="cnp">
+                    CNP (Cod Numeric Personal)
+                </label>
+<div class="relative">
+<input class="w-full h-20 px-6 text-2xl font-medium rounded-xl border-2 border-on-surface bg-white focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none appearance-none" id="cnp" inputmode="numeric" pattern="[0-9]*" placeholder="Introduceți cele 13 cifre" type="number"/>
+<div class="absolute right-6 top-1/2 -translate-y-1/2 opacity-20">
+<span class="material-symbols-outlined text-4xl" data-icon="fingerprint">fingerprint</span>
+</div>
+</div>
+</div>
+<!-- Phone Field -->
+<div class="space-y-3">
+<label class="block text-xl font-bold text-on-surface ml-1" for="phone">
+                    Număr de Telefon
+                </label>
+<div class="relative">
+<input class="w-full h-20 px-6 text-2xl font-medium rounded-xl border-2 border-on-surface bg-white focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none" id="phone" inputmode="numeric" pattern="[0-9]*" placeholder="Ex: 0722 000 000" type="tel"/>
+<div class="absolute right-6 top-1/2 -translate-y-1/2 opacity-20">
+<span class="material-symbols-outlined text-4xl" data-icon="call">call</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Helpful Prompt -->
+<div class="mt-12 p-6 rounded-xl bg-surface-container-high border-l-8 border-primary flex items-start gap-4">
+<span class="material-symbols-outlined text-primary text-3xl mt-1" data-icon="info">info</span>
+<p class="text-lg font-medium text-on-surface-variant">Dacă aveți nevoie de ajutor, apăsați butonul de Ajutor de mai jos. Câmpurile necesare pot fi completate inclusiv audio sau prin fotografierea actului de identitate.</p>
+</div>
+<!-- Primary Action Button -->
+<div class="w-full mt-12 mb-20">
+<button class="w-full h-24 bg-primary hover:bg-primary-container text-white font-black text-2xl rounded-xl border-2 border-on-surface shadow-[0_8px_0_0_#1a1c1c] active:translate-y-1 active:shadow-[0_4px_0_0_#1a1c1c] transition-all flex items-center justify-center gap-3">
+                CONTINUĂ
+                <span class="material-symbols-outlined text-4xl" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</main>
+<!-- BottomNavBar from JSON -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-4 bg-white/85 dark:bg-[#1a1c1c]/85 backdrop-blur-md shadow-[0_-4px_32px_rgba(26,28,28,0.06)] rounded-t-lg">
+<!-- Home (Inactive) -->
+<a class="flex flex-col items-center justify-center text-[#1a1c1c] dark:text-[#f9f9f9] p-4 hover:bg-[#f3f3f3] dark:hover:bg-[#252828] rounded-xl transition-all active:scale-95 duration-300" href="#">
+<span class="material-symbols-outlined text-4xl" data-icon="home">home</span>
+<span class="font-lexend text-[18sp] font-bold">Acasă</span>
+</a>
+<!-- Help (Inactive) - Since this is Login, user might need help, but "Acasă" is technically the landing -->
+<a class="flex flex-col items-center justify-center text-[#1a1c1c] dark:text-[#f9f9f9] p-4 hover:bg-[#f3f3f3] dark:hover:bg-[#252828] rounded-xl transition-all active:scale-95 duration-300" href="#">
+<span class="material-symbols-outlined text-4xl" data-icon="help_outline">help_outline</span>
+<span class="font-lexend text-[18sp] font-bold">Ajutor</span>
+</a>
+</nav>
+</body></html>

@@ -63,7 +63,7 @@ class AiEngineService {
   /// Executes a secure Local RAG: Retrieves the patient's FHIR history from SQLite and 
   /// injects it perfectly into the System Prompt natively entirely via constraints.
   /// Expects constrained JSON output outlining the medical analysis.
-  Future<Map<String, dynamic>> evaluateAudio(File audioFile) async {
+  Future<Map<String, dynamic>> evaluateAudio(File audioFile, {String? customPrompt}) async {
     if (!_isModelInitialized) {
       throw Exception('AI limits must execute securely explicitly natively formatted correctly prior mappings.');
     }
@@ -74,8 +74,12 @@ class AiEngineService {
 
       // 2. Format structure for injection into Gemma's Context Window
       final StringBuffer systemPromptBuffer = StringBuffer();
-      systemPromptBuffer.writeln("You are a medical triage assistant. You must purely output valid JSON constrained to our schema.");
-      systemPromptBuffer.writeln("Evaluate the patient's incoming audio symptoms contextually against their known medical history.");
+      if (customPrompt != null) {
+        systemPromptBuffer.writeln(customPrompt);
+      } else {
+        systemPromptBuffer.writeln("You are a medical triage assistant. You must purely output valid JSON constrained to our schema.");
+        systemPromptBuffer.writeln("Evaluate the patient's incoming audio symptoms contextually against their known medical history.");
+      }
       
       if (patientHistory.isNotEmpty) {
         systemPromptBuffer.writeln("LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):");
@@ -121,7 +125,7 @@ class AiEngineService {
 
   /// Evaluates multimodal media (image or video up to 60 seconds) directly natively using Gemma 4 E2B locally.
   /// Bypasses any external OCR, processing visual indicators purely into structured HL7 FHIR Observation constraints.
-  Future<Map<String, dynamic>> evaluateMedia(File mediaFile) async {
+  Future<Map<String, dynamic>> evaluateMedia(File mediaFile, {String? customPrompt}) async {
     if (!_isModelInitialized) {
       throw Exception('AI limits must execute securely explicitly natively formatted correctly prior mappings.');
     }
@@ -132,8 +136,12 @@ class AiEngineService {
 
       // 2. Format structure for injection into Gemma's Context Window
       final StringBuffer systemPromptBuffer = StringBuffer();
-      systemPromptBuffer.writeln("You are a medical visual triage assistant running natively. Analyze the provided image/video.");
-      systemPromptBuffer.writeln("Output purely valid JSON constrained to our schema mapping to HL7 FHIR Observation.");
+      if (customPrompt != null) {
+        systemPromptBuffer.writeln(customPrompt);
+      } else {
+        systemPromptBuffer.writeln("You are a medical visual triage assistant running natively. Analyze the provided image/video.");
+        systemPromptBuffer.writeln("Output purely valid JSON constrained to our schema mapping to HL7 FHIR Observation.");
+      }
       
       if (patientHistory.isNotEmpty) {
         systemPromptBuffer.writeln("LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):");
