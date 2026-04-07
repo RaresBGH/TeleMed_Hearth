@@ -1,5 +1,68 @@
+// Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
+// You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
+//
+// TeleMed_K: Offline-first telemedicine app for seniors
+// Phase 7.10 — Native Kotlin Bridge: FHIR Engine + LiteRT-LM + Telemedicine MethodChannels
+
 package com.example.telemed_k
 
-import io.flutter.embedding.android.FlutterActivity
+import android.os.Bundle
+import io.flutter.embedding.android.FlutterFragmentActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity()
+import com.example.telemed_k.channels.FhirEngineChannel
+import com.example.telemed_k.channels.LiteRtLmChannel
+import com.example.telemed_k.channels.TelemedicineChannel
+
+/**
+ * Main Activity for TeleMed_K.
+ *
+ * Extends [FlutterFragmentActivity] (required by smart_auth for Android SMS Retriever API
+ * fragment lifecycle) instead of the default [FlutterActivity].
+ *
+ * Registers three native MethodChannels that bridge Flutter ↔ Android:
+ *   1. com.telemed_k/fhir_engine  — Google Android FHIR SDK (encrypted SQLite CRUD)
+ *   2. com.telemed_k/litert_lm    — Google LiteRT-LM (Gemma 4 E2B local inference)
+ *   3. com.telemed_k/telemedicine  — WebRTC call signaling via Medplum
+ */
+class MainActivity : FlutterFragmentActivity() {
+
+    companion object {
+        private const val FHIR_ENGINE_CHANNEL = "com.telemed_k/fhir_engine"
+        private const val LITERT_LM_CHANNEL = "com.telemed_k/litert_lm"
+        private const val TELEMEDICINE_CHANNEL = "com.telemed_k/telemedicine"
+    }
+
+    private lateinit var fhirEngineChannel: FhirEngineChannel
+    private lateinit var liteRtLmChannel: LiteRtLmChannel
+    private lateinit var telemedicineChannel: TelemedicineChannel
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+
+        // --- 1. FHIR Engine Channel ---
+        fhirEngineChannel = FhirEngineChannel(this)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            FHIR_ENGINE_CHANNEL
+        ).setMethodCallHandler(fhirEngineChannel)
+
+        // --- 2. LiteRT-LM Channel ---
+        liteRtLmChannel = LiteRtLmChannel(this)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            LITERT_LM_CHANNEL
+        ).setMethodCallHandler(liteRtLmChannel)
+
+        // --- 3. Telemedicine Channel ---
+        telemedicineChannel = TelemedicineChannel(this)
+        val telemedicineMethodChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            TELEMEDICINE_CHANNEL
+        )
+        telemedicineMethodChannel.setMethodCallHandler(telemedicineChannel)
+        // Provide the channel reference back so native can invoke onIncomingCall → Dart
+        telemedicineChannel.setDartChannel(telemedicineMethodChannel)
+    }
+}

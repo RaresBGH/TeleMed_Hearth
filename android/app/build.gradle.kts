@@ -1,3 +1,8 @@
+// Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
+// You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
+//
+// TeleMed_K: Offline-first telemedicine app for seniors — Native Android Build Configuration
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -11,6 +16,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Required by Android FHIR SDK transitive dependencies (java.time desugaring)
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -20,11 +27,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.telemed_k"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // FHIR SDK requires API 28+; aligns with our rural elderly device floor (Android 9 Pie).
+        minSdk = 28
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -37,8 +42,44 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/DEPENDENCIES",
+                "META-INF/INDEX.LIST",
+                "META-INF/*.SF",
+                "META-INF/*.DSA",
+                "META-INF/*.RSA",
+            )
+        }
+    }
 }
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // --- Core Library Desugaring (required by FHIR SDK for java.time on API < 33) ---
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+
+    // --- Google Android FHIR SDK ---
+    // Local FHIR Engine: encrypted SQLite storage for Observation/Condition/Encounter resources
+    implementation("com.google.android.fhir:engine:1.2.0")
+    // Structured Data Capture: FHIR Questionnaire rendering (future consent forms)
+    implementation("com.google.android.fhir:data-capture:1.1.0")
+
+    // --- Google LiteRT-LM: On-device Gemma 4 E2B inference ---
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.9.0-alpha01")
+
+    // --- SQLCipher: Encryption-at-rest for the FHIR SQLite database ---
+    implementation("net.zetetic:sqlcipher-android:4.6.1@aar")
+    implementation("androidx.sqlite:sqlite:2.4.0")
+
+    // --- Kotlin Coroutines: Required for suspending native bridge functions ---
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
+
+    // --- AndroidX AppCompat: Required by FlutterFragmentActivity ---
+    implementation("androidx.appcompat:appcompat:1.7.0")
 }
