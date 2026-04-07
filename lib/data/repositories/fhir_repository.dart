@@ -100,4 +100,13 @@ class FhirRepository {
       throw Exception('Secure local FHIR Consent Write failed: Error ${e.code}');
     }
   }
+
+  /// Marks a list of resource IDs as successfully synced to the remote server.
+  Future<void> markAsSynced(List<String> resourceIds) async {
+    try {
+      await _channel.invokeMethod<void>('markAsSynced', {'resourceIds': resourceIds});
+    } on PlatformException catch (e) {
+      throw Exception('Secure local FHIR Mark Synced failed: Error ${e.code}');
+    }
+  }
 }
