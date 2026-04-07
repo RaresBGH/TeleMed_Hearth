@@ -19,6 +19,7 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 64, // Rule enforced: 64dp minimum for touch targets in actions
         title: const Text('TeleMed_K'),
         actions: [
           AccessibleTouchTarget(
