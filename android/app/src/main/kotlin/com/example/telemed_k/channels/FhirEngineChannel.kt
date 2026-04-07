@@ -66,6 +66,7 @@ class FhirEngineChannel(
             "getMostRecentMedicationRequest" -> handleGetMostRecentMedicationRequest(result)
             "updateEncounterConsent" -> handleUpdateEncounterConsent(call, result)
             "markAsSynced" -> handleMarkAsSynced(call, result)
+            "seedMockData" -> handleSeedMockData(result)
             else -> result.notImplemented()
         }
     }
@@ -346,6 +347,121 @@ class FhirEngineChannel(
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to mark resources as synced", e)
                 result.error("FHIR_WRITE_ERROR", "Mark synced failed", null)
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // seedMockData
+    // ──────────────────────────────────────────────────────────────────────────
+    private fun handleSeedMockData(result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                ensureInitialized()
+                val parser = fhirContext.newJsonParser()
+
+                // Patient Mock
+                val patientJson = """
+                {
+                  "resourceType": "Patient",
+                  "id": "mock-patient-1",
+                  "name": [{"family": "Popescu", "given": ["Ion"]}],
+                  "telecom": [{"system": "phone", "value": "+40700000000", "use": "mobile"}]
+                }
+                """.trimIndent()
+                val patient = parser.parseResource(org.hl7.fhir.r4.model.Patient::class.java, patientJson)
+
+                // Practitioner Mock
+                val practitionerJson = """
+                {
+                  "resourceType": "Practitioner",
+                  "id": "mock-practitioner-1",
+                  "name": [{"family": "Bogheanu", "given": ["Adriana"], "prefix": ["Dr."]}]
+                }
+                """.trimIndent()
+                val practitioner = parser.parseResource(org.hl7.fhir.r4.model.Practitioner::class.java, practitionerJson)
+
+                // Observation Mock
+                val observationJson = """
+                {
+                  "resourceType": "Observation",
+                  "id": "mock-observation-1",
+                  "status": "final",
+                  "code": {
+                    "coding": [{"system": "http://loinc.org", "code": "85354-9", "display": "Tensiune arterială"}]
+                  },
+                  "subject": {"reference": "Patient/mock-patient-1"},
+                  "valueQuantity": {"value": 120, "unit": "mmHg"}
+                }
+                """.trimIndent()
+                val observation = parser.parseResource(org.hl7.fhir.r4.model.Observation::class.java, observationJson)
+
+                // Condition Mock
+                val conditionJson = """
+                {
+                  "resourceType": "Condition",
+                  "id": "mock-condition-1",
+                  "clinicalStatus": {
+                    "coding": [{"system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active"}]
+                  },
+                  "code": {
+                    "coding": [{"system": "http://snomed.info/sct", "code": "38341003", "display": "Hipertensiune arterială"}]
+                  },
+                  "subject": {"reference": "Patient/mock-patient-1"}
+                }
+                """.trimIndent()
+                val condition = parser.parseResource(org.hl7.fhir.r4.model.Condition::class.java, conditionJson)
+
+                // MedicationRequest Mock
+                val medicationJson = """
+                {
+                  "resourceType": "MedicationRequest",
+                  "id": "mock-medication-1",
+                  "status": "active",
+                  "intent": "order",
+                  "medicationCodeableConcept": {
+                    "coding": [{"system": "http://www.nlm.nih.gov/research/umls/rxnorm", "code": "316049", "display": "Lisinopril 10 MG Oral Tablet"}]
+                  },
+                  "subject": {"reference": "Patient/mock-patient-1"},
+                  "authoredOn": "2026-04-01T08:00:00Z"
+                }
+                """.trimIndent()
+                val medication = parser.parseResource(org.hl7.fhir.r4.model.MedicationRequest::class.java, medicationJson)
+
+                // Pending Encounter Mock
+                val encounterJson = """
+                {
+                  "resourceType": "Encounter",
+                  "id": "pending-encounter",
+                  "status": "planned",
+                  "class": {
+                    "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+                    "code": "VR",
+                    "display": "virtual"
+                  },
+                  "subject": {"reference": "Patient/mock-patient-1"},
+                  "participant": [{"individual": {"reference": "Practitioner/mock-practitioner-1"}}]
+                }
+                """.trimIndent()
+                val encounter = parser.parseResource(org.hl7.fhir.r4.model.Encounter::class.java, encounterJson)
+
+                // Insert into DB if not exists.
+                val resources = listOf(patient, practitioner, observation, condition, medication, encounter)
+                resources.forEach { resource ->
+                    runCatching {
+                        fhirEngine!!.create(resource)
+                    }.onFailure { ex ->
+                        // if already exists or fails to create, try to update it just to be safe
+                        runCatching { fhirEngine!!.update(resource) }
+                            .onFailure { updateEx -> Log.w(TAG, "Failed to upsert resource: " + resource.id, updateEx) }
+                    }
+                }
+
+                Log.i(TAG, "Mock FHIR resources seeded successfully")
+                result.success(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to seed mock data", e)
+                result.error("FHIR_SEED_ERROR", "Mock data seeding failed", null)
             }
         }
     }

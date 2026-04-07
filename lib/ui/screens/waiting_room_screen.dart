@@ -12,7 +12,7 @@ import '../theme/theme.dart';
 class WaitingRoomScreen extends ConsumerWidget {
   final String callId;
 
-  const WaitingRoomScreen({super.key, this.callId = 'medplum_video_call_id'});
+  const WaitingRoomScreen({super.key, this.callId = 'pending-encounter'});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

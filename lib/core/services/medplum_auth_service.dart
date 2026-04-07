@@ -10,8 +10,15 @@ import 'fhir_sync_service.dart';
 /// Service responsible for handling authentication via Medplum.
 /// It uses the provided CNP/Phone and OTP to obtain an OAuth2 token securely.
 class MedplumAuthService {
-  static const String _medplumTokenUrl = 'https://api.medplum.com/oauth2/token';
-  static const String _clientId = 'telemed_k_mobile_client'; // Placeholder client ID
+  // SMART-on-FHIR Configuration Placeholders
+  // ignore: unused_field
+  static const String _smartAuthUri = 'https://api.medplum.com/oauth2/authorize';
+  static const String _smartTokenUri = 'https://api.medplum.com/oauth2/token';
+  // ignore: unused_field
+  static const String _smartJwksUri = 'https://api.medplum.com/oauth2/jwks';
+  static const String _clientId = 'telemed_k_mobile_client'; // Client ID
+  // ignore: unused_field
+  static const String _redirectUri = 'telemed-k://callback'; // Native custom scheme
 
   final FhirSyncService _syncService = FhirSyncService();
 
@@ -20,7 +27,7 @@ class MedplumAuthService {
   Future<bool> authenticateWithOTP(String cnp, String otp) async {
     try {
       final response = await http.post(
-        Uri.parse(_medplumTokenUrl),
+        Uri.parse(_smartTokenUri),
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },

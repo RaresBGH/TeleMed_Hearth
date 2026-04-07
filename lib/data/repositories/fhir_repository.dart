@@ -17,6 +17,9 @@ class FhirRepository {
       await _channel.invokeMethod<void>('initializeDatabase', {
         'enableEncryption': true, // EXPLICIT SECURITY FIX: Enforce Android SQLCipher encryption-at-rest
       });
+      
+      // Seed mock data upon first launch (Phase 7.7)
+      await _channel.invokeMethod<void>('seedMockData');
     } on PlatformException catch (e) {
       // SECURITY FIX: Prevent FHIR PII leakage by strictly logging generic Native Exception Codes, wiping exact inner message contents 
       throw Exception('Failed to initialize local FHIR Database securely: Error ${e.code}');

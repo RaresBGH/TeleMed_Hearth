@@ -51,8 +51,16 @@ android {
                 "META-INF/*.SF",
                 "META-INF/*.DSA",
                 "META-INF/*.RSA",
+		"META-INF/ASL-2.0.txt",
+		"META-INF/LGPL-3.0.txt",
             )
         }
+	jniLibs {
+      	  pickFirsts.add("lib/arm64-v8a/libsqlcipher.so")
+        	pickFirsts.add("lib/armeabi-v7a/libsqlcipher.so")
+      	  pickFirsts.add("lib/x86/libsqlcipher.so")
+        	pickFirsts.add("lib/x86_64/libsqlcipher.so")
+    }
     }
 }
 
