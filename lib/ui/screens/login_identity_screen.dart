@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
+import '../../core/providers/auth_provider.dart';
 import '../theme/theme.dart';
 
 class LoginIdentityScreen extends ConsumerStatefulWidget {
@@ -288,8 +289,11 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                   AccessibleTouchTarget(
                     semanticLabel: 'Continuă autentificarea',
                     onTap: () {
-                      // Navigate to home after successful auth
-                      ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home);
+                      final cnp = _cnpController.text.trim();
+                      if (cnp.isNotEmpty) {
+                        ref.read(loginCnpProvider.notifier).setCnp(cnp);
+                      }
+                      ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.loginVerification);
                     },
                     child: Container(
                       width: double.infinity,

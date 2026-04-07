@@ -2,18 +2,21 @@
 // You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_auth/smart_auth.dart';
 import 'package:telemed_k/ui/widgets/legal_document_modal.dart';
-import 'package:telemed_k/ui/screens/home_screen.dart';
+import '../../core/providers/app_navigation_provider.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/services/medplum_auth_service.dart';
 
-class LoginVerificationScreen extends StatefulWidget {
+class LoginVerificationScreen extends ConsumerStatefulWidget {
   const LoginVerificationScreen({super.key});
 
   @override
-  State<LoginVerificationScreen> createState() => _LoginVerificationScreenState();
+  ConsumerState<LoginVerificationScreen> createState() => _LoginVerificationScreenState();
 }
 
-class _LoginVerificationScreenState extends State<LoginVerificationScreen> {
+class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScreen> {
   final List<TextEditingController> _controllers = List.generate(6, (index) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
 
@@ -66,13 +69,29 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen> {
     );
   }
 
-  void _onConfirmAndCreateAccount() {
-    // Navigating directly to home screen per instructions
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => const HomeScreen(),
-      ),
-    );
+  bool _isAuthenticating = false;
+
+  void _onConfirmAndCreateAccount() async {
+    final otp = _controllers.map((c) => c.text).join();
+    if (otp.length < 6) return; // Ensure full OTP
+
+    setState(() => _isAuthenticating = true);
+
+    final cnp = ref.read(loginCnpProvider);
+    final medplumAuth = ref.read(medplumAuthServiceProvider);
+
+    final success = await medplumAuth.authenticateWithOTP(cnp, otp);
+
+    if (mounted) {
+      setState(() => _isAuthenticating = false);
+      if (success) {
+        ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cod invalid sau eroare de rețea. Vă rugăm să încercați din nou.')),
+        );
+      }
+    }
   }
 
   @override
@@ -190,7 +209,7 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen> {
               
               // Call to Action
               ElevatedButton(
-                onPressed: _onConfirmAndCreateAccount,
+                onPressed: _isAuthenticating ? null : _onConfirmAndCreateAccount,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0D631B),
                   foregroundColor: Colors.white,
@@ -201,14 +220,16 @@ class _LoginVerificationScreenState extends State<LoginVerificationScreen> {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'SUNT DE ACORD CU TERMENII - CREEAZĂ CONT',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: _isAuthenticating
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        'SUNT DE ACORD CU TERMENII - CREEAZĂ CONT',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
               
               const SizedBox(height: 32),
