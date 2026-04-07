@@ -20,6 +20,7 @@ import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.FhirEngineConfiguration
 import com.google.android.fhir.FhirEngineProvider
 import com.google.android.fhir.search.search
+import org.hl7.fhir.r4.model.ResourceType
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -273,7 +274,7 @@ class FhirEngineChannel(
                 val consent = call.argument<Boolean>("consent") ?: true
 
                 // Retrieve the Encounter by logical ID, stamp a consent extension, and update.
-                val encounter = fhirEngine!!.get<org.hl7.fhir.r4.model.Encounter>(callId)
+                val encounter = fhirEngine!!.get(ResourceType.Encounter, callId) as org.hl7.fhir.r4.model.Encounter
 
                 // Add FHIR-compliant consent extension
                 val consentExtension = org.hl7.fhir.r4.model.Extension(
@@ -310,7 +311,7 @@ class FhirEngineChannel(
                     try {
                         // Attempt Observation first, then Condition
                         val observation = runCatching {
-                            fhirEngine!!.get<org.hl7.fhir.r4.model.Observation>(id)
+                            fhirEngine!!.get(ResourceType.Observation, id) as org.hl7.fhir.r4.model.Observation
                         }.getOrNull()
 
                         if (observation != null) {
@@ -324,7 +325,7 @@ class FhirEngineChannel(
                         }
 
                         val condition = runCatching {
-                            fhirEngine!!.get<org.hl7.fhir.r4.model.Condition>(id)
+                            fhirEngine!!.get(ResourceType.Condition, id) as org.hl7.fhir.r4.model.Condition
                         }.getOrNull()
 
                         if (condition != null) {
