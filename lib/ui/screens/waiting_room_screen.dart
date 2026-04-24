@@ -61,11 +61,11 @@ class WaitingRoomScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                   Container(width: 12, height: 12, decoration: BoxDecoration(color: const Color(0xFF0D631B).withValues(alpha: 0.4), shape: BoxShape.circle)),
+                   Container(width: 12, height: 12, decoration: BoxDecoration(color: const Color(0xFF5BA4CF).withValues(alpha: 0.4), shape: BoxShape.circle)),
                    const SizedBox(width: 8),
-                   Container(width: 12, height: 12, decoration: BoxDecoration(color: const Color(0xFF0D631B).withValues(alpha: 0.7), shape: BoxShape.circle)),
+                   Container(width: 12, height: 12, decoration: BoxDecoration(color: const Color(0xFF5BA4CF).withValues(alpha: 0.7), shape: BoxShape.circle)),
                    const SizedBox(width: 8),
-                   Container(width: 12, height: 12, decoration: const BoxDecoration(color: Color(0xFF0D631B), shape: BoxShape.circle)),
+                   Container(width: 12, height: 12, decoration: const BoxDecoration(color: Color(0xFF5BA4CF), shape: BoxShape.circle)),
                 ],
               ),
               const SizedBox(height: 48),
@@ -76,7 +76,7 @@ class WaitingRoomScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: const Border(left: BorderSide(color: Color(0xFF0D631B), width: 8)),
+                  border: const Border(left: BorderSide(color: Color(0xFF5BA4CF), width: 8)),
                   boxShadow: [
                     BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 32, offset: const Offset(0, 4)),
                   ],
@@ -86,7 +86,7 @@ class WaitingRoomScreen extends ConsumerWidget {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.gavel, color: Color(0xFF0D631B), size: 36),
+                        Icon(Icons.gavel, color: Color(0xFF5BA4CF), size: 36),
                         SizedBox(width: 16),
                         Expanded(child: Text('Acord de Consultanță', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black))),
                       ],
@@ -152,7 +152,7 @@ class WaitingRoomScreen extends ConsumerWidget {
                   width: double.infinity,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0D631B),
+                    color: const Color(0xFF5BA4CF),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4)),
@@ -208,7 +208,7 @@ class WaitingRoomScreen extends ConsumerWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 24),
+        const Icon(Icons.check_circle, color: Color(0xFF4A93BE), size: 24),
         const SizedBox(width: 12),
         Expanded(child: Text(text, style: const TextStyle(fontSize: 18, color: Colors.black))),
       ],

@@ -49,7 +49,7 @@ class DeviceConflictModal extends StatelessWidget {
                 child: const Icon(
                   Icons.phonelink_erase, // closest match
                   size: 64,
-                  color: Color(0xFF0D631B), // primary
+                  color: Color(0xFF5BA4CF), // primary
                 ),
               ),
               const SizedBox(height: 32),
@@ -97,7 +97,7 @@ class DeviceConflictModal extends StatelessWidget {
                     ElevatedButton(
                       onPressed: () => _onConfirm(context),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0D631B),
+                        backgroundColor: const Color(0xFF5BA4CF),
                         foregroundColor: Colors.white,
                         minimumSize: const Size(double.infinity, 72), // Enforce >= 64x64 dp
                         shape: RoundedRectangleBorder(

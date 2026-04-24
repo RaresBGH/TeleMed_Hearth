@@ -49,7 +49,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                     width: double.infinity,
                     height: 80,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0D631B),
+                      color: const Color(0xFF5BA4CF),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Row(
@@ -73,7 +73,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                     width: double.infinity,
                     height: 80,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0D631B),
+                      color: const Color(0xFF5BA4CF),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Row(
@@ -158,15 +158,15 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
         title: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.shield, color: Color(0xFF0D631B), size: 32),
+            Icon(Icons.shield, color: Color(0xFF5BA4CF), size: 32),
             SizedBox(width: 8),
-            Text('Autentificare', style: TextStyle(color: Color(0xFF0D631B), fontSize: 20, fontWeight: FontWeight.bold)),
+            Text('Autentificare', style: TextStyle(color: Color(0xFF5BA4CF), fontSize: 20, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
       body: SafeArea(
         child: _isLoading 
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF0D631B)))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF5BA4CF)))
           : SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
               child: Column(
@@ -178,7 +178,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
-                  Container(height: 6, width: 96, decoration: BoxDecoration(color: const Color(0xFF0D631B), borderRadius: BorderRadius.circular(3))),
+                  Container(height: 6, width: 96, decoration: BoxDecoration(color: const Color(0xFF5BA4CF), borderRadius: BorderRadius.circular(3))),
                   const SizedBox(height: 40),
 
                   // CNP Field (Min 64x64 touch target)
@@ -267,12 +267,12 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                     decoration: BoxDecoration(
                       color: const Color(0xFFE8E8E8),
                       borderRadius: BorderRadius.circular(16),
-                      border: const Border(left: BorderSide(color: Color(0xFF0D631B), width: 8)),
+                      border: const Border(left: BorderSide(color: Color(0xFF5BA4CF), width: 8)),
                     ),
                     child: const Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.info, color: Color(0xFF0D631B), size: 36),
+                        Icon(Icons.info, color: Color(0xFF5BA4CF), size: 36),
                         SizedBox(width: 16),
                         Expanded(
                           child: Text(
@@ -299,7 +299,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                       width: double.infinity,
                       height: 96,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0D631B),
+                        color: const Color(0xFF5BA4CF),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.black, width: 2),
                         boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(0, 8))],

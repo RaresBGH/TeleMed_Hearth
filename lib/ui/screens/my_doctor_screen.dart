@@ -69,7 +69,7 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
       appBar: AppBar(
         title: const Row(
           children: [
-            Icon(Icons.account_circle, color: Color(0xFF0D631B), size: 36),
+            Icon(Icons.account_circle, color: Color(0xFF5BA4CF), size: 36),
             SizedBox(width: 8),
             Text('The Dignified Guardian', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22)),
           ],
@@ -80,7 +80,7 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
           AccessibleTouchTarget(
             semanticLabel: 'Schimbă Limba / Change Language',
             onTap: () {},
-            child: const Text('RO / EN', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0D631B), fontSize: 18)),
+            child: const Text('RO / EN', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF5BA4CF), fontSize: 18)),
           ),
           const SizedBox(width: 16),
         ],
@@ -107,7 +107,7 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                       decoration: BoxDecoration(
                         color: Colors.grey.shade300,
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFF0D631B).withValues(alpha: 0.2), width: 4),
+                        border: Border.all(color: const Color(0xFF5BA4CF).withValues(alpha: 0.2), width: 4),
                       ),
                       child: const Center(
                         child: Icon(Icons.person, size: 80, color: Colors.grey),
@@ -128,15 +128,15 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0D631B).withValues(alpha: 0.1),
+                        color: const Color(0xFF5BA4CF).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(30),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.check_circle, color: Color(0xFF0D631B), size: 24),
+                          Icon(Icons.check_circle, color: Color(0xFF5BA4CF), size: 24),
                           SizedBox(width: 8),
-                          Text('Disponibil acum', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0D631B))),
+                          Text('Disponibil acum', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF5BA4CF))),
                         ],
                       ),
                     ),
@@ -153,13 +153,13 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF0D631B), width: 2),
+                    border: Border.all(color: const Color(0xFF5BA4CF), width: 2),
                   ),
                   child: Column(
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.video_call, color: Color(0xFF0D631B), size: 48),
+                          Icon(Icons.video_call, color: Color(0xFF5BA4CF), size: 48),
                           SizedBox(width: 16),
                           Expanded(
                             child: Column(
@@ -181,7 +181,7 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                           height: 96, // Large touch target
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFF0D631B), Color(0xFF2E7D32)],
+                              colors: [Color(0xFF5BA4CF), Color(0xFF4A93BE)],
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                             ),
@@ -242,7 +242,7 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                               if (data == null) return const Text('Niciuna', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black));
                               return Text(data['period']?['start'] ?? 'Necunoscută', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black));
                             },
-                            loading: () => const CircularProgressIndicator(color: Color(0xFF0D631B)),
+                            loading: () => const CircularProgressIndicator(color: Color(0xFF5BA4CF)),
                             error: (err, stack) => const Text('Eroare', style: TextStyle(fontSize: 22, color: Colors.red)),
                           ),
                         ],
@@ -267,7 +267,7 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                               final text = data['medicationCodeableConcept']?['text'] ?? 'Tratament';
                               return Text(text, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black));
                             },
-                            loading: () => const CircularProgressIndicator(color: Color(0xFF0D631B)),
+                            loading: () => const CircularProgressIndicator(color: Color(0xFF5BA4CF)),
                             error: (err, stack) => const Text('Eroare', style: TextStyle(fontSize: 22, color: Colors.red)),
                           ),
                         ],
@@ -283,7 +283,7 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF0D631B),
+        selectedItemColor: const Color(0xFF5BA4CF),
         unselectedItemColor: Colors.black,
         selectedFontSize: 18,
         unselectedFontSize: 18,

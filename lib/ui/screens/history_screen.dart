@@ -25,7 +25,7 @@ class HistoryScreen extends ConsumerWidget {
           AccessibleTouchTarget(
             semanticLabel: 'Schimbă Limba / Change Language',
             onTap: () {},
-            child: const Text('RO/EN', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0D631B), fontSize: 18)),
+            child: const Text('RO/EN', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF5BA4CF), fontSize: 18)),
           ),
           const SizedBox(width: 16),
         ],
@@ -104,7 +104,7 @@ class HistoryScreen extends ConsumerWidget {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFF0D631B).withValues(alpha: 0.1),
+                                            color: const Color(0xFF5BA4CF).withValues(alpha: 0.1),
                                             borderRadius: BorderRadius.circular(20),
                                           ),
                                           child: const Text(
@@ -112,7 +112,7 @@ class HistoryScreen extends ConsumerWidget {
                                             style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
-                                              color: Color(0xFF0D631B),
+                                              color: Color(0xFF5BA4CF),
                                             ),
                                           ),
                                         ),
@@ -121,7 +121,7 @@ class HistoryScreen extends ConsumerWidget {
                                     const SizedBox(height: 16),
                                     Row(
                                       children: [
-                                        const Icon(Icons.medical_information, color: Color(0xFF0D631B), size: 32),
+                                        const Icon(Icons.medical_information, color: Color(0xFF5BA4CF), size: 32),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Text(
@@ -143,7 +143,7 @@ class HistoryScreen extends ConsumerWidget {
                       },
                     );
                   },
-                  loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF0D631B))),
+                  loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF5BA4CF))),
                   error: (err, stack) => Center(
                     child: Text(
                       'Eroare la încărcarea istoricului.',
@@ -158,7 +158,7 @@ class HistoryScreen extends ConsumerWidget {
       ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF0D631B),
+        selectedItemColor: const Color(0xFF5BA4CF),
         unselectedItemColor: Colors.black,
         selectedFontSize: 18,
         unselectedFontSize: 18,

@@ -34,7 +34,7 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(Icons.check_circle, size: 100, color: Colors.green),
+              Icon(Icons.check_circle, size: 100, color: Color(0xFF5BA4CF)),
               SizedBox(height: 48),
               Text(
                 'Consultația a fost salvată cu succes.',

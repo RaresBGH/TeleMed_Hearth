@@ -49,7 +49,7 @@ class LegalDocumentModal extends StatelessWidget {
           child: ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0D631B),
+              backgroundColor: const Color(0xFF5BA4CF),
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 64), // Rule enforced: 64x64 min target
               shape: RoundedRectangleBorder(

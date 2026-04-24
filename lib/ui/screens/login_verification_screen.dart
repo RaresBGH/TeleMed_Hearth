@@ -158,7 +158,7 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF2E7D32), width: 4),
+                          borderSide: const BorderSide(color: Color(0xFF4A93BE), width: 4),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -178,7 +178,7 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
                   color: const Color(0xFFF3F3F3),
                   borderRadius: BorderRadius.circular(12),
                   border: const Border(
-                    left: BorderSide(color: Color(0xFF0D631B), width: 8),
+                    left: BorderSide(color: Color(0xFF5BA4CF), width: 8),
                   ),
                 ),
                 padding: const EdgeInsets.all(24),
@@ -187,7 +187,7 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
                   children: [
                     Icon(
                       Icons.security,
-                      color: Color(0xFF0D631B),
+                      color: Color(0xFF5BA4CF),
                       size: 32,
                     ),
                     SizedBox(width: 16),
@@ -211,7 +211,7 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
               ElevatedButton(
                 onPressed: _isAuthenticating ? null : _onConfirmAndCreateAccount,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0D631B),
+                  backgroundColor: const Color(0xFF5BA4CF),
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 80), // Rule enforced: Massive button
                   shape: RoundedRectangleBorder(
