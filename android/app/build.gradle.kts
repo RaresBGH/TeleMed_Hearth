@@ -78,8 +78,6 @@ dependencies {
     // Structured Data Capture: FHIR Questionnaire rendering (future consent forms)
     implementation("com.google.android.fhir:data-capture:1.1.0")
 
-    // ML Kit GenAI — Gemma 4 via Android AICore Developer Preview
-    implementation("com.google.mlkit:genai:0.2.0")
     // ML Kit GenAI Prompt API — production Gemini Nano path as fallback
     implementation("com.google.mlkit:genai-prompt:1.0.0-beta2")
     // Play Services Tasks — required by ML Kit
