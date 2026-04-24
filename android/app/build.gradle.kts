@@ -78,8 +78,12 @@ dependencies {
     // Structured Data Capture: FHIR Questionnaire rendering (future consent forms)
     implementation("com.google.android.fhir:data-capture:1.1.0")
 
-    // --- Google LiteRT-LM: On-device Gemma 4 E2B inference ---
-    implementation("com.google.ai.edge.litertlm:litertlm-android:0.9.0-alpha01")
+    // ML Kit GenAI — Gemma 4 via Android AICore Developer Preview
+    implementation("com.google.mlkit:genai:0.2.0")
+    // ML Kit GenAI Prompt API — production Gemini Nano path as fallback
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta2")
+    // Play Services Tasks — required by ML Kit
+    implementation("com.google.android.gms:play-services-tasks:18.2.0")
 
     // --- SQLCipher: Encryption-at-rest for the FHIR SQLite database ---
     implementation("net.zetetic:sqlcipher-android:4.6.1@aar")

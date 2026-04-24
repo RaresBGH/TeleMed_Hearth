@@ -6,11 +6,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ConfirmationScreen extends ConsumerWidget {
+import '../../core/providers/app_navigation_provider.dart';
+
+class ConfirmationScreen extends ConsumerStatefulWidget {
   const ConfirmationScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ConfirmationScreen> createState() => _ConfirmationScreenState();
+}
+
+class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return const Scaffold(
       body: SafeArea(
         child: Padding(
@@ -32,9 +47,9 @@ class ConfirmationScreen extends ConsumerWidget {
                 style: TextStyle(fontSize: 20),
                 textAlign: TextAlign.center,
               ),
-              // CRITICAL OVERRIDE: 
-              // 'Înapoi la Ecranul Principal' (Back to Home) completely removed 
-              // to prevent cognitive usability overload on elderly users.
+              // CRITICAL OVERRIDE:
+              // 'Înapoi la Ecranul Principal' removed to prevent cognitive overload.
+              // Navigation back to home is handled automatically after 5 seconds.
             ],
           ),
         ),

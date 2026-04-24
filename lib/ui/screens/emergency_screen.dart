@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/theme.dart';
 import '../../core/providers/medical_session_provider.dart';
 
@@ -38,8 +39,11 @@ class EmergencyScreen extends ConsumerWidget {
               const SizedBox(height: 64),
               AccessibleTouchTarget(
                 semanticLabel: 'Suna acum la 112',
-                onTap: () {
-                  // Direct OS bridging to dialer via MethodChannel later
+                onTap: () async {
+                  final uri = Uri(scheme: 'tel', path: '112');
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri);
+                  }
                 },
                 child: Container(
                   width: double.infinity,
