@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/providers/app_navigation_provider.dart';
+import 'data/repositories/fhir_repository.dart';
 import 'ui/theme/theme.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/confirmation_screen.dart';
@@ -18,7 +19,19 @@ import 'ui/screens/video_consultation_screen.dart';
 import 'ui/screens/login_identity_screen.dart';
 import 'ui/screens/login_verification_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize the local FHIR engine (encrypted SQLite) and seed mock data
+  // before the widget tree renders. Must run after ensureInitialized() because
+  // it uses a MethodChannel to talk to the native Android FHIR SDK.
+  try {
+    await FhirRepository().initialize();
+  } catch (_) {
+    // Non-fatal during development when running on host without the native
+    // Android FHIR SDK (e.g. flutter test on desktop).
+  }
+
   runApp(
     const ProviderScope(
       child: TeleMedApp(),

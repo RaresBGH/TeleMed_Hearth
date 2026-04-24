@@ -21,7 +21,7 @@ class AppNavigationNotifier extends Notifier<AppRoute> {
         state = AppRoute.home;
       }
     });
-    return AppRoute.home;
+    return AppRoute.loginIdentity;
   }
 
   void navigateTo(AppRoute route) {

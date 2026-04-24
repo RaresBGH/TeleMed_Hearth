@@ -1,0 +1,47 @@
+# Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
+# https://creativecommons.org/licenses/by/4.0/
+#
+# TeleMed_K — CI: Build debug APK
+# Runs on every push to main. ubuntu-latest is x86_64, required for AAPT2.
+
+name: Build Debug APK
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter 3.27.x (stable)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.x'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: telemed-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7

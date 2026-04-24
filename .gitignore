@@ -43,3 +43,20 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# TeleMed_K: Sensitive data — never commit
+**/secrets/**
+**/*.keystore
+**/*.jks
+google-services.json
+.env
+
+# Patient data and AI triage media — PHI, never commit
+patient_data/
+ai_triage_media/
+
+# Model training — contains fictional dataset references, not runnable
+model_training/
+
+# Large binary model weights — never commit to git
+**/*.gguf
