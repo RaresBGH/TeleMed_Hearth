@@ -167,7 +167,8 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       body: SafeArea(
         child: _isLoading 
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF5BA4CF)))
-          : SingleChildScrollView(
+          : SizedBox.expand(
+              child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -318,6 +319,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                 ],
               ),
             ),
+          ),
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
