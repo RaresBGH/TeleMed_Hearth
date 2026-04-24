@@ -12,8 +12,8 @@ plugins {
 
 android {
     namespace = "com.example.telemed_k"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 36
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         // Required by Android FHIR SDK transitive dependencies (java.time desugaring)
