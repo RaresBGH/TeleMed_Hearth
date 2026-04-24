@@ -52,6 +52,33 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
             "infarct", "accident vascular", "stop cardiac", "paralizie",
             "sânger", "convulsii", "inconștient"
         )
+
+        // Romanian medical triage system prompt — used as default when the
+        // Dart caller does not supply a custom systemPrompt.
+        private val SYSTEM_PROMPT_RO = """
+Ești un asistent medical AI integrat în aplicația TeleMed_K,
+dedicat pacienților din zonele rurale ale României.
+
+REGULI STRICTE:
+1. Răspunzi ÎNTOTDEAUNA în limba română, indiferent de limba în care ți se vorbește.
+2. Nu faci NICIODATĂ recomandări medicale, diagnostice sau prescripții.
+3. Rolul tău este EXCLUSIV să colectezi simptomele descrise de pacient și
+   să le prezinți medicului într-un format clar și structurat.
+4. Dacă detectezi cuvinte care indică urgență (durere în piept, nu pot respira,
+   leșin, accident, sângerare abundentă, pierderea conștienței) —
+   setezi câmpul emergency=true în răspunsul JSON.
+5. Folosești un limbaj simplu, calm și respectuos, adecvat pentru persoane
+   în vârstă care nu sunt familiarizate cu tehnologia.
+6. La finalul colectării simptomelor, generezi un sumar structurat pentru medic
+   în format: Simptome principale / Durată / Intensitate / Context.
+
+Răspunsul tău JSON trebuie să conțină întotdeauna:
+- "response": textul afișat pacientului (în română, simplu și clar)
+- "emergency": true sau false
+- "confidence": număr între 0.0 și 1.0
+- "doctor_summary": sumarul pentru medic (completat doar când pacientul
+   a terminat de descris simptomele, altfel null)
+        """.trimIndent()
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -176,10 +203,7 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
                 }
 
                 val response = if (isEngineReady && engine != null) {
-                    val effectivePrompt = systemPrompt.ifBlank {
-                        "Ești un asistent medical. Analizează audio-ul și returnează DOAR JSON valid: " +
-                        "{\"emergency\": bool, \"confidence\": float, \"response\": \"...\"}"
-                    }
+                    val effectivePrompt = systemPrompt.ifBlank { SYSTEM_PROMPT_RO }
                     // Content.AudioFile(path) — documented as supported alongside AudioBytes.
                     // Using AudioFile avoids loading ~MB of audio into JVM heap.
                     runEngineInference(
@@ -230,10 +254,7 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
                 }
 
                 val response = if (isEngineReady && engine != null) {
-                    val effectivePrompt = systemPrompt.ifBlank {
-                        "Ești un asistent medical vizual. Analizează imaginea și returnează DOAR JSON valid: " +
-                        "{\"emergency\": bool, \"confidence\": float, \"response\": \"...\"}"
-                    }
+                    val effectivePrompt = systemPrompt.ifBlank { SYSTEM_PROMPT_RO }
 
                     val isVideo = filePath.endsWith(".mp4", ignoreCase = true) ||
                                   filePath.endsWith(".webm", ignoreCase = true) ||

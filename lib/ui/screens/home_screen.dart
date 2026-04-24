@@ -9,17 +9,85 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/theme.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/app_navigation_provider.dart';
+import '../../core/services/audio_recording_service.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _isRecording = false;
+
+  Future<void> _onMicTap() async {
+    final audioService = ref.read(audioRecordingServiceProvider);
+
+    if (_isRecording) {
+      // ── Stop recording, hand WAV to inference ──────────────────────────
+      final wavPath = await audioService.stopRecording();
+      if (!mounted) return;
+      setState(() => _isRecording = false);
+
+      if (wavPath.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Eroare la oprirea înregistrării.',
+                style: TextStyle(fontSize: 18)),
+          ),
+        );
+        return;
+      }
+
+      // processAudio sets state to processing → success / emergency / error
+      await ref
+          .read(medicalSessionProvider.notifier)
+          .processAudio(File(wavPath));
+
+      // Delete WAV after inference; AAC transcode has already been kicked off
+      // asynchronously inside stopRecording(), so the WAV is no longer needed.
+      audioService.deleteWavFile(wavPath);
+    } else {
+      // ── Request permission then start recording ────────────────────────
+      final hasPermission = await audioService.requestPermission();
+      if (!mounted) return;
+
+      if (!hasPermission) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Permisiunea pentru microfon este necesară.',
+              style: TextStyle(fontSize: 18),
+            ),
+          ),
+        );
+        return;
+      }
+
+      try {
+        await audioService.startRecording();
+        if (!mounted) return;
+        setState(() => _isRecording = true);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Nu s-a putut porni înregistrarea: $e',
+                style: const TextStyle(fontSize: 18)),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final sessionState = ref.watch(medicalSessionProvider);
 
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 64, // Rule enforced: 64dp minimum for touch targets in actions
+        toolbarHeight: 64,
         title: const Text('TeleMed_K'),
         actions: [
           AccessibleTouchTarget(
@@ -31,8 +99,7 @@ class HomeScreen extends ConsumerWidget {
             semanticLabel: 'Deschide Camera',
             onTap: () {
               ref.read(medicalSessionProvider.notifier).startRecording();
-              
-              // Mocking a multimodal processing flow wait
+              // Camera capture not yet implemented — dummy file triggers channel stub
               Future.delayed(const Duration(seconds: 1), () {
                 final dummyMedia = File('dummy_multimodal_path.jpg');
                 ref.read(medicalSessionProvider.notifier).processMedia(dummyMedia);
@@ -52,30 +119,32 @@ class HomeScreen extends ConsumerWidget {
               else
                 Flexible(
                   child: AccessibleTouchTarget(
-                    semanticLabel: 'Apasă pentru a vorbi cu asistentul',
-                    onTap: () {
-                      ref.read(medicalSessionProvider.notifier).startRecording();
-                      
-                      // Mocking an audio processing flow wait
-                      Future.delayed(const Duration(seconds: 1), () {
-                        final dummyAudio = File('dummy_voice_path.wav');
-                        ref.read(medicalSessionProvider.notifier).processAudio(dummyAudio);
-                      });
-                    },
+                    semanticLabel: _isRecording
+                        ? 'Apasă pentru a opri înregistrarea'
+                        : 'Apasă pentru a vorbi cu asistentul',
+                    onTap: _onMicTap,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.red.shade100,
+                        // Solid red while recording, light red when idle
+                        color: _isRecording
+                            ? Colors.red
+                            : Colors.red.shade100,
                         shape: BoxShape.circle,
                       ),
                       padding: const EdgeInsets.all(60.0),
-                      child: const Icon(Icons.mic, size: 120.0, color: Colors.red),
+                      child: Icon(
+                        // Stop icon while recording, mic icon when idle
+                        _isRecording ? Icons.stop : Icons.mic,
+                        size: 120.0,
+                        color: _isRecording ? Colors.white : Colors.red,
+                      ),
                     ),
                   ),
                 ),
               const SizedBox(height: 32),
-              const Text(
-                'Apasă și vorbește',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              Text(
+                _isRecording ? 'Apasă pentru a opri' : 'Apasă și vorbește',
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
             ],
           ),
