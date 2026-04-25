@@ -42,7 +42,8 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFFF5F5F5),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (BuildContext context) {
         return SafeArea(
           child: Padding(
@@ -50,9 +51,14 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Ajutor Multimodal', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black)),
+                const Text('Ajutor Multimodal',
+                    style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black)),
                 const SizedBox(height: 16),
-                const Text('Alegeți metoda preferată de a completa datele:', style: TextStyle(fontSize: 18, color: Colors.black)),
+                const Text('Alegeți metoda preferată de a completa datele:',
+                    style: TextStyle(fontSize: 18, color: Colors.black)),
                 const SizedBox(height: 32),
                 AccessibleTouchTarget(
                   semanticLabel: 'Folosește Camera pentru Buletin',
@@ -72,7 +78,11 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                       children: [
                         Icon(Icons.camera_alt, color: Colors.white, size: 32),
                         SizedBox(width: 16),
-                        Text('Cameră (Buletin)', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                        Text('Cameră (Buletin)',
+                            style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
                       ],
                     ),
                   ),
@@ -96,7 +106,11 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                       children: [
                         Icon(Icons.mic, color: Colors.white, size: 32),
                         SizedBox(width: 16),
-                        Text('Voce', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                        Text('Voce',
+                            style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
                       ],
                     ),
                   ),
@@ -117,13 +131,16 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       final dummyFile = File('dummy_id.jpg');
       final result = await aiEngine.evaluateMedia(
         dummyFile,
-        customPrompt: 'You are an offline OCR assistant. Extract the patient CNP (Cod Numeric Personal, exactly 13 digits) from the ID card image. Output JSON strictly constrained to: {"cnp": "1234567890123"}',
+        customPrompt:
+            'You are an offline OCR assistant. Extract the patient CNP (Cod Numeric Personal, exactly 13 digits) from the ID card image. Output JSON strictly constrained to: {"cnp": "1234567890123"}',
       );
       if (result.containsKey('cnp')) {
         _cnpController.text = result['cnp'].toString();
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Eroare cameră: $e', style: const TextStyle(fontSize: 18))));
+      messenger.showSnackBar(SnackBar(
+          content:
+              Text('Eroare cameră: $e', style: const TextStyle(fontSize: 18))));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -137,12 +154,19 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       final dummyAudio = File('dummy_voice.wav');
       final result = await aiEngine.evaluateAudio(
         dummyAudio,
-        customPrompt: 'You are a medical speech-to-text assistant. The user is dictating their personal details. Extract the 13-digit CNP and/or Phone number. Output JSON strictly constrained to: {"cnp": "1234567890123", "phone": "07..."} (include fields only if detected)',
+        customPrompt:
+            'You are a medical speech-to-text assistant. The user is dictating their personal details. Extract the 13-digit CNP and/or Phone number. Output JSON strictly constrained to: {"cnp": "1234567890123", "phone": "07..."} (include fields only if detected)',
       );
-      if (result.containsKey('cnp')) _cnpController.text = result['cnp'].toString();
-      if (result.containsKey('phone')) _phoneController.text = result['phone'].toString();
+      if (result.containsKey('cnp')) {
+        _cnpController.text = result['cnp'].toString();
+      }
+      if (result.containsKey('phone')) {
+        _phoneController.text = result['phone'].toString();
+      }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Eroare voce: $e', style: const TextStyle(fontSize: 18))));
+      messenger.showSnackBar(SnackBar(
+          content:
+              Text('Eroare voce: $e', style: const TextStyle(fontSize: 18))));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -161,7 +185,9 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
         duration: Duration(seconds: 4),
       ),
     );
-    ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.loginVerification);
+    ref
+        .read(appNavigationProvider.notifier)
+        .navigateTo(AppRoute.loginVerification);
   }
 
   @override
@@ -180,78 +206,253 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
           children: [
             Icon(Icons.shield, color: Color(0xFF5BA4CF), size: 32),
             SizedBox(width: 8),
-            Text('Autentificare', style: TextStyle(color: Color(0xFF5BA4CF), fontSize: 20, fontWeight: FontWeight.bold)),
+            Text('Autentificare',
+                style: TextStyle(
+                    color: Color(0xFF5BA4CF),
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold)),
           ],
         ),
       ),
-      // ── DIAGNOSTIC BODY — temporary to isolate rendering layer ────────────
-      // Replace with full CNP/phone form once rendering is confirmed working.
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'TEST - Dacă vedeți acest text, scroll-ul funcționează',
-                style: TextStyle(
-                  fontSize: 24,
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 32),
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'CNP Test',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: () {},
-                child: const Text('TEST BUTON', style: TextStyle(fontSize: 20)),
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.9),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              AccessibleTouchTarget(
-                semanticLabel: 'Acasă',
-                onTap: () => ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home),
-                child: const Column(
-                  mainAxisSize: MainAxisSize.min,
+        child: _isLoading
+            ? const Center(
+                child:
+                    CircularProgressIndicator(color: Color(0xFF5BA4CF)))
+            : SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0, vertical: 32.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.home, color: Colors.black, size: 40),
-                    Text('Acasă', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
+                    // ── Title ──────────────────────────────────────────────
+                    const Text(
+                      'Sănătatea ta,\nla un click distanță',
+                      style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.black,
+                          height: 1.2),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Container(
+                        height: 6,
+                        width: 96,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF5BA4CF),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+
+                    // ── CNP Field ──────────────────────────────────────────
+                    const Text('CNP (Cod Numeric Personal)',
+                        style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black)),
+                    const SizedBox(height: 12),
+                    Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: showIndicator
+                              ? (_cnpValid ? Colors.green : Colors.red)
+                              : Colors.black,
+                          width: showIndicator ? 2.5 : 2,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _cnpController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(13),
+                              ],
+                              style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 24),
+                                hintText: 'Introduceți cele 13 cifre',
+                                hintStyle: TextStyle(
+                                    fontSize: 24, color: Colors.black54),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 24.0),
+                            child: showIndicator
+                                ? Icon(
+                                    _cnpValid
+                                        ? Icons.check_circle
+                                        : Icons.cancel,
+                                    size: 40,
+                                    color: _cnpValid
+                                        ? Colors.green
+                                        : Colors.red,
+                                  )
+                                : const Icon(Icons.fingerprint,
+                                    size: 40, color: Colors.black26),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // ── Phone Field ────────────────────────────────────────
+                    const Text('Număr de Telefon',
+                        style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black)),
+                    const SizedBox(height: 12),
+                    Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border:
+                            Border.all(color: Colors.black, width: 2),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _phoneController,
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly
+                              ],
+                              style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 24),
+                                hintText: 'Ex: 0722 000 000',
+                                hintStyle: TextStyle(
+                                    fontSize: 24, color: Colors.black54),
+                              ),
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.only(right: 24.0),
+                            child: Icon(Icons.call,
+                                size: 40, color: Colors.black26),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+
+                    // ── Info prompt ────────────────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8E8E8),
+                        borderRadius: BorderRadius.circular(16),
+                        border: const Border(
+                            left: BorderSide(
+                                color: Color(0xFF5BA4CF), width: 8)),
+                      ),
+                      child: const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info,
+                              color: Color(0xFF5BA4CF), size: 36),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              'Dacă aveți nevoie de ajutor, apăsați butonul de Ajutor de mai jos. Câmpurile pot fi completate audio sau prin fotografierea actului de identitate.',
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+
+                    // ── CONTINUĂ ───────────────────────────────────────────
+                    AccessibleTouchTarget(
+                      semanticLabel: 'Continuă autentificarea',
+                      onTap: _onContinuaTap,
+                      child: Container(
+                        height: 96,
+                        decoration: BoxDecoration(
+                          color: _cnpValid
+                              ? const Color(0xFF5BA4CF)
+                              : Colors.grey.shade400,
+                          borderRadius: BorderRadius.circular(16),
+                          border:
+                              Border.all(color: Colors.black, width: 2),
+                          boxShadow: _cnpValid
+                              ? const [
+                                  BoxShadow(
+                                      color: Colors.black,
+                                      offset: Offset(0, 8))
+                                ]
+                              : null,
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('CONTINUĂ',
+                                style: TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: 2.0)),
+                            SizedBox(width: 16),
+                            Icon(Icons.arrow_forward,
+                                color: Colors.white, size: 40),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Ajutor link (moved from bottom nav) ────────────────
+                    AccessibleTouchTarget(
+                      semanticLabel: 'Deschide meniu ajutor',
+                      onTap: _showAjutorModal,
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.help_outline,
+                              color: Color(0xFF5BA4CF), size: 28),
+                          SizedBox(width: 8),
+                          Text(
+                            'Ajutor',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF5BA4CF),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 48),
                   ],
                 ),
               ),
-              AccessibleTouchTarget(
-                semanticLabel: 'Ajutor',
-                onTap: _showAjutorModal,
-                child: const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.help_outline, color: Colors.black, size: 40),
-                    Text('Ajutor', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

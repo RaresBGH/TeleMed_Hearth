@@ -29,6 +29,12 @@ class AppNavigationNotifier extends Notifier<AppRoute> {
   @override
   AppRoute build() {
     ref.listen<SessionState>(medicalSessionProvider, (previous, next) {
+      final currentState = state;
+      if (currentState == AppRoute.loginIdentity ||
+          currentState == AppRoute.loginVerification ||
+          currentState == AppRoute.modelDownload) {
+        return;
+      }
       if (next == SessionState.emergency) {
         state = AppRoute.emergency;
       } else if (next == SessionState.success) {
