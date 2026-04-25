@@ -15,6 +15,7 @@ import com.example.telemed_k.channels.AudioTranscodeChannel
 import com.example.telemed_k.channels.FhirEngineChannel
 import com.example.telemed_k.channels.LiteRtLmChannel
 import com.example.telemed_k.channels.TelemedicineChannel
+import com.example.telemed_k.services.ModelDownloadService
 
 /**
  * Main Activity for TeleMed_K.
@@ -34,17 +35,26 @@ class MainActivity : FlutterFragmentActivity() {
         private const val LITERT_LM_CHANNEL = "com.telemed_k/litert_lm"
         private const val TELEMEDICINE_CHANNEL = "com.telemed_k/telemedicine"
         private const val AUDIO_TRANSCODE_CHANNEL = "com.telemed_k/audio_transcode"
+        private const val MODEL_DOWNLOAD_CHANNEL = "com.telemed_k/model_download"
     }
 
     private lateinit var audioTranscodeChannel: AudioTranscodeChannel
     private lateinit var fhirEngineChannel: FhirEngineChannel
     private lateinit var liteRtLmChannel: LiteRtLmChannel
     private lateinit var telemedicineChannel: TelemedicineChannel
+    private lateinit var modelDownloadService: ModelDownloadService
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // --- 1. Audio Transcode Channel ---
+        // --- 1. Model Download Channel ---
+        modelDownloadService = ModelDownloadService(this)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            MODEL_DOWNLOAD_CHANNEL
+        ).setMethodCallHandler(modelDownloadService)
+
+        // --- 2. Audio Transcode Channel ---
         audioTranscodeChannel = AudioTranscodeChannel(this)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,

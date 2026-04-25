@@ -9,20 +9,31 @@ import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Downloads the Gemma 4 E2B LiteRT-LM model using Android DownloadManager.
+ * Downloads the Gemma 4 E2B LiteRT-LM model using Android DownloadManager
+ * and exposes download control + progress via the `com.telemed_k/model_download`
+ * MethodChannel.
  *
  * Source: https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm
  * Destination: context.filesDir/models/gemma-4-E2B-it.litertlm
  *
- * DownloadManager runs the transfer in a system-managed background service with
- * progress shown in the notification shade. The calling code should re-check
- * [isModelDownloaded] (or watch [getLocalModelPath]) after the notification
- * DOWNLOAD_COMPLETE broadcast fires before initialising the Engine.
+ * MethodChannel contract:
+ *   startDownload        — enqueues the download (no-op if file already present)
+ *   getDownloadProgress  — returns Map {status, bytesDownloaded, totalBytes}
+ *                          status codes: 1=pending 2=running 4=paused 8=success 16=failed
+ *                          returns null if no active download and file absent
+ *   isModelDownloaded    — returns Boolean
  */
-class ModelDownloadService(private val context: Context) {
+class ModelDownloadService(private val context: Context) : MethodChannel.MethodCallHandler {
 
     companion object {
         private const val TAG = "ModelDownloadService"
@@ -34,6 +45,75 @@ class ModelDownloadService(private val context: Context) {
         private const val MODEL_SUBDIR = "models"
     }
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // MethodChannel.MethodCallHandler
+    // ──────────────────────────────────────────────────────────────────────────
+
+    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        when (call.method) {
+            "startDownload" -> handleStartDownload(result)
+            "getDownloadProgress" -> handleGetDownloadProgress(result)
+            "isModelDownloaded" -> result.success(isModelDownloaded())
+            else -> result.notImplemented()
+        }
+    }
+
+    private fun handleStartDownload(result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                ensureModelDownloaded()
+                withContext(Dispatchers.Main) { result.success(null) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to enqueue model download", e)
+                withContext(Dispatchers.Main) {
+                    result.error("DOWNLOAD_ERROR", e.message, null)
+                }
+            }
+        }
+    }
+
+    private fun handleGetDownloadProgress(result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                val progressMap: Map<String, Any?>? = when (val status = queryDownloadStatus()) {
+                    is DownloadStatus.NotStarted -> null
+                    is DownloadStatus.Complete -> mapOf(
+                        "status" to 8,
+                        "bytesDownloaded" to 0L,
+                        "totalBytes" to 0L,
+                    )
+                    is DownloadStatus.InProgress -> mapOf(
+                        "status" to 2,
+                        "bytesDownloaded" to status.bytesDownloaded,
+                        "totalBytes" to status.totalBytes,
+                    )
+                    is DownloadStatus.Paused -> mapOf(
+                        "status" to 4,
+                        "bytesDownloaded" to status.bytesDownloaded,
+                        "totalBytes" to status.totalBytes,
+                    )
+                    is DownloadStatus.Failed -> mapOf(
+                        "status" to 16,
+                        "bytesDownloaded" to 0L,
+                        "totalBytes" to 0L,
+                    )
+                }
+                withContext(Dispatchers.Main) { result.success(progressMap) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to query download progress", e)
+                withContext(Dispatchers.Main) {
+                    result.error("DOWNLOAD_QUERY_ERROR", e.message, null)
+                }
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // File helpers
+    // ──────────────────────────────────────────────────────────────────────────
+
     /** Absolute path where the model will be (or already is) stored. */
     fun getLocalModelPath(): String =
         File(context.filesDir, "$MODEL_SUBDIR/$MODEL_FILENAME").absolutePath
@@ -44,15 +124,16 @@ class ModelDownloadService(private val context: Context) {
         return file.exists() && file.length() > 0L
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // DownloadManager operations
+    // ──────────────────────────────────────────────────────────────────────────
+
     /**
      * Starts a DownloadManager transfer for the model weights.
-     *
      * If the file already exists this is a no-op — returns the local path
-     * immediately without enqueuing a download.
+     * immediately without enqueuing a new download.
      *
-     * @return The local path where the model will be saved. The file may not
-     *         exist yet if a download was just enqueued; poll [isModelDownloaded]
-     *         or wait for the ACTION_DOWNLOAD_COMPLETE broadcast.
+     * @return The local path where the model will be saved.
      */
     fun ensureModelDownloaded(): String {
         val localPath = getLocalModelPath()
@@ -68,15 +149,13 @@ class ModelDownloadService(private val context: Context) {
         val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
 
         val request = DownloadManager.Request(Uri.parse(MODEL_URL)).apply {
-            setTitle("VitalEase — Descărcare model AI")
-            setDescription("Gemma 4 E2B (~2.6 GB) — necesar pentru triajul vocal local")
-            // Show download progress in the notification shade; complete notification when done
+            setTitle("TeleMed_K — Descărcare model AI")
+            setDescription("Gemma 4 E2B (~3.6 GB) — necesar pentru triajul vocal local")
             setNotificationVisibility(
                 DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
             )
-            // Write directly into app-private files dir (no external storage permission needed)
             setDestinationUri(Uri.fromFile(File(localPath)))
-            // Only download over Wi-Fi — model is ~2.6 GB
+            // Require WiFi — model is ~3.6 GB; mobile data would be destructive
             setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI)
             setAllowedOverRoaming(false)
         }
@@ -89,7 +168,7 @@ class ModelDownloadService(private val context: Context) {
 
     /**
      * Queries DownloadManager for the status of any pending model download.
-     * Returns a [DownloadStatus] summary for display in the UI.
+     * Returns [DownloadStatus.Complete] immediately if the file already exists on disk.
      */
     fun queryDownloadStatus(): DownloadStatus {
         if (isModelDownloaded()) return DownloadStatus.Complete(getLocalModelPath())
@@ -116,7 +195,8 @@ class ModelDownloadService(private val context: Context) {
             val total = if (totalCol >= 0) cursor.getLong(totalCol) else -1L
 
             return when (status) {
-                DownloadManager.STATUS_RUNNING, DownloadManager.STATUS_PENDING ->
+                DownloadManager.STATUS_RUNNING,
+                DownloadManager.STATUS_PENDING ->
                     DownloadStatus.InProgress(downloaded, total)
                 DownloadManager.STATUS_PAUSED ->
                     DownloadStatus.Paused(downloaded, total)
@@ -130,21 +210,16 @@ class ModelDownloadService(private val context: Context) {
 
 /** Represents the current state of the model download. */
 sealed class DownloadStatus {
-    /** No download has been started. */
     object NotStarted : DownloadStatus()
 
-    /** Download is queued or actively transferring. */
     data class InProgress(val bytesDownloaded: Long, val totalBytes: Long) : DownloadStatus() {
         val progressFraction: Float
             get() = if (totalBytes > 0) bytesDownloaded.toFloat() / totalBytes else 0f
     }
 
-    /** Download was paused (e.g. Wi-Fi dropped). */
     data class Paused(val bytesDownloaded: Long, val totalBytes: Long) : DownloadStatus()
 
-    /** Download failed — re-enqueue to retry. */
     object Failed : DownloadStatus()
 
-    /** File is on disk, ready to load into the Engine. */
     data class Complete(val localPath: String) : DownloadStatus()
 }

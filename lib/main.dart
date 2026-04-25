@@ -4,8 +4,10 @@
 // TeleMed_K: Offline-first telemedicine app for seniors
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/providers/app_navigation_provider.dart';
@@ -16,6 +18,7 @@ import 'ui/screens/home_screen.dart';
 import 'ui/screens/confirmation_screen.dart';
 import 'ui/screens/emergency_screen.dart';
 import 'ui/screens/history_screen.dart';
+import 'ui/screens/model_download_screen.dart';
 import 'ui/screens/my_doctor_screen.dart';
 import 'ui/screens/waiting_room_screen.dart';
 import 'ui/screens/video_consultation_screen.dart';
@@ -35,11 +38,18 @@ Future<void> main() async {
     // Android FHIR SDK (e.g. flutter test on desktop).
   }
 
-  // Initialize LiteRT-LM engine in background — non-blocking, never delays runApp.
-  // Sets AiEngineService._isInitialized = true (static flag) when the model is ready.
-  // If the model file is not yet downloaded, logs gracefully; evaluate methods
-  // return the Romanian fallback response rather than crashing.
-  unawaited(AiEngineService(FhirRepository()).initializeModel());
+  // Fast file-existence check — does NOT load the engine (loading can take
+  // up to 10 s and must not block runApp). Just reads the path from the
+  // native layer and checks if the file is present on disk.
+  final bool modelOnDisk = await _isModelFileOnDisk();
+
+  if (!modelOnDisk) {
+    // First launch or model deleted — show download screen before login.
+    AppNavigationNotifier.needsModelDownload = true;
+  } else {
+    // Model is present: load engine in background, never delays runApp.
+    unawaited(AiEngineService(FhirRepository()).initializeModel());
+  }
 
   runApp(
     const ProviderScope(
@@ -48,17 +58,31 @@ Future<void> main() async {
   );
 }
 
+/// Calls getModelPath on the LiteRT-LM channel and checks whether the file
+/// exists on disk. Fast (local IO only) — safe to await before runApp.
+Future<bool> _isModelFileOnDisk() async {
+  try {
+    const channel = MethodChannel('com.telemed_k/litert_lm');
+    final String? path = await channel.invokeMethod<String>('getModelPath');
+    if (path == null) return false;
+    return File(path).existsSync();
+  } catch (_) {
+    return false;
+  }
+}
+
 class TeleMedApp extends ConsumerWidget {
   const TeleMedApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Dynamic routing relying strictly on AppNavigationNotifier mappings overrides 
-    // triggered by AI logic constraints.
     final currentRoute = ref.watch(appNavigationProvider);
 
     Widget screen;
     switch (currentRoute) {
+      case AppRoute.modelDownload:
+        screen = const ModelDownloadScreen();
+        break;
       case AppRoute.emergency:
         screen = const EmergencyScreen();
         break;

@@ -7,9 +7,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'medical_session_provider.dart';
 
-enum AppRoute { home, confirmation, emergency, history, myDoctor, waitingRoom, videoConsultation, loginIdentity, loginVerification }
+enum AppRoute {
+  home,
+  confirmation,
+  emergency,
+  history,
+  myDoctor,
+  waitingRoom,
+  videoConsultation,
+  loginIdentity,
+  loginVerification,
+  modelDownload,
+}
 
 class AppNavigationNotifier extends Notifier<AppRoute> {
+  // Set by main() before runApp when the model file is absent on disk.
+  // Causes the first screen shown to be ModelDownloadScreen instead of login.
+  // Resets to false once the user reaches loginIdentity after a successful download.
+  static bool needsModelDownload = false;
+
   @override
   AppRoute build() {
     ref.listen<SessionState>(medicalSessionProvider, (previous, next) {
@@ -21,7 +37,7 @@ class AppNavigationNotifier extends Notifier<AppRoute> {
         state = AppRoute.home;
       }
     });
-    return AppRoute.loginIdentity;
+    return needsModelDownload ? AppRoute.modelDownload : AppRoute.loginIdentity;
   }
 
   void navigateTo(AppRoute route) {
@@ -29,6 +45,7 @@ class AppNavigationNotifier extends Notifier<AppRoute> {
   }
 }
 
-final appNavigationProvider = NotifierProvider<AppNavigationNotifier, AppRoute>(() {
+final appNavigationProvider =
+    NotifierProvider<AppNavigationNotifier, AppRoute>(() {
   return AppNavigationNotifier();
 });
