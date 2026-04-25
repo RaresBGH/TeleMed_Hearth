@@ -15,3 +15,9 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## Autentificare Demo
+
+Această versiune folosește un bypass de demonstrație pentru OTP.
+Codul OTP = ultimele 6 cifre ale CNP-ului introdus.
+În producție, codul va fi trimis prin SMS via un gateway certificat.
