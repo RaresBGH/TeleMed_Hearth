@@ -73,7 +73,6 @@ class DeviceConflictModal extends StatelessWidget {
                   style: TextStyle(
                     color: Color(0xFF000000),
                     fontSize: 22,
-                    fontFamily: 'Lexend',
                     height: 1.4,
                   ),
                   children: [

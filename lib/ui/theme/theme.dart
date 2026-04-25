@@ -4,10 +4,11 @@
 // TeleMed_K: Offline-first telemedicine app for seniors
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color backgroundLight = Color(0xFFF5F5F5); // Deep off-white
-  static const Color textPrimary = Color(0xFF000000);     // Pure black text
+  static const Color backgroundLight = Color(0xFFF5F5F5);
+  static const Color textPrimary = Color(0xFF000000);
 
   static ThemeData get lightTheme {
     return ThemeData(
@@ -17,10 +18,21 @@ class AppTheme {
         surface: backgroundLight,
         onSurface: textPrimary,
       ),
-      textTheme: const TextTheme(
-        bodyLarge: TextStyle(fontSize: 22.0, color: textPrimary),
-        bodyMedium: TextStyle(fontSize: 18.0, color: textPrimary),
-        labelLarge: TextStyle(fontSize: 18.0, color: textPrimary, fontWeight: FontWeight.bold),
+      // Apply Lexend to every text style in the app, then enforce minimum
+      // sizes required for elderly-patient accessibility.
+      textTheme: GoogleFonts.lexendTextTheme().copyWith(
+        bodyMedium: GoogleFonts.lexend(fontSize: 18.0, color: textPrimary),
+        bodyLarge: GoogleFonts.lexend(fontSize: 20.0, color: textPrimary),
+        labelLarge: GoogleFonts.lexend(
+          fontSize: 20.0,
+          fontWeight: FontWeight.bold,
+          color: textPrimary,
+        ),
+        displaySmall: GoogleFonts.lexend(
+          fontSize: 28.0,
+          fontWeight: FontWeight.bold,
+          color: textPrimary,
+        ),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: backgroundLight,
@@ -32,7 +44,7 @@ class AppTheme {
   }
 }
 
-/// Reusable wrapper ensuring any mapped interactive widget strictly maintains 
+/// Reusable wrapper ensuring any mapped interactive widget strictly maintains
 /// a minimum of 64x64 dp touch target for extreme accessibility constraints.
 class AccessibleTouchTarget extends StatelessWidget {
   final Widget child;
