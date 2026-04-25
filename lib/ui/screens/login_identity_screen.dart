@@ -187,11 +187,10 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       body: SafeArea(
         child: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF5BA4CF)))
-          : SizedBox.expand(
-              child: SingleChildScrollView(
+          : SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
                     'Sănătatea ta,\nla un click distanță',
@@ -349,7 +348,6 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                 ],
               ),
             ),
-          ),
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
