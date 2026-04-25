@@ -3,10 +3,13 @@
 //
 // TeleMed_K: Offline-first telemedicine app for seniors
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/providers/app_navigation_provider.dart';
+import 'core/services/ai_engine_service.dart';
 import 'data/repositories/fhir_repository.dart';
 import 'ui/theme/theme.dart';
 import 'ui/screens/home_screen.dart';
@@ -31,6 +34,12 @@ Future<void> main() async {
     // Non-fatal during development when running on host without the native
     // Android FHIR SDK (e.g. flutter test on desktop).
   }
+
+  // Initialize LiteRT-LM engine in background — non-blocking, never delays runApp.
+  // Sets AiEngineService._isInitialized = true (static flag) when the model is ready.
+  // If the model file is not yet downloaded, logs gracefully; evaluate methods
+  // return the Romanian fallback response rather than crashing.
+  unawaited(AiEngineService(FhirRepository()).initializeModel());
 
   runApp(
     const ProviderScope(

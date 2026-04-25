@@ -90,6 +90,12 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
         when (call.method) {
             "isModelReady" -> result.success(isEngineReady)
 
+            // Returns the absolute path where the model file is (or will be) stored.
+            // Used by the Dart layer to check existence before calling loadModel.
+            "getModelPath" -> result.success(
+                File(context.filesDir, "models/gemma-4-E2B-it.litertlm").absolutePath
+            )
+
             // Both names map to the same initialisation path
             "loadModel", "initializeModel" -> handleLoadModel(call, result)
 

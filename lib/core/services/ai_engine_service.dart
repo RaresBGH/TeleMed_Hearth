@@ -5,6 +5,7 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/repositories/fhir_repository.dart';
@@ -13,147 +14,192 @@ import '../../data/repositories/fhir_repository.dart';
 class EmergencyFlagException implements Exception {
   final double confidence;
   EmergencyFlagException(this.confidence);
-  
+
   @override
-  // SECURITY FIX: Ensuring strict overriding preventing memory pointers leaking offline limits remotely securely
-  String toString() => 'EMERGENCY FLAG TRIGGERED: Life-threatening condition detected (Confidence verified locally)';
+  String toString() =>
+      'EMERGENCY FLAG TRIGGERED: Life-threatening condition detected';
 }
 
-/// Service handling local AI Inference via Google LiteRT-LM (Gemma 4 E2B)
+/// Service handling local AI inference via Google LiteRT-LM (Gemma 4 E2B).
 class AiEngineService {
   static const MethodChannel _channel = MethodChannel('com.telemed_k/litert_lm');
-  static const String _modelFileName = 'gemma4_e2b_4bit.gguf';
+
+  // Static so the flag is shared across the instance created in main() (for
+  // initialization) and the instance created by aiEngineServiceProvider (for
+  // inference). Both operate on the same native Engine singleton.
+  static bool _isInitialized = false;
+
+  // Returned whenever the model is not loaded — keeps the app functional
+  // without a crash and avoids an empty state for the user.
+  static const Map<String, dynamic> _fallbackResponse = {
+    'response':
+        'Asistentul AI nu este disponibil momentan. Vă rugăm descrieți '
+        'simptomele dumneavoastră și medicul vă va contacta.',
+    'emergency': false,
+    'confidence': 0.0,
+    'doctor_summary': null,
+  };
 
   final FhirRepository _fhirRepository;
-  bool _isModelInitialized = false;
 
   AiEngineService(this._fhirRepository);
 
-  /// Checks Wi-Fi connection, downloads the ~2.58 GB 4-bit quantized 
-  /// Gemma 4 E2B model weights, and saves them to local device storage.
-  /// Intended to run on the very first app launch; avoids bundling weights in the APK.
-  Future<void> downloadWeights(String storageDirectory) async {
+  // ──────────────────────────────────────────────────────────────────────────
+  // Model lifecycle
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /// Asks the native layer for the absolute path to the model file.
+  /// Path: context.filesDir/models/gemma-4-E2B-it.litertlm
+  /// Returns null if the channel call fails.
+  Future<String?> _getModelPath() async {
     try {
-      final String downloadPath = '$storageDirectory/$_modelFileName';
-      await _channel.invokeMethod<void>('downloadWeights', {
-        'destinationPath': downloadPath,
-        'modelUrl': 'https://storage.googleapis.com/telemed_k_assets/gemma4_e2b_4bit.gguf',
-        'requireWiFi': true, // Native level implementation forcefully prompts user for Wi-Fi
-      });
+      return await _channel.invokeMethod<String>('getModelPath');
     } on PlatformException catch (e) {
-      // SECURITY FIX: Limit external exception bounds preventing trace mapping leaks
-      throw Exception('Failed to download constraints: Error ${e.code}');
+      debugPrint('AiEngineService._getModelPath error: ${e.code}');
+      return null;
     }
   }
 
-  /// Loads the locally downloaded weights into the LiteRT-LM framework memory space.
-  Future<void> initializeModel(String storageDirectory) async {
+  /// Initializes the LiteRT-LM engine with the locally stored model file.
+  ///
+  /// Returns true if the engine loaded successfully.
+  /// Returns false gracefully if the model file has not been downloaded yet —
+  /// logs "LiteRT-LM: model not yet downloaded" and leaves the app functional
+  /// (evaluate methods return [_fallbackResponse] instead of crashing).
+  ///
+  /// Safe to call on startup — never throws.
+  Future<bool> initializeModel() async {
     try {
-      final String modelPath = '$storageDirectory/$_modelFileName';
-      await _channel.invokeMethod<void>('initializeModel', {
-        'modelPath': modelPath,
-      });
-      _isModelInitialized = true;
+      final String? modelPath = await _getModelPath();
+      if (modelPath == null) {
+        debugPrint('LiteRT-LM: could not determine model path from native layer');
+        return false;
+      }
+
+      if (!File(modelPath).existsSync()) {
+        debugPrint('LiteRT-LM: model not yet downloaded');
+        return false;
+      }
+
+      await _channel.invokeMethod<void>('loadModel', {'modelPath': modelPath});
+      _isInitialized = true;
+      debugPrint('LiteRT-LM: engine initialized — $modelPath');
+      return true;
     } on PlatformException catch (e) {
-      throw Exception('Failed to initialize LiteRT-LM limits: Error ${e.code}');
+      debugPrint('AiEngineService.initializeModel PlatformException: ${e.code}');
+      return false;
+    } catch (e) {
+      debugPrint('AiEngineService.initializeModel error: $e');
+      return false;
     }
   }
 
-  /// Feeds the raw collected audio file DIRECTLY to the LiteRT-LM model.
-  /// Executes a secure Local RAG: Retrieves the patient's FHIR history from SQLite and 
-  /// injects it perfectly into the System Prompt natively entirely via constraints.
-  /// Expects constrained JSON output outlining the medical analysis.
-  Future<Map<String, dynamic>> evaluateAudio(File audioFile, {String? customPrompt}) async {
-    if (!_isModelInitialized) {
-      throw Exception('AI limits must execute securely explicitly natively formatted correctly prior mappings.');
+  // ──────────────────────────────────────────────────────────────────────────
+  // Inference
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /// Feeds a WAV audio file to the LiteRT-LM engine for triage analysis.
+  /// Injects the patient's FHIR history as system-prompt context (local RAG).
+  /// Returns [_fallbackResponse] if the model is not yet initialized.
+  Future<Map<String, dynamic>> evaluateAudio(
+    File audioFile, {
+    String? customPrompt,
+  }) async {
+    if (!_isInitialized) {
+      return Map<String, dynamic>.from(_fallbackResponse);
     }
 
     try {
-      // 1. Local RAG Pipeline: Fetch historical medical profile strictly from offline SQLite Database
-      final List<Map<String, dynamic>> patientHistory = await _fhirRepository.getPatientHistory();
+      final List<Map<String, dynamic>> patientHistory =
+          await _fhirRepository.getPatientHistory();
 
-      // 2. Format structure for injection into Gemma's Context Window
       final StringBuffer systemPromptBuffer = StringBuffer();
       if (customPrompt != null) {
         systemPromptBuffer.writeln(customPrompt);
       } else {
-        systemPromptBuffer.writeln("You are a medical triage assistant. You must purely output valid JSON constrained to our schema.");
-        systemPromptBuffer.writeln("Evaluate the patient's incoming audio symptoms contextually against their known medical history.");
-      }
-      
-      if (patientHistory.isNotEmpty) {
-        systemPromptBuffer.writeln("LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):");
-        for (final resource in patientHistory) {
-          // Minimizing footprint by directly serializing JSON structures cleanly mapped into context bounds.
-          systemPromptBuffer.writeln("- ${resource['resourceType']}: ${jsonEncode(resource)}");
-        }
-      } else {
-        systemPromptBuffer.writeln("LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR): None documented.");
+        systemPromptBuffer.writeln(
+            'You are a medical triage assistant. You must purely output valid JSON constrained to our schema.');
+        systemPromptBuffer.writeln(
+            "Evaluate the patient's incoming audio symptoms contextually against their known medical history.");
       }
 
-      // 3. Pass raw audio + RAG augmented context natively evaluating bounds via LiteRT-LM limits
-      final String? jsonResponse = await _channel.invokeMethod<String>('evaluateAudio', {
+      if (patientHistory.isNotEmpty) {
+        systemPromptBuffer.writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):');
+        for (final resource in patientHistory) {
+          systemPromptBuffer
+              .writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
+        }
+      } else {
+        systemPromptBuffer
+            .writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR): None documented.');
+      }
+
+      final String? jsonResponse =
+          await _channel.invokeMethod<String>('evaluateAudio', {
         'audioPath': audioFile.path,
         'systemPrompt': systemPromptBuffer.toString(),
         'constraintFormat': 'json',
       });
 
       if (jsonResponse == null || jsonResponse.isEmpty) {
-        throw Exception('LiteRT-LM mapping constraints returned correctly verified bounds null.');
+        return Map<String, dynamic>.from(_fallbackResponse);
       }
 
-      final Map<String, dynamic> result = jsonDecode(jsonResponse) as Map<String, dynamic>;
+      final Map<String, dynamic> result =
+          jsonDecode(jsonResponse) as Map<String, dynamic>;
 
-      // 4. Rules Engine: Check for emergency flag based on structured output limits resolving UI handoffs
       if (result.containsKey('emergency') && result['emergency'] == true) {
-        final double confidence = (result['confidence'] as num?)?.toDouble() ?? 0.0;
-        
-        // Throw an emergency state flag if confidence > 0.8 ensuring routing routes optimally
+        final double confidence =
+            (result['confidence'] as num?)?.toDouble() ?? 0.0;
         if (confidence > 0.8) {
           throw EmergencyFlagException(confidence);
         }
       }
 
-      // SECURITY FIX: System buffer securely flushes natively preventing pointer overlaps globally
-      systemPromptBuffer.clear();
-
       return result;
     } on PlatformException catch (e) {
-      throw Exception('Evaluation limits natively locked locally preventing inferences strictly securely natively: Error ${e.code}');
+      debugPrint('AiEngineService.evaluateAudio error: ${e.code}');
+      return Map<String, dynamic>.from(_fallbackResponse);
     }
   }
 
-  /// Evaluates multimodal media (image or video up to 60 seconds) directly natively using Gemma 4 E2B locally.
-  /// Bypasses any external OCR, processing visual indicators purely into structured HL7 FHIR Observation constraints.
-  Future<Map<String, dynamic>> evaluateMedia(File mediaFile, {String? customPrompt}) async {
-    if (!_isModelInitialized) {
-      throw Exception('AI limits must execute securely explicitly natively formatted correctly prior mappings.');
+  /// Evaluates a media file (image or video) via the LiteRT-LM engine.
+  /// Returns [_fallbackResponse] if the model is not yet initialized.
+  Future<Map<String, dynamic>> evaluateMedia(
+    File mediaFile, {
+    String? customPrompt,
+  }) async {
+    if (!_isInitialized) {
+      return Map<String, dynamic>.from(_fallbackResponse);
     }
 
     try {
-      // 1. Local RAG Pipeline: Fetch historical medical profile strictly from offline SQLite Database
-      final List<Map<String, dynamic>> patientHistory = await _fhirRepository.getPatientHistory();
+      final List<Map<String, dynamic>> patientHistory =
+          await _fhirRepository.getPatientHistory();
 
-      // 2. Format structure for injection into Gemma's Context Window
       final StringBuffer systemPromptBuffer = StringBuffer();
       if (customPrompt != null) {
         systemPromptBuffer.writeln(customPrompt);
       } else {
-        systemPromptBuffer.writeln("You are a medical visual triage assistant running natively. Analyze the provided image/video.");
-        systemPromptBuffer.writeln("Output purely valid JSON constrained to our schema mapping to HL7 FHIR Observation.");
-      }
-      
-      if (patientHistory.isNotEmpty) {
-        systemPromptBuffer.writeln("LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):");
-        for (final resource in patientHistory) {
-          systemPromptBuffer.writeln("- ${resource['resourceType']}: ${jsonEncode(resource)}");
-        }
-      } else {
-        systemPromptBuffer.writeln("LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR): None documented.");
+        systemPromptBuffer.writeln(
+            'You are a medical visual triage assistant running natively. Analyze the provided image/video.');
+        systemPromptBuffer.writeln(
+            'Output purely valid JSON constrained to our schema mapping to HL7 FHIR Observation.');
       }
 
-      // 3. Pass raw media + RAG augmented context natively evaluating bounds via LiteRT-LM limits
-      final String? jsonResponse = await _channel.invokeMethod<String>('evaluateMedia', {
+      if (patientHistory.isNotEmpty) {
+        systemPromptBuffer.writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):');
+        for (final resource in patientHistory) {
+          systemPromptBuffer
+              .writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
+        }
+      } else {
+        systemPromptBuffer
+            .writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR): None documented.');
+      }
+
+      final String? jsonResponse =
+          await _channel.invokeMethod<String>('evaluateMedia', {
         'mediaPath': mediaFile.path,
         'systemPrompt': systemPromptBuffer.toString(),
         'constraintFormat': 'json',
@@ -161,25 +207,24 @@ class AiEngineService {
       });
 
       if (jsonResponse == null || jsonResponse.isEmpty) {
-        throw Exception('LiteRT-LM multimodal mapping returned null.');
+        return Map<String, dynamic>.from(_fallbackResponse);
       }
 
-      final Map<String, dynamic> result = jsonDecode(jsonResponse) as Map<String, dynamic>;
+      final Map<String, dynamic> result =
+          jsonDecode(jsonResponse) as Map<String, dynamic>;
 
-      // 4. Rules Engine: Check for emergency flag
       if (result.containsKey('emergency') && result['emergency'] == true) {
-        final double confidence = (result['confidence'] as num?)?.toDouble() ?? 0.0;
+        final double confidence =
+            (result['confidence'] as num?)?.toDouble() ?? 0.0;
         if (confidence > 0.8) {
           throw EmergencyFlagException(confidence);
         }
       }
 
-      // SECURITY FIX: System buffer securely flushes natively
-      systemPromptBuffer.clear();
-
       return result;
     } on PlatformException catch (e) {
-      throw Exception('Multimodal native evaluation error: ${e.code}');
+      debugPrint('AiEngineService.evaluateMedia error: ${e.code}');
+      return Map<String, dynamic>.from(_fallbackResponse);
     }
   }
 }

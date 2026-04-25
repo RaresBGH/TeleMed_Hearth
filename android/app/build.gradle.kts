@@ -79,7 +79,7 @@ dependencies {
     implementation("com.google.android.fhir:data-capture:1.1.0")
 
     // LiteRT-LM — on-device Gemma 4 E2B inference (Google Maven)
-    implementation("com.google.ai.edge.litertlm:litertlm-android:latest.release")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.2")
 
     // --- SQLCipher: Encryption-at-rest for the FHIR SQLite database ---
     implementation("net.zetetic:sqlcipher-android:4.6.1@aar")
