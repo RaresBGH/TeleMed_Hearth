@@ -37,7 +37,7 @@ class HistoryScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Istoric Medical',
+                'Dosar Medical',
                 style: TextStyle(fontSize: 32, color: Colors.black, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),

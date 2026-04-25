@@ -234,9 +234,14 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
                 )
               else
                 ElevatedButton(
-                  onPressed: (_isAuthenticating || _isLocked) ? null : _onConfirmAndCreateAccount,
+                  onPressed: (_isAuthenticating ||
+                          _isLocked ||
+                          _controllers.map((c) => c.text).join().length < 6)
+                      ? null
+                      : _onConfirmAndCreateAccount,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF5BA4CF),
+                    disabledBackgroundColor: Colors.grey.shade400,
                     foregroundColor: Colors.white,
                     minimumSize: const Size(double.infinity, 80),
                     shape: RoundedRectangleBorder(
@@ -320,7 +325,8 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
 
               // Demo hint — visible to competition judges
               const Text(
-                'Mod demonstrativ: codul este format din ultimele 6 cifre ale CNP-ului',
+                'Mod demonstrativ: codul este format din ultimele 6 cifre ale CNP-ului '
+                '(ex: CNP 1850415150017 → cod 150017)',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: Colors.black38),
               ),

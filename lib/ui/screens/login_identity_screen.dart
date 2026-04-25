@@ -24,6 +24,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
   final TextEditingController _phoneController = TextEditingController();
   bool _isLoading = false;
   bool _cnpValid = false;
+  String? _ageError;
 
   @override
   void initState() {
@@ -32,9 +33,22 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
   }
 
   void _onCnpChanged() {
-    final valid = CnpService.isValid(_cnpController.text.trim());
-    if (valid != _cnpValid) {
-      setState(() => _cnpValid = valid);
+    final cnp = _cnpController.text.trim();
+    final checksumOk = CnpService.isValid(cnp);
+
+    bool newValid = checksumOk;
+    String? newAgeError;
+
+    if (checksumOk && !CnpService.isAdult(cnp)) {
+      newAgeError = 'Vârsta minimă este 18 ani.';
+      newValid = false;
+    }
+
+    if (newValid != _cnpValid || newAgeError != _ageError) {
+      setState(() {
+        _cnpValid = newValid;
+        _ageError = newAgeError;
+      });
     }
   }
 
@@ -309,6 +323,18 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                         ],
                       ),
                     ),
+                    if (_ageError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, left: 4),
+                        child: Text(
+                          _ageError!,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 32),
 
                     // ── Phone Field ────────────────────────────────────────
@@ -333,7 +359,8 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                               controller: _phoneController,
                               keyboardType: TextInputType.phone,
                               inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(10),
                               ],
                               style: const TextStyle(
                                   fontSize: 24,
