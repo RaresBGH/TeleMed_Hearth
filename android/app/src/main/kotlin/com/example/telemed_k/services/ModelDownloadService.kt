@@ -39,7 +39,7 @@ class ModelDownloadService(private val context: Context) : MethodChannel.MethodC
         private const val TAG = "ModelDownloadService"
 
         private const val MODEL_URL =
-            "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm"
+            "http://192.168.0.37:8080/gemma-4-E2B-it.litertlm"
 
         private const val MODEL_FILENAME = "gemma-4-E2B-it.litertlm"
         private const val MODEL_SUBDIR = "models"
