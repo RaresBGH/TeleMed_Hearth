@@ -98,6 +98,7 @@ class ModelDownloadService(private val context: Context) : MethodChannel.MethodC
                         "status" to 16,
                         "bytesDownloaded" to 0L,
                         "totalBytes" to 0L,
+                        "errorReason" to status.errorReason,
                     )
                 }
                 withContext(Dispatchers.Main) { result.success(progressMap) }
@@ -166,6 +167,20 @@ class ModelDownloadService(private val context: Context) : MethodChannel.MethodC
         return localPath
     }
 
+    private fun mapReasonCode(reason: Int): String = when (reason) {
+        DownloadManager.ERROR_CANNOT_RESUME       -> "ERROR_CANNOT_RESUME"
+        DownloadManager.ERROR_DEVICE_NOT_FOUND    -> "ERROR_DEVICE_NOT_FOUND"
+        DownloadManager.ERROR_FILE_ALREADY_EXISTS -> "ERROR_FILE_ALREADY_EXISTS"
+        DownloadManager.ERROR_FILE_ERROR          -> "ERROR_FILE_ERROR"
+        DownloadManager.ERROR_HTTP_DATA_ERROR     -> "ERROR_HTTP_DATA_ERROR"
+        DownloadManager.ERROR_INSUFFICIENT_SPACE  -> "ERROR_INSUFFICIENT_SPACE"
+        DownloadManager.ERROR_TOO_MANY_REDIRECTS  -> "ERROR_TOO_MANY_REDIRECTS"
+        DownloadManager.ERROR_UNHANDLED_HTTP_CODE -> "ERROR_UNHANDLED_HTTP_CODE"
+        DownloadManager.ERROR_UNKNOWN             -> "ERROR_UNKNOWN"
+        1008                                      -> "ERROR_BLOCKED_BY_POLICY"
+        else                                      -> "ERROR_CODE_$reason"
+    }
+
     /**
      * Queries DownloadManager for the status of any pending model download.
      * Returns [DownloadStatus.Complete] immediately if the file already exists on disk.
@@ -200,8 +215,11 @@ class ModelDownloadService(private val context: Context) : MethodChannel.MethodC
                     DownloadStatus.InProgress(downloaded, total)
                 DownloadManager.STATUS_PAUSED ->
                     DownloadStatus.Paused(downloaded, total)
-                DownloadManager.STATUS_FAILED ->
-                    DownloadStatus.Failed
+                DownloadManager.STATUS_FAILED -> {
+                    val reasonCol = cursor.getColumnIndex(DownloadManager.COLUMN_REASON)
+                    val reason = if (reasonCol >= 0) cursor.getInt(reasonCol) else DownloadManager.ERROR_UNKNOWN
+                    DownloadStatus.Failed(mapReasonCode(reason))
+                }
                 else -> DownloadStatus.NotStarted
             }
         }
@@ -219,7 +237,7 @@ sealed class DownloadStatus {
 
     data class Paused(val bytesDownloaded: Long, val totalBytes: Long) : DownloadStatus()
 
-    object Failed : DownloadStatus()
+    data class Failed(val errorReason: String) : DownloadStatus()
 
     data class Complete(val localPath: String) : DownloadStatus()
 }

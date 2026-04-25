@@ -120,13 +120,15 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
       }
 
       if (status == 16) {
-        // STATUS_FAILED
+        // STATUS_FAILED — include native error reason if available
         _progressTimer?.cancel();
         if (mounted) {
+          final reason = raw['errorReason'] as String?;
           setState(() {
             _downloadState = _DownloadState.error;
-            _errorMessage =
-                'Descărcarea a eșuat. Verificați conexiunea WiFi și încercați din nou.';
+            _errorMessage = reason != null
+                ? 'Descărcarea a eșuat ($reason). Verificați conexiunea WiFi și încercați din nou.'
+                : 'Descărcarea a eșuat. Verificați conexiunea WiFi și încercați din nou.';
           });
         }
         return;

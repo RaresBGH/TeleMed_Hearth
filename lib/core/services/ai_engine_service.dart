@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../data/repositories/fhir_repository.dart';
 
@@ -48,14 +49,52 @@ class AiEngineService {
   // Model lifecycle
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// Asks the native layer for the absolute path to the model file.
-  /// Path: context.filesDir/models/gemma-4-E2B-it.litertlm
-  /// Returns null if the channel call fails.
+  static const String _modelFileName = 'gemma-4-E2B-it.litertlm';
+  static const String _sdcardPath = '/sdcard/Download/$_modelFileName';
+
+  /// Locates the model file, checking two paths in order:
+  ///   1. app-private filesDir/models/ (normal install / download path)
+  ///   2. /sdcard/Download/ (sideloaded for testing)
+  ///
+  /// If found only in location 2, copies it to location 1 asynchronously
+  /// and returns the destination path so the engine always loads from
+  /// app-private storage. Returns null if absent from both locations.
   Future<String?> _getModelPath() async {
     try {
-      return await _channel.invokeMethod<String>('getModelPath');
+      final String? nativePath =
+          await _channel.invokeMethod<String>('getModelPath');
+
+      if (nativePath == null) return null;
+
+      // Sideloaded file on sdcard — copy to app-private storage first.
+      if (nativePath == _sdcardPath) {
+        return await _copySideloadedModel(nativePath);
+      }
+
+      // Already in the primary location.
+      return nativePath;
     } on PlatformException catch (e) {
       debugPrint('AiEngineService._getModelPath error: ${e.code}');
+      return null;
+    }
+  }
+
+  /// Copies the sideloaded model from [sdcardPath] into the app-private
+  /// models directory and returns the destination path.
+  /// Returns null if the copy fails for any reason.
+  Future<String?> _copySideloadedModel(String sdcardPath) async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final destDir = Directory('${appDir.path}/models');
+      if (!destDir.existsSync()) await destDir.create(recursive: true);
+
+      final destPath = '${destDir.path}/$_modelFileName';
+      debugPrint('AiEngineService: copying sideloaded model $sdcardPath → $destPath');
+      await File(sdcardPath).copy(destPath);
+      debugPrint('AiEngineService: sideloaded model copy complete');
+      return destPath;
+    } catch (e) {
+      debugPrint('AiEngineService._copySideloadedModel error: $e');
       return null;
     }
   }

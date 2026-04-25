@@ -90,11 +90,19 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
         when (call.method) {
             "isModelReady" -> result.success(isEngineReady)
 
-            // Returns the absolute path where the model file is (or will be) stored.
-            // Used by the Dart layer to check existence before calling loadModel.
-            "getModelPath" -> result.success(
-                File(context.filesDir, "models/gemma-4-E2B-it.litertlm").absolutePath
-            )
+            // Returns the path where the model file exists, checking two locations:
+            //   1. app-private filesDir/models/ (normal install path)
+            //   2. /sdcard/Download/ (sideloaded for testing)
+            // Returns null if the file is absent from both locations.
+            "getModelPath" -> {
+                val primaryPath = File(context.filesDir, "models/gemma-4-E2B-it.litertlm").absolutePath
+                val sdcardPath  = "/sdcard/Download/gemma-4-E2B-it.litertlm"
+                result.success(when {
+                    File(primaryPath).exists() -> primaryPath
+                    File(sdcardPath).exists()  -> sdcardPath
+                    else                       -> null
+                })
+            }
 
             // Both names map to the same initialisation path
             "loadModel", "initializeModel" -> handleLoadModel(call, result)
