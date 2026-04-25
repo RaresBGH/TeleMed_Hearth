@@ -184,170 +184,37 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
           ],
         ),
       ),
+      // ── DIAGNOSTIC BODY — temporary to isolate rendering layer ────────────
+      // Replace with full CNP/phone form once rendering is confirmed working.
       body: SafeArea(
-        child: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF5BA4CF)))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Sănătatea ta,\nla un click distanță',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.black, height: 1.2),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  Container(height: 6, width: 96, decoration: BoxDecoration(color: const Color(0xFF5BA4CF), borderRadius: BorderRadius.circular(3))),
-                  const SizedBox(height: 40),
-
-                  // CNP Field
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('CNP (Cod Numeric Personal)', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
-                      const SizedBox(height: 12),
-                      Container(
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: showIndicator
-                                ? (_cnpValid ? Colors.green : Colors.red)
-                                : Colors.black,
-                            width: showIndicator ? 2.5 : 2,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _cnpController,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  LengthLimitingTextInputFormatter(13),
-                                ],
-                                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 24),
-                                  hintText: 'Introduceți cele 13 cifre',
-                                  hintStyle: TextStyle(fontSize: 24, color: Colors.black54),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(right: 24.0),
-                              child: showIndicator
-                                  ? Icon(
-                                      _cnpValid ? Icons.check_circle : Icons.cancel,
-                                      size: 40,
-                                      color: _cnpValid ? Colors.green : Colors.red,
-                                    )
-                                  : const Icon(Icons.fingerprint, size: 40, color: Colors.black26),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Phone Field
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Număr de Telefon', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
-                      const SizedBox(height: 12),
-                      Container(
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.black, width: 2),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _phoneController,
-                                keyboardType: TextInputType.phone,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 24),
-                                  hintText: 'Ex: 0722 000 000',
-                                  hintStyle: TextStyle(fontSize: 24, color: Colors.black54),
-                                ),
-                              ),
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.only(right: 24.0),
-                              child: Icon(Icons.call, size: 40, color: Colors.black26),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 48),
-
-                  // Helpful prompt
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8E8E8),
-                      borderRadius: BorderRadius.circular(16),
-                      border: const Border(left: BorderSide(color: Color(0xFF5BA4CF), width: 8)),
-                    ),
-                    child: const Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.info, color: Color(0xFF5BA4CF), size: 36),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
-                            'Dacă aveți nevoie de ajutor, apăsați butonul de Ajutor de mai jos. Câmpurile pot fi completate audio sau prin fotografierea actului de identitate.',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 48),
-
-                  // CONTINUĂ — disabled (grey) until CNP valid
-                  AccessibleTouchTarget(
-                    semanticLabel: 'Continuă autentificarea',
-                    onTap: _onContinuaTap,
-                    child: Container(
-                      width: double.infinity,
-                      height: 96,
-                      decoration: BoxDecoration(
-                        color: _cnpValid ? const Color(0xFF5BA4CF) : Colors.grey.shade400,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.black, width: 2),
-                        boxShadow: _cnpValid
-                            ? const [BoxShadow(color: Colors.black, offset: Offset(0, 8))]
-                            : null,
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('CONTINUĂ', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2.0)),
-                          SizedBox(width: 16),
-                          Icon(Icons.arrow_forward, color: Colors.white, size: 40),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 80),
-                ],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'TEST - Dacă vedeți acest text, scroll-ul funcționează',
+                style: TextStyle(
+                  fontSize: 24,
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
+              const SizedBox(height: 32),
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: 'CNP Test',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: () {},
+                child: const Text('TEST BUTON', style: TextStyle(fontSize: 20)),
+              ),
+            ],
+          ),
+        ),
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
