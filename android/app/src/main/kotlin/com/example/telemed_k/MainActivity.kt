@@ -11,6 +11,7 @@ import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
+import com.example.telemed_k.channels.AudioTranscodeChannel
 import com.example.telemed_k.channels.FhirEngineChannel
 import com.example.telemed_k.channels.LiteRtLmChannel
 import com.example.telemed_k.channels.TelemedicineChannel
@@ -32,8 +33,10 @@ class MainActivity : FlutterFragmentActivity() {
         private const val FHIR_ENGINE_CHANNEL = "com.telemed_k/fhir_engine"
         private const val LITERT_LM_CHANNEL = "com.telemed_k/litert_lm"
         private const val TELEMEDICINE_CHANNEL = "com.telemed_k/telemedicine"
+        private const val AUDIO_TRANSCODE_CHANNEL = "com.telemed_k/audio_transcode"
     }
 
+    private lateinit var audioTranscodeChannel: AudioTranscodeChannel
     private lateinit var fhirEngineChannel: FhirEngineChannel
     private lateinit var liteRtLmChannel: LiteRtLmChannel
     private lateinit var telemedicineChannel: TelemedicineChannel
@@ -41,7 +44,14 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // --- 1. FHIR Engine Channel ---
+        // --- 1. Audio Transcode Channel ---
+        audioTranscodeChannel = AudioTranscodeChannel(this)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            AUDIO_TRANSCODE_CHANNEL
+        ).setMethodCallHandler(audioTranscodeChannel)
+
+        // --- 2. FHIR Engine Channel ---
         fhirEngineChannel = FhirEngineChannel(this)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,

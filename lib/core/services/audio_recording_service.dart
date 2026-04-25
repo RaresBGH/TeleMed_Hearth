@@ -3,9 +3,11 @@
 //
 // TeleMed_K: Offline-first telemedicine app for seniors
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -18,10 +20,12 @@ import 'package:record/record.dart';
 ///   stopRecording()  → stops, returns WAV path immediately for inference
 ///
 /// AAC flow (Medplum storage):
-///   Transcoding is handled by AudioTranscodeChannel (Kotlin MediaCodec).
-///   [lastAacPath] returns null until that channel is wired.
+///   After stopRecording() returns the WAV path, _transcodeToAac() is fired
+///   and forgotten via unawaited(). It calls AudioTranscodeChannel (Kotlin
+///   MediaCodec WAV→AAC) and stores the result in [lastAacPath].
 class AudioRecordingService {
   final AudioRecorder _recorder = AudioRecorder();
+  static const _transcodeChannel = MethodChannel('com.telemed_k/audio_transcode');
 
   String? _lastAacPath;
 
@@ -79,7 +83,9 @@ class AudioRecordingService {
         return '';
       }
       debugPrint('AudioRecordingService: recording stopped → $path');
-      // TODO: WAV→AAC transcoding handled by AudioTranscodeChannel (Kotlin MediaCodec)
+      // Fire-and-forget: WAV is returned immediately for inference;
+      // AAC transcode runs in background via AudioTranscodeChannel.
+      unawaited(_transcodeToAac(path));
       return path;
     } catch (e) {
       debugPrint('AudioRecordingService.stopRecording error: $e');
@@ -98,6 +104,31 @@ class AudioRecordingService {
       }
     } catch (e) {
       debugPrint('AudioRecordingService.deleteWavFile error: $e');
+    }
+  }
+
+  Future<void> _transcodeToAac(String wavPath) async {
+    try {
+      final tmpDir = (await getTemporaryDirectory()).path;
+      final docsDir = (await getApplicationDocumentsDirectory()).path;
+
+      final aacPath = wavPath
+          .replaceAll('telemed_audio_', 'telemed_archive_')
+          .replaceAll('.wav', '.aac')
+          .replaceAll(tmpDir, docsDir);
+
+      final result = await _transcodeChannel.invokeMethod<String>(
+        'transcodeWavToAac',
+        {'inputPath': wavPath, 'outputPath': aacPath},
+      );
+      if (result != null) {
+        _lastAacPath = aacPath;
+        debugPrint('AudioRecordingService: AAC ready → $aacPath');
+      } else {
+        debugPrint('AudioRecordingService: transcode returned null (Kotlin error logged)');
+      }
+    } catch (e) {
+      debugPrint('AudioRecordingService._transcodeToAac error: $e');
     }
   }
 
