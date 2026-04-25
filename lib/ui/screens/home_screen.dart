@@ -10,6 +10,7 @@ import '../theme/theme.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/services/audio_recording_service.dart';
+import '../../core/services/camera_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +21,38 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isRecording = false;
+
+  Future<void> _onCameraTap() async {
+    final cameraService = ref.read(cameraServiceProvider);
+
+    final hasPermission = await cameraService.requestPermission();
+    if (!mounted) return;
+
+    if (!hasPermission) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Permisiunea pentru cameră este necesară.',
+            style: TextStyle(fontSize: 18),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final imagePath = await cameraService.captureImage();
+    if (!mounted) return;
+
+    if (imagePath == null) return; // user cancelled
+
+    // processMedia sets sessionState to processing → spinner appears in body
+    await ref
+        .read(medicalSessionProvider.notifier)
+        .processMedia(File(imagePath));
+
+    // Delete the temp JPEG after inference; compressed AAC/video handled separately
+    cameraService.deleteTempFile(imagePath);
+  }
 
   Future<void> _onMicTap() async {
     final audioService = ref.read(audioRecordingServiceProvider);
@@ -97,14 +130,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           AccessibleTouchTarget(
             semanticLabel: 'Deschide Camera',
-            onTap: () {
-              ref.read(medicalSessionProvider.notifier).startRecording();
-              // Camera capture not yet implemented — dummy file triggers channel stub
-              Future.delayed(const Duration(seconds: 1), () {
-                final dummyMedia = File('dummy_multimodal_path.jpg');
-                ref.read(medicalSessionProvider.notifier).processMedia(dummyMedia);
-              });
-            },
+            onTap: () { _onCameraTap(); },
             child: const Icon(Icons.camera_alt, size: 32),
           ),
         ],

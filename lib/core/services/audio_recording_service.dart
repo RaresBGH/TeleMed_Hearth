@@ -5,8 +5,6 @@
 
 import 'dart:io';
 
-import 'package:ffmpeg_kit_flutter_min_gpl/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_min_gpl/return_code.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -20,15 +18,15 @@ import 'package:record/record.dart';
 ///   stopRecording()  → stops, returns WAV path immediately for inference
 ///
 /// AAC flow (Medplum storage):
-///   After stopRecording() returns, a background ffmpeg transcode begins.
-///   When complete, [lastAacPath] is set to recordings/audio_{ts}.aac.
+///   Transcoding is handled by AudioTranscodeChannel (Kotlin MediaCodec).
+///   [lastAacPath] returns null until that channel is wired.
 class AudioRecordingService {
   final AudioRecorder _recorder = AudioRecorder();
 
   String? _lastAacPath;
 
-  /// AAC path produced by the last successful transcode.
-  /// Null until transcoding completes after [stopRecording].
+  /// AAC path for Medplum storage.
+  /// Returns null — transcoding not yet wired (pending AudioTranscodeChannel).
   String? get lastAacPath => _lastAacPath;
 
   /// Requests microphone permission. Returns true if granted.
@@ -81,9 +79,7 @@ class AudioRecordingService {
         return '';
       }
       debugPrint('AudioRecordingService: recording stopped → $path');
-      // Transcode to AAC asynchronously — does NOT block the return.
-      // The WAV is returned immediately so inference can begin.
-      _transcodeToAac(path);
+      // TODO: WAV→AAC transcoding handled by AudioTranscodeChannel (Kotlin MediaCodec)
       return path;
     } catch (e) {
       debugPrint('AudioRecordingService.stopRecording error: $e');
@@ -102,42 +98,6 @@ class AudioRecordingService {
       }
     } catch (e) {
       debugPrint('AudioRecordingService.deleteWavFile error: $e');
-    }
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // Internal: WAV → AAC via ffmpeg_kit_flutter_min_gpl
-  // ──────────────────────────────────────────────────────────────────────────
-
-  Future<void> _transcodeToAac(String wavPath) async {
-    try {
-      final docsDir = await getApplicationDocumentsDirectory();
-      final recordingsDir = Directory('${docsDir.path}/recordings');
-      if (!recordingsDir.existsSync()) {
-        recordingsDir.createSync(recursive: true);
-      }
-
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final aacPath = '${recordingsDir.path}/audio_$timestamp.aac';
-
-      // -c:a aac           — AAC encoder (built into ffmpeg min-gpl)
-      // -b:a 64k           — 64 kbps sufficient for speech; 16kHz mono input
-      // -movflags faststart — moov atom at start (streaming-friendly M4A)
-      // -y                 — overwrite if exists
-      final session = await FFmpegKit.execute(
-        '-i $wavPath -c:a aac -b:a 64k -movflags +faststart -y $aacPath',
-      );
-
-      final returnCode = await session.getReturnCode();
-      if (ReturnCode.isSuccess(returnCode)) {
-        _lastAacPath = aacPath;
-        debugPrint('AudioRecordingService: AAC transcode complete → $aacPath');
-      } else {
-        final logs = await session.getAllLogsAsString();
-        debugPrint('AudioRecordingService: AAC transcode failed — $logs');
-      }
-    } catch (e) {
-      debugPrint('AudioRecordingService: _transcodeToAac error: $e');
     }
   }
 
