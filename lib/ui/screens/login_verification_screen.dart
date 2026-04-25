@@ -42,6 +42,8 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
         for (int i = 0; i < 6; i++) {
           _controllers[i].text = code[i];
         }
+        // Rebuild so the button enables after SMS autofill.
+        if (mounted) setState(() {});
       }
     }
   }
@@ -57,6 +59,8 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
   void _onDigitChanged(String value, int index) {
     if (value.isNotEmpty && index < 5) _focusNodes[index + 1].requestFocus();
     if (value.isEmpty && index > 0) _focusNodes[index - 1].requestFocus();
+    // Rebuild so the button enabled condition re-evaluates on every keystroke.
+    setState(() {});
   }
 
   void _openLegalModal(BuildContext context, String title, String content) {
