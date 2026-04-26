@@ -90,4 +90,7 @@ dependencies {
 
     // --- AndroidX AppCompat: Required by FlutterFragmentActivity ---
     implementation("androidx.appcompat:appcompat:1.7.0")
+
+    // --- OkHttp: Streaming model download with resume support ---
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
