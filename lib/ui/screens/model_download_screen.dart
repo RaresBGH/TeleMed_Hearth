@@ -251,7 +251,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
 
               // ── File size hint ────────────────────────────────────────────
               const Text(
-                'Dimensiune: ~3.6 GB',
+                'Dimensiune: ~2.4 GB',
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 20),
