@@ -28,6 +28,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
 
   _DownloadState _downloadState = _DownloadState.idle;
   bool _isWifi = false;
+  bool _isMobile = false;
   double _progress = 0.0;
   int _progressPercent = 0;
   String? _errorMessage;
@@ -38,10 +39,9 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
   @override
   void initState() {
     super.initState();
-    _checkWifi();
-    // Re-check WiFi every 5 seconds so the button enables automatically when
-    // the user connects without having to restart the app.
-    _wifiTimer = Timer.periodic(const Duration(seconds: 5), (_) => _checkWifi());
+    _checkConnectivity();
+    // Re-check connectivity every 5 seconds so the banner updates automatically.
+    _wifiTimer = Timer.periodic(const Duration(seconds: 5), (_) => _checkConnectivity());
   }
 
   @override
@@ -52,15 +52,27 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // WiFi check
+  // Connectivity check
   // ──────────────────────────────────────────────────────────────────────────
 
-  Future<void> _checkWifi() async {
+  Future<void> _checkConnectivity() async {
     try {
       final results = await Connectivity().checkConnectivity();
-      final isWifi = results.contains(ConnectivityResult.wifi);
-      if (mounted && isWifi != _isWifi) {
-        setState(() => _isWifi = isWifi);
+      final isWifi   = results.contains(ConnectivityResult.wifi);
+      final isMobile = results.contains(ConnectivityResult.mobile);
+      if (mounted) {
+        setState(() {
+          final hadConnection = _isWifi || _isMobile;
+          final hasConnection = isWifi  || isMobile;
+          _isWifi   = isWifi;
+          _isMobile = isMobile;
+          // Clear error state when connectivity is restored.
+          if (!hadConnection && hasConnection &&
+              _downloadState == _DownloadState.error) {
+            _downloadState = _DownloadState.idle;
+            _errorMessage  = null;
+          }
+        });
       }
     } catch (_) {}
   }
@@ -70,7 +82,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
   // ──────────────────────────────────────────────────────────────────────────
 
   Future<void> _startDownload() async {
-    if (!_isWifi || _downloadState == _DownloadState.downloading) return;
+    if (_downloadState == _DownloadState.downloading) return;
 
     setState(() {
       _downloadState = _DownloadState.downloading;
@@ -167,8 +179,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool canDownload =
-        _isWifi && _downloadState != _DownloadState.downloading;
+    final bool canDownload = _downloadState != _DownloadState.downloading;
     final bool showProgress = _downloadState == _DownloadState.downloading ||
         _downloadState == _DownloadState.success;
 
@@ -214,7 +225,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
 
               // ── Subtitle ──────────────────────────────────────────────────
               const Text(
-                'Se descarcă modelul de inteligență artificială.\nAceasta este o operație unică și necesită conexiune WiFi.',
+                'Se descarcă modelul de inteligență artificială.\nAceasta este o operație unică și funcționează optim cu conexiune WiFi sau date mobile.',
                 style: TextStyle(
                   fontSize: 18,
                   color: Colors.black87,
@@ -259,6 +270,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
               // ── WiFi status banner ────────────────────────────────────────
               _WifiBanner(
                 isWifi: _isWifi,
+                isMobile: _isMobile,
                 isDownloading: _downloadState == _DownloadState.downloading,
               ),
               const SizedBox(height: 24),
@@ -360,12 +372,18 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
 
 class _WifiBanner extends StatelessWidget {
   final bool isWifi;
+  final bool isMobile;
   final bool isDownloading;
 
-  const _WifiBanner({required this.isWifi, required this.isDownloading});
+  const _WifiBanner({
+    required this.isWifi,
+    required this.isMobile,
+    required this.isDownloading,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Green: WiFi active
     if (isWifi) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -393,6 +411,35 @@ class _WifiBanner extends StatelessWidget {
       );
     }
 
+    // Orange: mobile data — soft warning, download still allowed
+    if (isMobile) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.orange.shade400, width: 1.5),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.signal_cellular_alt, color: Colors.orange.shade800, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Descărcare prin date mobile - pot fi aplicate costuri',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.orange.shade900,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Amber: no connection
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -407,8 +454,8 @@ class _WifiBanner extends StatelessWidget {
           Expanded(
             child: Text(
               isDownloading
-                  ? 'Conectați-vă la WiFi pentru a evita costuri de date mobile'
-                  : 'Vă rugăm conectați-vă la WiFi înainte de descărcare',
+                  ? 'Conexiune pierdută în timpul descărcării'
+                  : 'Fără conexiune la internet',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.amber.shade900,
