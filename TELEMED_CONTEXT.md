@@ -50,34 +50,37 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 
 ### WORKING (confirmed in code, CI green)
 
-- **App launches and navigates** — routing fixed; session guard prevents medicalSessionProvider from hijacking auth flow
-- **CNP validation** — real checksum algorithm, 48 valid county codes, green/red border feedback
-- **Smart OTP bypass** — demo OTP = last 6 digits of CNP; 3-attempt lockout; SmartAuth SMS listener wired
-- **LiteRT-LM E2B integration** — real Engine via `com.google.ai.edge.litertlm:litertlm-android:0.10.2`; Romanian system prompt hardcoded in `LiteRtLmChannel.kt`; correct `message.toString()` streaming API; `getModelPath` channel returns first existing path of: `filesDir/models/gemma-4-E2B-it.litertlm` or `/sdcard/Download/gemma-4-E2B-it.litertlm`; sideloaded model is copied to app-private storage automatically
-- **Audio recording** — WAV 16kHz mono for LiteRT-LM inference; async WAV→AAC transcode via `AudioTranscodeChannel` (Android MediaCodec, no FFmpeg)
-- **Camera capture** — JPEG quality 85 for inference; async MP4/LowQuality compression for Medplum storage; FileProvider configured for temp files
-- **Model download screen** — WiFi check every 5s, DownloadManager progress polling every 2s, auto-navigates to login after completion; error reason codes mapped from DownloadManager (ERROR_HTTP_DATA_ERROR etc.)
-- **Model download URL** — currently `http://192.168.0.37:8080/gemma-4-E2B-it.litertlm` (local GX10 server for testing); `android:usesCleartextTraffic="true"` enabled; READ_EXTERNAL_STORAGE permission added (maxSdkVersion=32)
-- **VideoConsultationScreen** — RTCVideoView for remote + PiP local camera, mic mute toggle, 5-bar animated voice visualizer, chat strip, end-call navigation to home; built from Stitch design
-- **Emergency routing** — SessionState.emergency → EmergencyScreen → tel:112 (url_launcher)
-- **FHIR local storage** — Google Android FHIR SDK, SQLCipher encrypted SQLite; mock data seeded on first launch (Patient, Practitioner, Observation, Condition, MedicationRequest, Encounter)
-- **Lexend font** — GoogleFonts.lexendTextTheme() applied system-wide; DESIGN.md committed as permanent design system reference
-- **Session guard** — medicalSessionProvider state changes ignored while on loginIdentity, loginVerification, or modelDownload routes
-- **Login screen** — phantom bottomNavigationBar removed; Ajutor button moved into body Column; CNP form, phone field, info prompt, CONTINUĂ button all present
+- **App launches and navigates** — session guard prevents medicalSessionProvider from hijacking auth flow (loginIdentity, loginVerification, modelDownload routes are protected)
+- **CNP validation** — full official spec rewrite: S=1-9 (S=9 non-resident valid), county set includes 99 (foreign residents), month 01-12, day 01-31, checksum verified; `isAdult()` enforces 18+ with Romanian error message; test CNP `1850415150017` documented with full checksum trace in source
+- **OTP system** — demo OTP = **last 6 digits** of CNP (`substring(7,13)`); for CNP 1850415150017 → OTP 150017; 3-attempt lockout; SmartAuth SMS listener wired; **button stays disabled until all 6 boxes filled** (`setState` fix applied to `_onDigitChanged` and `_startSmsListener`)
+- **Home screen** — Stitch-design rewrite: inline header "Bună ziua, Maria!" + "Cum vă simțiți astăzi?", 4 triage cards (Voice, Photo, Text, Emergency 112), glassmorphism bottom nav (BackdropFilter blur:20)
+- **Bottom nav labels** — "Acasă", "Dosar Medical" (was "Istoric"), "Medic" (was "Doctorul Meu")
+- **AI status indicator** — pill below header subtitle: yellow "AI se încarcă..." → green "AI pregătit" when `initializeModel()` succeeds; calls `_checkAiStatus()` in `initState()`
+- **Legal screens** — `LegalDocumentModal` rewritten from Stitch; `LegalDocumentType` enum (terms/privacy); full Romanian GDPR content; glassmorphism back button; all `#0D631B` green replaced with `#5BA4CF`; backward-compat with existing string callers
+- **History screen** — title changed from "Istoric Medical" to "Dosar Medical"
+- **LiteRT-LM E2B integration** — real Engine via `litertlm-android:0.10.2`; Romanian system prompt; dual-path model lookup (`filesDir/models/` or `/sdcard/Download/`); sideloaded model auto-copied to app-private storage
+- **Audio recording** — WAV 16kHz mono for LiteRT-LM; async WAV→AAC via `AudioTranscodeChannel` (Android MediaCodec, no FFmpeg)
+- **Camera capture** — JPEG quality 85 for inference; async MP4 compression for storage
+- **Model download screen** — WiFi check every 5s, DownloadManager progress polling every 2s, error reason codes (ERROR_HTTP_DATA_ERROR etc.), auto-navigate after download
+- **Model download URL** — `http://192.168.0.37:8080/gemma-4-E2B-it.litertlm` (local GX10, testing only); `usesCleartextTraffic="true"` enabled
+- **VideoConsultationScreen** — RTCVideoView, PiP local camera, mute toggle, voice visualizer, chat strip, end-call navigation
+- **Emergency routing** — SessionState.emergency → EmergencyScreen → tel:112
+- **FHIR local storage** — SQLCipher encrypted SQLite; mock data seeded on first launch
+- **Lexend font** — `GoogleFonts.lexendTextTheme()` system-wide; DESIGN.md committed
 
 ### BROKEN / NOT YET TESTED ON DEVICE
 
-- **Login screen visibility** — fix committed (removed SizedBox.expand, crossAxisAlignment.stretch), CI running, **NOT YET TESTED ON DEVICE**
-- **LiteRT-LM actual inference** — model file at `/sdcard/Download/gemma-4-E2B-it.litertlm` on test device; `initializeModel()` wired in `main.dart`; **inference not yet confirmed working end-to-end**
-- **Model download in production** — download URL is `http://192.168.0.37:8080` (local GX10, testing only); production endpoint not yet implemented
-- **WebRTC signaling** — PeerConnection wired with Google STUN; no signaling server yet; remote video shows "Se conectează..." black placeholder permanently
-- **Document sharing** — chat strip UI present (attach, placeholder text, send icons); `_onAttachDocument` and `_onSendMessage` are empty stubs
-- **Medplum auth** — `client_id: 'telemed_k_mobile_client'` is fictional; OAuth2 token call will 401; skipped for hackathon
-- **Firebase/FCM** — no `google-services.json`; `TelemedicineChannel.getFcmToken()` returns a stub string; skipped for hackathon
-- **Login camera extraction** — `_extractViaCamera()` still passes `File('dummy_id.jpg')` to AI engine; not real camera OCR
-- **DeviceConflictModal** — widget exists, logic implemented, but never triggered from auth flow
-- **Language toggle** — RO/EN buttons appear in AppBar throughout; all have `onTap: () {}`; no localization framework
-- **History item tap** — tapping a history record fires `onTap: () {}`; no detail screen
+- **Login screen visibility** — scroll fix applied (removed SizedBox.expand, crossAxisAlignment.stretch, phantom bottomNavigationBar removed), CI builds passing, **NOT YET CONFIRMED ON DEVICE**
+- **LiteRT-LM actual inference** — model at `/sdcard/Download/gemma-4-E2B-it.litertlm` on test device (Pixel 9 Pro); `initializeModel()` wired; **AI status indicator on home screen will show green if init succeeds — not yet observed on device**
+- **Model download in production** — URL is `http://192.168.0.37:8080` (local GX10 only); production endpoint not implemented
+- **WebRTC signaling** — PeerConnection wired with Google STUN; no signaling server; remote video stays black
+- **Document sharing** — chat strip UI present; `_onAttachDocument` and `_onSendMessage` are empty stubs
+- **Text card inference** — `'runInference'` MethodChannel method not yet implemented in `LiteRtLmChannel.kt`; currently falls back to SnackBar "Mesaj primit"
+- **Login camera extraction** — `_extractViaCamera()` passes `File('dummy_id.jpg')`; not real OCR
+- **Medplum auth** — fictional `client_id`; will 401; skipped for hackathon
+- **Firebase/FCM** — no `google-services.json`; FCM returns stub token; skipped for hackathon
+- **DeviceConflictModal** — implemented but never triggered from auth flow
+- **Language toggle** — RO/EN buttons exist with `onTap: () {}`; non-functional
 
 ---
 
@@ -87,39 +90,35 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 | File | Role |
 |---|---|
 | lib/main.dart | Entry point; FHIR init; model file check; routes to modelDownload or loginIdentity |
-| lib/core/providers/app_navigation_provider.dart | AppRoute enum + session guard + needsModelDownload flag |
+| lib/core/providers/app_navigation_provider.dart | AppRoute enum + session guard (auth routes protected) + needsModelDownload flag |
 | lib/core/providers/medical_session_provider.dart | SessionState machine; calls AI engine; writes FHIR |
-| lib/core/services/ai_engine_service.dart | LiteRT-LM Dart bridge; dual-path model lookup; Romanian fallback response |
-| lib/core/services/cnp_service.dart | CNP validation + demo OTP extraction |
+| lib/core/services/ai_engine_service.dart | LiteRT-LM bridge; dual-path model lookup; Romanian fallback; `isInitialized` static flag |
+| lib/core/services/cnp_service.dart | Full official CNP spec; isValid (S=9, county 99, 18+); extractDemoOtp last-6-digits; isAdult |
 | lib/core/services/audio_recording_service.dart | WAV recording + fire-and-forget AAC transcode |
 | lib/core/services/camera_service.dart | JPEG capture + async MP4 compression |
-| lib/core/services/fhir_sync_service.dart | Offline→Medplum sync on connectivity restore |
-| lib/core/services/telemedicine_service.dart | FCM token + WebRTC call signaling bridge |
-| lib/data/repositories/fhir_repository.dart | Dart→FhirEngineChannel bridge |
-| lib/ui/screens/model_download_screen.dart | First-launch model download UI |
-| lib/ui/screens/login_identity_screen.dart | CNP + phone login; real-time CNP validation |
-| lib/ui/screens/login_verification_screen.dart | 6-digit OTP; SmartAuth; legal modals |
-| lib/ui/screens/home_screen.dart | Mic button → AI triage; camera button |
-| lib/ui/screens/confirmation_screen.dart | Post-triage success; auto-home after 5s |
-| lib/ui/screens/emergency_screen.dart | 112 dialer |
-| lib/ui/screens/history_screen.dart | FHIR Observation/Condition list |
+| lib/ui/screens/model_download_screen.dart | First-launch model download; WiFi check; progress polling; error reason codes |
+| lib/ui/screens/login_identity_screen.dart | CNP + phone login; 18+ age validation; real-time CNP validation |
+| lib/ui/screens/login_verification_screen.dart | 6-digit OTP; setState fix (button enables correctly); SmartAuth; legal modals |
+| lib/ui/screens/home_screen.dart | 4-card Stitch design; AI status indicator; glassmorphism nav; all triage logic |
+| lib/ui/screens/history_screen.dart | "Dosar Medical" (was "Istoric Medical"); FHIR list |
 | lib/ui/screens/my_doctor_screen.dart | Doctor profile; mock incoming call |
 | lib/ui/screens/waiting_room_screen.dart | Consent before video call |
-| lib/ui/screens/video_consultation_screen.dart | RTCVideoView; PiP; mute; chat strip |
+| lib/ui/screens/video_consultation_screen.dart | RTCVideoView; PiP; mute; voice visualizer; chat strip |
 | lib/ui/theme/theme.dart | AppTheme + GoogleFonts.lexendTextTheme + AccessibleTouchTarget |
+| lib/ui/widgets/legal_document_modal.dart | Stitch-based legal screens; LegalDocumentType enum; GDPR content |
 | DESIGN.md | The Dignified Guardian design system (permanent reference) |
 
 ### Kotlin / Android
 | File | Role |
 |---|---|
 | android/.../MainActivity.kt | Registers 5 MethodChannels |
-| android/.../channels/LiteRtLmChannel.kt | Gemma 4 E2B inference; getModelPath dual-path |
+| android/.../channels/LiteRtLmChannel.kt | Gemma 4 E2B inference; getModelPath dual-path check |
 | android/.../channels/FhirEngineChannel.kt | Google FHIR SDK CRUD + mock data seed |
 | android/.../channels/AudioTranscodeChannel.kt | MediaCodec WAV→AAC (no FFmpeg) |
 | android/.../channels/TelemedicineChannel.kt | FCM stub + WebRTC answerCall stub |
-| android/.../services/ModelDownloadService.kt | DownloadManager; startDownload; getDownloadProgress with reason codes |
+| android/.../services/ModelDownloadService.kt | DownloadManager; startDownload; getDownloadProgress + reason codes |
 | android/.../app/build.gradle.kts | compileSdk=36; litertlm 0.10.2; FHIR SDK; SQLCipher |
-| android/.../AndroidManifest.xml | All permissions incl. READ_EXTERNAL_STORAGE ≤32; usesCleartextTraffic |
+| android/.../AndroidManifest.xml | All permissions; usesCleartextTraffic; READ_EXTERNAL_STORAGE ≤32 |
 
 ---
 
@@ -129,7 +128,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 |---|---|
 | Test device | Google Pixel 9 Pro (serial: 4C041FDAP006Z1) |
 | Model file location | /sdcard/Download/gemma-4-E2B-it.litertlm |
-| ADB | USB cable (unreliable connection); wireless not configured |
+| ADB | USB cable (unreliable); wireless not configured |
 | Install method | Download APK from GitHub Actions artifact on phone browser |
 | GX10 model server | http://192.168.0.37:8080 (local dev only) |
 
@@ -138,28 +137,29 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 ## Priority Tasks
 
 ### P0 — DONE
-- [x] Pin litertlm-android to 0.10.2 (fixes fragile `latest.release`)
-- [x] Unify model filename/path (was .gguf vs .litertlm mismatch)
-- [x] Wire initializeModel() in main.dart (was never called)
-- [x] Fix login screen routing (session guard added)
-- [x] Remove phantom bottomNavigationBar from login screen
+- [x] LiteRT-LM pinned to 0.10.2, model path unified, initializeModel wired
+- [x] Session guard — auth routes protected from AI state hijacking
+- [x] CNP validation rewritten to official spec (S=9, county 99, 18+ age)
+- [x] OTP: last-6-digits formula, button state fixed (setState in onDigitChanged)
+- [x] Login screen scroll/visibility fix committed
 
 ### P1 — IN PROGRESS
-- [ ] **Confirm login screen visible on device** (CI running, untested)
-- [ ] **Confirm AI inference works on device** (model on sdcard, end-to-end not tested)
+- [ ] **Confirm login screen visible on device** (CI passing, untested on device)
+- [ ] **Confirm AI status indicator shows green on device** (model on sdcard, initializeModel not yet observed succeeding)
 
 ### P1 — NEXT
+- [ ] Wire `'runInference'` in `LiteRtLmChannel.kt` for text card
 - [ ] WebRTC signaling server on GX10 for real doctor↔patient video
-- [ ] Real camera OCR in login (_extractViaCamera, currently uses dummy_id.jpg)
 
 ### P2 — NEXT
 - [ ] Production model download endpoint (replace 192.168.0.37:8080)
-- [ ] Document sharing via WebRTC data channel
+- [ ] Real camera OCR in login (replace dummy_id.jpg)
 - [ ] Make GitHub repo public before May 18 deadline
+- [ ] Record competition demo video
 
 ### P3 — NEXT
 - [ ] DeviceConflictModal trigger from auth flow
-- [ ] Language toggle (RO/EN) — add flutter_localizations
+- [ ] Language toggle (RO/EN)
 - [ ] History item detail screen
 
 ---
@@ -169,13 +169,10 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Deadline:** May 18, 2026 — **23 days remaining**
 - **Public repo required:** currently PRIVATE — **must make public before deadline**
 - **Demo video:** not yet recorded
-- **Competition requirement:** Gemma 4 on-device inference
-  - Model file is on test device at /sdcard/Download/gemma-4-E2B-it.litertlm
-  - Inference path is wired (AudioRecording → LiteRT-LM → FHIR → UI)
-  - **End-to-end inference not yet confirmed on device**
+- **Gemma 4 on-device status:** model file present on test device; `initializeModel()` wired; end-to-end inference **not yet confirmed**
 
 ## Patient Demo Story (for competition video)
 Maria, 72, Brănești, chest pain, no car, hospital 40km away.
-Opens TeleMed_K → voice input → Gemma 4 analyzes symptoms on-device →
+Opens TeleMed_K → voice/photo/text triage → Gemma 4 analyzes on-device →
 urgency detected → one tap calls 112 OR books teleconsultation with Dr. Bogheanu.
 NGO provides the device itself for patients who cannot afford one.

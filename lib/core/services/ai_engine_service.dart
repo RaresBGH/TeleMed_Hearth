@@ -7,7 +7,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../data/repositories/fhir_repository.dart';
 
@@ -54,47 +53,35 @@ class AiEngineService {
 
   /// Locates the model file, checking two paths in order:
   ///   1. app-private filesDir/models/ (normal install / download path)
-  ///   2. /sdcard/Download/ (sideloaded for testing)
+  ///   2. /sdcard/Download/ (sideloaded for testing — used directly, not copied)
   ///
-  /// If found only in location 2, copies it to location 1 asynchronously
-  /// and returns the destination path so the engine always loads from
-  /// app-private storage. Returns null if absent from both locations.
+  /// Returns null if absent from both locations.
   Future<String?> _getModelPath() async {
     try {
+      // Check primary path first (app-private storage, set by native layer).
       final String? nativePath =
           await _channel.invokeMethod<String>('getModelPath');
 
-      if (nativePath == null) return null;
-
-      // Sideloaded file on sdcard — copy to app-private storage first.
-      if (nativePath == _sdcardPath) {
-        return await _copySideloadedModel(nativePath);
+      if (nativePath != null && nativePath != _sdcardPath) {
+        if (File(nativePath).existsSync()) return nativePath;
       }
 
-      // Already in the primary location.
-      return nativePath;
+      // Check sdcard path — return directly without copying.
+      // Copying fails on Android 13+ (scoped storage) without
+      // MANAGE_EXTERNAL_STORAGE, which requires Play Store approval.
+      final sdcard = File(_sdcardPath);
+      if (sdcard.existsSync()) {
+        try {
+          sdcard.openSync().closeSync();
+          return _sdcardPath;
+        } catch (e) {
+          debugPrint('AiEngineService: sdcard not readable: $e');
+        }
+      }
+
+      return null;
     } on PlatformException catch (e) {
       debugPrint('AiEngineService._getModelPath error: ${e.code}');
-      return null;
-    }
-  }
-
-  /// Copies the sideloaded model from [sdcardPath] into the app-private
-  /// models directory and returns the destination path.
-  /// Returns null if the copy fails for any reason.
-  Future<String?> _copySideloadedModel(String sdcardPath) async {
-    try {
-      final appDir = await getApplicationDocumentsDirectory();
-      final destDir = Directory('${appDir.path}/models');
-      if (!destDir.existsSync()) await destDir.create(recursive: true);
-
-      final destPath = '${destDir.path}/$_modelFileName';
-      debugPrint('AiEngineService: copying sideloaded model $sdcardPath → $destPath');
-      await File(sdcardPath).copy(destPath);
-      debugPrint('AiEngineService: sideloaded model copy complete');
-      return destPath;
-    } catch (e) {
-      debugPrint('AiEngineService._copySideloadedModel error: $e');
       return null;
     }
   }

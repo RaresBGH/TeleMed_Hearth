@@ -38,8 +38,10 @@ class ModelDownloadService(private val context: Context) : MethodChannel.MethodC
     companion object {
         private const val TAG = "ModelDownloadService"
 
+        // NOTE: User must accept Gemma license at huggingface.co before download works
+        // For production: replace with clinic's own CDN URL
         private const val MODEL_URL =
-            "http://192.168.0.37:8080/gemma-4-E2B-it.litertlm"
+            "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm"
 
         private const val MODEL_FILENAME = "gemma-4-E2B-it.litertlm"
         private const val MODEL_SUBDIR = "models"

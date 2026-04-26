@@ -6,6 +6,7 @@
 package com.example.telemed_k.channels
 
 import android.content.Context
+import android.os.Environment
 import android.util.Log
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
@@ -90,18 +91,32 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
         when (call.method) {
             "isModelReady" -> result.success(isEngineReady)
 
-            // Returns the path where the model file exists, checking two locations:
-            //   1. app-private filesDir/models/ (normal install path)
-            //   2. /sdcard/Download/ (sideloaded for testing)
-            // Returns null if the file is absent from both locations.
+            // Returns the path where the model file exists, checking three locations:
+            //   1. Android files dir (context.filesDir/models/) — DownloadManager destination
+            //   2. Flutter documents dir (app_flutter/models/) — path_provider destination
+            //   3. sdcard Downloads — sideloaded for testing
+            // Returns null if absent from all locations.
             "getModelPath" -> {
-                val primaryPath = File(context.filesDir, "models/gemma-4-E2B-it.litertlm").absolutePath
-                val sdcardPath  = "/sdcard/Download/gemma-4-E2B-it.litertlm"
-                result.success(when {
-                    File(primaryPath).exists() -> primaryPath
-                    File(sdcardPath).exists()  -> sdcardPath
+                val fileName = "gemma-4-E2B-it.litertlm"
+
+                val filesPath   = context.filesDir.absolutePath + "/models/$fileName"
+                val flutterPath = context.filesDir.parent + "/app_flutter/models/$fileName"
+                val sdcardPath  = Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DOWNLOADS).absolutePath + "/$fileName"
+
+                Log.d(TAG, "Checking filesPath:   $filesPath  exists=${File(filesPath).exists()}")
+                Log.d(TAG, "Checking flutterPath: $flutterPath  exists=${File(flutterPath).exists()}")
+                Log.d(TAG, "Checking sdcardPath:  $sdcardPath  canRead=${File(sdcardPath).canRead()}")
+
+                val foundPath = when {
+                    File(filesPath).exists()   -> filesPath
+                    File(flutterPath).exists() -> flutterPath
+                    File(sdcardPath).canRead() -> sdcardPath
                     else                       -> null
-                })
+                }
+
+                Log.d(TAG, "getModelPath returning: $foundPath")
+                result.success(foundPath)
             }
 
             // Both names map to the same initialisation path
@@ -116,6 +131,8 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
             "downloadWeights" -> result.success(null)
 
             "dispose" -> handleDispose(result)
+
+            "runInference" -> handleRunInference(call, result)
 
             else -> result.notImplemented()
         }
@@ -302,6 +319,33 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
 
             } catch (e: Exception) {
                 Log.e(TAG, "Media evaluation error", e)
+                withContext(Dispatchers.Main) { result.success(buildFallbackResponse()) }
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Text inference
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private fun handleRunInference(call: MethodCall, result: MethodChannel.Result) {
+        val text = call.argument<String>("text") ?: ""
+        val systemPrompt = call.argument<String>("systemPrompt") ?: SYSTEM_PROMPT_RO
+
+        scope.launch {
+            try {
+                val response = if (isEngineReady && engine != null) {
+                    runEngineInference(
+                        systemPrompt = systemPrompt,
+                        contents = listOf(Content.Text(text))
+                    )
+                } else {
+                    Log.w(TAG, "Engine not ready — keyword fallback for text")
+                    buildFallbackResponse()
+                }
+                withContext(Dispatchers.Main) { result.success(response) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Text inference error", e)
                 withContext(Dispatchers.Main) { result.success(buildFallbackResponse()) }
             }
         }

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/services/camera_service.dart';
 import '../../core/services/cnp_service.dart';
 import '../theme/theme.dart';
 
@@ -141,15 +142,36 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
     setState(() => _isLoading = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
+      final cameraService = ref.read(cameraServiceProvider);
+      final hasPermission = await cameraService.requestPermission();
+      if (!hasPermission) {
+        if (mounted) {
+          messenger.showSnackBar(const SnackBar(
+            content: Text('Permisiunea pentru cameră este necesară.',
+                style: TextStyle(fontSize: 18)),
+          ));
+        }
+        return;
+      }
+
+      final imagePath = await cameraService.captureImage();
+      if (imagePath == null) return;
+
       final aiEngine = ref.read(aiEngineServiceProvider);
-      final dummyFile = File('dummy_id.jpg');
       final result = await aiEngine.evaluateMedia(
-        dummyFile,
+        File(imagePath),
         customPrompt:
-            'You are an offline OCR assistant. Extract the patient CNP (Cod Numeric Personal, exactly 13 digits) from the ID card image. Output JSON strictly constrained to: {"cnp": "1234567890123"}',
+            'Aceasta este o fotografie a unui act de identitate românesc (CI/BI/Pașaport). '
+            'Extrage CNP-ul (numărul de 13 cifre) și numărul de telefon dacă sunt vizibile. '
+            'Răspunde DOAR cu JSON: {"cnp": "...", "phone": "..."}',
       );
+      cameraService.deleteTempFile(imagePath);
+
       if (result.containsKey('cnp')) {
         _cnpController.text = result['cnp'].toString();
+      }
+      if (result.containsKey('phone')) {
+        _phoneController.text = result['phone'].toString();
       }
     } catch (e) {
       messenger.showSnackBar(SnackBar(
