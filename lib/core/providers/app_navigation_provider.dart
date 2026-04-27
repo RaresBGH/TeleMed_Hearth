@@ -10,6 +10,7 @@ import 'medical_session_provider.dart';
 enum AppRoute {
   home,
   confirmation,
+  medicalResponse,
   emergency,
   history,
   myDoctor,
@@ -38,7 +39,7 @@ class AppNavigationNotifier extends Notifier<AppRoute> {
       if (next == SessionState.emergency) {
         state = AppRoute.emergency;
       } else if (next == SessionState.success) {
-        state = AppRoute.confirmation;
+        state = AppRoute.medicalResponse;
       } else if (next == SessionState.idle) {
         state = AppRoute.home;
       }

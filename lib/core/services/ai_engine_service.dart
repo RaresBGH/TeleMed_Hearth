@@ -253,4 +253,67 @@ class AiEngineService {
       return Map<String, dynamic>.from(_fallbackResponse);
     }
   }
+
+  /// Feeds a plain-text symptom description to the LiteRT-LM engine.
+  /// Returns [_fallbackResponse] if the model is not yet initialized.
+  Future<Map<String, dynamic>> evaluateText(
+    String text, {
+    String? customPrompt,
+  }) async {
+    if (!_isInitialized) {
+      return Map<String, dynamic>.from(_fallbackResponse);
+    }
+
+    try {
+      final List<Map<String, dynamic>> patientHistory =
+          await _fhirRepository.getPatientHistory();
+
+      final StringBuffer systemPromptBuffer = StringBuffer();
+      if (customPrompt != null) {
+        systemPromptBuffer.writeln(customPrompt);
+      } else {
+        systemPromptBuffer.writeln(
+            'You are a medical triage assistant. You must purely output valid JSON constrained to our schema.');
+        systemPromptBuffer.writeln(
+            "Evaluate the patient's text symptom description contextually against their known medical history.");
+      }
+
+      if (patientHistory.isNotEmpty) {
+        systemPromptBuffer.writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):');
+        for (final resource in patientHistory) {
+          systemPromptBuffer
+              .writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
+        }
+      } else {
+        systemPromptBuffer
+            .writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR): None documented.');
+      }
+
+      final String? jsonResponse =
+          await _channel.invokeMethod<String>('runInference', {
+        'text': text,
+        'systemPrompt': systemPromptBuffer.toString(),
+      });
+
+      if (jsonResponse == null || jsonResponse.isEmpty) {
+        return Map<String, dynamic>.from(_fallbackResponse);
+      }
+
+      final Map<String, dynamic> result =
+          jsonDecode(jsonResponse) as Map<String, dynamic>;
+
+      if (result.containsKey('emergency') && result['emergency'] == true) {
+        final double confidence =
+            (result['confidence'] as num?)?.toDouble() ?? 0.0;
+        if (confidence > 0.8) {
+          throw EmergencyFlagException(confidence);
+        }
+      }
+
+      return result;
+    } on PlatformException catch (e) {
+      debugPrint('AiEngineService.evaluateText error: ${e.code}');
+      return Map<String, dynamic>.from(_fallbackResponse);
+    }
+  }
 }

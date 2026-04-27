@@ -7,7 +7,6 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -176,25 +175,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _onTextSubmit(String text, BuildContext dialogCtx) async {
     if (text.trim().isEmpty) return;
     Navigator.of(dialogCtx).pop();
-
-    try {
-      // Attempt text inference via LiteRT-LM channel (method may not exist yet).
-      const channel = MethodChannel('com.telemed_k/litert_lm');
-      await channel.invokeMethod<String>('runInference', {'text': text.trim()});
-      if (mounted) {
-        ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.confirmation);
-      }
-    } catch (_) {
-      // Channel method not yet implemented — show graceful success message.
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Mesaj primit. Medicul va fi notificat.',
-                style: TextStyle(fontSize: 18)),
-          ),
-        );
-      }
-    }
+    await ref.read(medicalSessionProvider.notifier).processText(text.trim());
   }
 
   // ── Emergency ──────────────────────────────────────────────────────────────

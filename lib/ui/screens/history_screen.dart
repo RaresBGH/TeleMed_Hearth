@@ -61,9 +61,17 @@ class HistoryScreen extends ConsumerWidget {
                       itemCount: data.length,
                       itemBuilder: (context, index) {
                         final item = data[index];
-                        final dateStr = item['effectiveDateTime'] ?? item['recordedDate'] ?? 'Dată recentă';
+                        final String isoDate =
+                            item['effectiveDateTime'] as String? ??
+                            item['recordedDate'] as String? ??
+                            '';
+                        final String dateStr = _formatDateTime(isoDate);
                         final code = item['code'] ?? {};
-                        final text = code['text'] ?? _getFallbackText(item);
+                        final String label =
+                            code['text'] as String? ?? _getFallbackText(item);
+                        final String? valueString =
+                            item['valueString'] as String?;
+                        final String? status = item['status'] as String?;
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 16),
@@ -84,54 +92,67 @@ class HistoryScreen extends ConsumerWidget {
                               semanticLabel: 'Deschide detalii raport',
                               onTap: () {},
                               child: Padding(
-                                padding: const EdgeInsets.all(24.0),
+                                padding: const EdgeInsets.all(20.0),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Expanded(
                                           child: Text(
                                             dateStr,
                                             style: const TextStyle(
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF5BA4CF).withValues(alpha: 0.1),
-                                            borderRadius: BorderRadius.circular(20),
-                                          ),
-                                          child: const Text(
-                                            'Raport Trimis',
-                                            style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
-                                              color: Color(0xFF5BA4CF),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.medical_information, color: Color(0xFF5BA4CF), size: 32),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            text,
-                                            style: const TextStyle(
-                                              fontSize: 20,
                                               color: Colors.black,
                                             ),
                                           ),
-                                        )
+                                        ),
+                                        const SizedBox(width: 8),
+                                        _buildStatusBadge(status),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Icon(Icons.medical_information,
+                                            color: Color(0xFF5BA4CF), size: 28),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                label,
+                                                style: const TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.black,
+                                                ),
+                                              ),
+                                              if (valueString != null &&
+                                                  valueString.isNotEmpty) ...[
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  valueString,
+                                                  maxLines: 3,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    color: Color(0xFF40484E),
+                                                    height: 1.4,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -183,5 +204,53 @@ class HistoryScreen extends ConsumerWidget {
     if (item['resourceType'] == 'Observation') return 'Observație Medicală';
     if (item['resourceType'] == 'Condition') return 'Condiție Medicală';
     return 'Înregistrare Medicală';
+  }
+
+  /// Parses an ISO 8601 datetime string and returns "DD.MM.YYYY HH:mm".
+  /// Falls back to the raw string or a placeholder if parsing fails.
+  String _formatDateTime(String isoString) {
+    if (isoString.isEmpty) return 'Dată recentă';
+    final DateTime? dt = DateTime.tryParse(isoString);
+    if (dt == null) return isoString;
+    final String day   = dt.day.toString().padLeft(2, '0');
+    final String month = dt.month.toString().padLeft(2, '0');
+    final String hour  = dt.hour.toString().padLeft(2, '0');
+    final String min   = dt.minute.toString().padLeft(2, '0');
+    return '$day.$month.${dt.year}  $hour:$min';
+  }
+
+  /// Status-aware badge.
+  /// • preliminary → blue  "Dialog Salvat"
+  /// • final       → blue  "Triaj AI"
+  /// • anything else       "Raport"
+  Widget _buildStatusBadge(String? status) {
+    final bool isPreliminary = status == 'preliminary';
+    final String label = isPreliminary
+        ? 'Dialog Salvat'
+        : status == 'final'
+            ? 'Triaj AI'
+            : 'Raport';
+    final Color bg    = isPreliminary
+        ? const Color(0xFFE3F2FD)
+        : const Color(0xFF5BA4CF).withValues(alpha: 0.10);
+    final Color fg    = isPreliminary
+        ? const Color(0xFF1565C0)
+        : const Color(0xFF5BA4CF);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: fg,
+        ),
+      ),
+    );
   }
 }

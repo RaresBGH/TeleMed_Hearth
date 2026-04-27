@@ -24,6 +24,8 @@ import 'ui/screens/waiting_room_screen.dart';
 import 'ui/screens/video_consultation_screen.dart';
 import 'ui/screens/login_identity_screen.dart';
 import 'ui/screens/login_verification_screen.dart';
+import 'ui/screens/medical_response_screen.dart';
+import 'core/providers/medical_session_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -88,6 +90,14 @@ class TeleMedApp extends ConsumerWidget {
         break;
       case AppRoute.confirmation:
         screen = const ConfirmationScreen();
+        break;
+      case AppRoute.medicalResponse:
+        final notifier = ref.read(medicalSessionProvider.notifier);
+        screen = MedicalResponseScreen(
+          initialResponse:
+              notifier.lastAiResponse ?? 'Simptomele au fost înregistrate.',
+          isEmergency: notifier.lastIsEmergency,
+        );
         break;
       case AppRoute.home:
         screen = const HomeScreen();
