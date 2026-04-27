@@ -381,37 +381,6 @@ class FhirEngineChannel(
                 """.trimIndent()
                 val practitioner = parser.parseResource(org.hl7.fhir.r4.model.Practitioner::class.java, practitionerJson)
 
-                // Observation Mock
-                val observationJson = """
-                {
-                  "resourceType": "Observation",
-                  "id": "mock-observation-1",
-                  "status": "final",
-                  "code": {
-                    "coding": [{"system": "http://loinc.org", "code": "85354-9", "display": "Tensiune arterială"}]
-                  },
-                  "subject": {"reference": "Patient/mock-patient-1"},
-                  "valueQuantity": {"value": 120, "unit": "mmHg"}
-                }
-                """.trimIndent()
-                val observation = parser.parseResource(org.hl7.fhir.r4.model.Observation::class.java, observationJson)
-
-                // Condition Mock
-                val conditionJson = """
-                {
-                  "resourceType": "Condition",
-                  "id": "mock-condition-1",
-                  "clinicalStatus": {
-                    "coding": [{"system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active"}]
-                  },
-                  "code": {
-                    "coding": [{"system": "http://snomed.info/sct", "code": "38341003", "display": "Hipertensiune arterială"}]
-                  },
-                  "subject": {"reference": "Patient/mock-patient-1"}
-                }
-                """.trimIndent()
-                val condition = parser.parseResource(org.hl7.fhir.r4.model.Condition::class.java, conditionJson)
-
                 // MedicationRequest Mock
                 val medicationJson = """
                 {
@@ -446,7 +415,9 @@ class FhirEngineChannel(
                 val encounter = parser.parseResource(org.hl7.fhir.r4.model.Encounter::class.java, encounterJson)
 
                 // Insert into DB if not exists.
-                val resources = listOf(patient, practitioner, observation, condition, medication, encounter)
+                // Observation and Condition mock records intentionally removed —
+                // only real patient-saved dialogs appear in Dosar Medical.
+                val resources = listOf(patient, practitioner, medication, encounter)
                 resources.forEach { resource ->
                     runCatching {
                         fhirEngine!!.create(resource)

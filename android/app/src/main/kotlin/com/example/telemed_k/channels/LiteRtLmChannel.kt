@@ -335,9 +335,16 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
         scope.launch {
             try {
                 val response = if (isEngineReady && engine != null) {
+                    val effectivePrompt = systemPrompt.ifBlank { SYSTEM_PROMPT_RO }
+                    // Mirror evaluateAudio: pass both the user text AND the system prompt
+                    // as content items. Single-item Contents.of() can produce blank output
+                    // in some LiteRT-LM versions; two items ensures the model has context.
                     runEngineInference(
-                        systemPrompt = systemPrompt,
-                        contents = listOf(Content.Text(text))
+                        systemPrompt = effectivePrompt,
+                        contents = listOf(
+                            Content.Text(text),
+                            Content.Text(effectivePrompt)
+                        )
                     )
                 } else {
                     Log.w(TAG, "Engine not ready — keyword fallback for text")

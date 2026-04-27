@@ -45,6 +45,73 @@ class AiEngineService {
   AiEngineService(this._fhirRepository);
 
   // ──────────────────────────────────────────────────────────────────────────
+  // Response normalisation helpers
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /// Strips markdown fences from [raw] and, if the result is still a JSON
+  /// object, extracts the first human-readable text field it contains.
+  /// Returns empty string when nothing usable is found — never raw braces.
+  static String _cleanText(String raw) {
+    var s = raw.trim();
+    s = s.replaceAll(RegExp(r'```json', caseSensitive: false), '');
+    s = s.replaceAll('```', '');
+    s = s.trim();
+
+    if (s.startsWith('{')) {
+      try {
+        final inner = jsonDecode(s) as Map<String, dynamic>;
+        for (final k in ['response', 'recommendation', 'message', 'text']) {
+          final val = inner[k];
+          if (val is String && val.trim().isNotEmpty) return val.trim();
+        }
+        return ''; // suppress raw JSON braces
+      } catch (_) {}
+    }
+    return s;
+  }
+
+  /// Parses [raw] (possibly fenced or prose) into a normalised result map
+  /// where 'response' is always clean human-readable text.
+  static Map<String, dynamic> _parseAndNormalize(String raw) {
+    // Strip markdown fences from the outer wrapper first.
+    var s = raw.trim();
+    s = s.replaceAll(RegExp(r'```json', caseSensitive: false), '');
+    s = s.replaceAll('```', '');
+    s = s.trim();
+
+    // Find the outermost JSON object.
+    final int start = s.indexOf('{');
+    final int end   = s.lastIndexOf('}');
+    if (start != -1 && end > start) {
+      try {
+        final parsed = jsonDecode(s.substring(start, end + 1)) as Map<String, dynamic>;
+        final out = Map<String, dynamic>.from(parsed);
+
+        // Normalise the human-readable field.
+        String? text;
+        for (final k in ['response', 'recommendation']) {
+          final val = parsed[k];
+          if (val is String && val.trim().isNotEmpty) {
+            text = _cleanText(val);
+            if (text.isNotEmpty) break;
+          }
+        }
+        out['response'] = (text != null && text.isNotEmpty)
+            ? text
+            : 'Răspuns primit. Medicul va fi contactat.';
+        return out;
+      } catch (_) {}
+    }
+
+    // No JSON found — treat as prose.
+    final prose = _cleanText(s);
+    return Map<String, dynamic>.from(_fallbackResponse)
+      ..['response'] = prose.isNotEmpty
+          ? prose
+          : _fallbackResponse['response'] as String;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
   // Model lifecycle
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -171,20 +238,20 @@ class AiEngineService {
         return Map<String, dynamic>.from(_fallbackResponse);
       }
 
-      final Map<String, dynamic> result =
-          jsonDecode(jsonResponse) as Map<String, dynamic>;
+      final Map<String, dynamic> result = _parseAndNormalize(jsonResponse);
 
-      if (result.containsKey('emergency') && result['emergency'] == true) {
+      if (result['emergency'] == true) {
         final double confidence =
             (result['confidence'] as num?)?.toDouble() ?? 0.0;
-        if (confidence > 0.8) {
-          throw EmergencyFlagException(confidence);
-        }
+        if (confidence > 0.8) throw EmergencyFlagException(confidence);
       }
 
       return result;
     } on PlatformException catch (e) {
-      debugPrint('AiEngineService.evaluateAudio error: ${e.code}');
+      debugPrint('AiEngineService.evaluateAudio PlatformException: ${e.code}');
+      return Map<String, dynamic>.from(_fallbackResponse);
+    } catch (e) {
+      debugPrint('AiEngineService.evaluateAudio error: $e');
       return Map<String, dynamic>.from(_fallbackResponse);
     }
   }
@@ -236,20 +303,20 @@ class AiEngineService {
         return Map<String, dynamic>.from(_fallbackResponse);
       }
 
-      final Map<String, dynamic> result =
-          jsonDecode(jsonResponse) as Map<String, dynamic>;
+      final Map<String, dynamic> result = _parseAndNormalize(jsonResponse);
 
-      if (result.containsKey('emergency') && result['emergency'] == true) {
+      if (result['emergency'] == true) {
         final double confidence =
             (result['confidence'] as num?)?.toDouble() ?? 0.0;
-        if (confidence > 0.8) {
-          throw EmergencyFlagException(confidence);
-        }
+        if (confidence > 0.8) throw EmergencyFlagException(confidence);
       }
 
       return result;
     } on PlatformException catch (e) {
-      debugPrint('AiEngineService.evaluateMedia error: ${e.code}');
+      debugPrint('AiEngineService.evaluateMedia PlatformException: ${e.code}');
+      return Map<String, dynamic>.from(_fallbackResponse);
+    } catch (e) {
+      debugPrint('AiEngineService.evaluateMedia error: $e');
       return Map<String, dynamic>.from(_fallbackResponse);
     }
   }
@@ -299,20 +366,20 @@ class AiEngineService {
         return Map<String, dynamic>.from(_fallbackResponse);
       }
 
-      final Map<String, dynamic> result =
-          jsonDecode(jsonResponse) as Map<String, dynamic>;
+      final Map<String, dynamic> result = _parseAndNormalize(jsonResponse);
 
-      if (result.containsKey('emergency') && result['emergency'] == true) {
+      if (result['emergency'] == true) {
         final double confidence =
             (result['confidence'] as num?)?.toDouble() ?? 0.0;
-        if (confidence > 0.8) {
-          throw EmergencyFlagException(confidence);
-        }
+        if (confidence > 0.8) throw EmergencyFlagException(confidence);
       }
 
       return result;
     } on PlatformException catch (e) {
-      debugPrint('AiEngineService.evaluateText error: ${e.code}');
+      debugPrint('AiEngineService.evaluateText PlatformException: ${e.code}');
+      return Map<String, dynamic>.from(_fallbackResponse);
+    } catch (e) {
+      debugPrint('AiEngineService.evaluateText error: $e');
       return Map<String, dynamic>.from(_fallbackResponse);
     }
   }
