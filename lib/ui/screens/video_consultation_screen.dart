@@ -10,7 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
+import '../../core/providers/language_provider.dart';
 
 class VideoConsultationScreen extends ConsumerStatefulWidget {
   const VideoConsultationScreen({super.key});
@@ -33,6 +35,8 @@ class _VideoConsultationScreenState
   // ── Screen state ───────────────────────────────────────────────────────────
   bool     _isMuted      = false;
   bool     _isConnecting = true;
+
+  String get _lang => ref.read(languageProvider);
   Duration _callDuration = Duration.zero;
 
   // ── Animation (voice visualizer bars) ─────────────────────────────────────
@@ -187,6 +191,7 @@ class _VideoConsultationScreenState
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(languageProvider);
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -220,13 +225,13 @@ class _VideoConsultationScreenState
     if (_isConnecting) {
       return Container(
         color: Colors.black,
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Color(0xFF5BA4CF)),
-            SizedBox(height: 24),
+            const CircularProgressIndicator(color: Color(0xFF5BA4CF)),
+            const SizedBox(height: 24),
             Text(
-              'Se conectează...',
+              AppStrings.of(_lang, 'video.connecting'),
               style: TextStyle(fontSize: 20, color: Colors.white),
             ),
           ],
@@ -294,8 +299,8 @@ class _VideoConsultationScreenState
                   color: Colors.black.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text(
-                  'TU',
+                child: Text(
+                  AppStrings.of(_lang, 'video.you_label'),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -408,7 +413,7 @@ class _VideoConsultationScreenState
               ),
               const SizedBox(height: 8),
               Text(
-                _isMuted ? 'Mut' : 'Sunet',
+                _isMuted ? AppStrings.of(_lang, 'video.muted') : AppStrings.of(_lang, 'video.unmuted'),
                 style: const TextStyle(
                   fontSize:   18,
                   fontWeight: FontWeight.bold,
@@ -442,13 +447,13 @@ class _VideoConsultationScreenState
               ),
             ],
           ),
-          child: const Column(
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.call_end, size: 32, color: Colors.white),
-              SizedBox(height: 8),
+              const Icon(Icons.call_end, size: 32, color: Colors.white),
+              const SizedBox(height: 8),
               Text(
-                'Închide',
+                AppStrings.of(_lang, 'video.end_call'),
                 style: TextStyle(
                   fontSize:   18,
                   fontWeight: FontWeight.bold,
@@ -526,7 +531,7 @@ class _VideoConsultationScreenState
             children: [
               Expanded(
                 child: Text(
-                  'CONSULTĂ DR. BOGHEANU',
+                  AppStrings.of(_lang, 'video.header'),
                   style: TextStyle(
                     fontSize:    18,
                     fontWeight:  FontWeight.bold,

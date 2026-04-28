@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/theme.dart';
+import '../../core/l10n/app_strings.dart';
+import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 
 class EmergencyScreen extends ConsumerWidget {
@@ -14,6 +16,7 @@ class EmergencyScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(languageProvider);
     return Scaffold(
       backgroundColor: Colors.red.shade50,
       body: SafeArea(
@@ -25,15 +28,15 @@ class EmergencyScreen extends ConsumerWidget {
             children: [
               const Icon(Icons.warning_amber_rounded, size: 120, color: Colors.red),
               const SizedBox(height: 48),
-              const Text(
-                'Urgență Medicală Detectată!',
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
+              Text(
+                AppStrings.of(lang, 'emergency.title'),
+                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Apelăm 112 în 10 secunde...',
-                style: TextStyle(fontSize: 24, color: Colors.black),
+              Text(
+                AppStrings.of(lang, 'emergency.subtitle'),
+                style: const TextStyle(fontSize: 24, color: Colors.black),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 64),
@@ -52,10 +55,10 @@ class EmergencyScreen extends ConsumerWidget {
                     color: Colors.red,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Text(
-                    'SUNĂ ACUM',
+                  child: Text(
+                    AppStrings.of(lang, 'emergency.call_btn'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
               ),
@@ -74,10 +77,10 @@ class EmergencyScreen extends ConsumerWidget {
                     border: Border.all(color: Colors.black, width: 2.0),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Text(
-                    'Nu, anulează',
+                  child: Text(
+                    AppStrings.of(lang, 'emergency.cancel_btn'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
                   ),
                 ),
               ),

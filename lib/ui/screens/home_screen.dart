@@ -4,15 +4,16 @@
 // TeleMed_K: Offline-first telemedicine app for seniors
 
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../theme/theme.dart';
+import '../widgets/app_bottom_nav_bar.dart';
+import '../../core/l10n/app_strings.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
-import '../../core/providers/app_navigation_provider.dart';
 import '../../core/services/ai_engine_service.dart';
 import '../../core/services/audio_recording_service.dart';
 import '../../core/services/camera_service.dart';
@@ -26,8 +27,6 @@ const Color _iconColor     = Color(0xFF5BA4CF); // brand primary
 const Color _titleColor    = Color(0xFF191C1F); // on-background
 const Color _subtitleColor = Color(0xFF40484E); // on-surface-variant
 const Color _errorRed      = Color(0xFFBA1A1A); // error / emergency
-const Color _navActive     = Color(0xFF5BA4CF);
-const Color _navInactive   = Color(0xFF6B7280);
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -135,28 +134,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   // ── Text triage ────────────────────────────────────────────────────────────
 
-  void _showTextDialog() {
+  void _showTextDialog(String lang) {
     final controller = TextEditingController();
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Descrieți simptomele',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        title: Text(AppStrings.of(lang, 'home.dialog_title'),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         content: TextField(
           controller: controller,
           maxLines: 5,
           autofocus: true,
           style: const TextStyle(fontSize: 18),
-          decoration: const InputDecoration(
-            hintText: 'Scrieți simptomele dumneavoastră...',
-            hintStyle: TextStyle(fontSize: 18),
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            hintText: AppStrings.of(lang, 'home.dialog_hint'),
+            hintStyle: const TextStyle(fontSize: 18),
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Anulează', style: TextStyle(fontSize: 18)),
+            child: Text(AppStrings.of(lang, 'home.dialog_cancel'),
+                style: const TextStyle(fontSize: 18)),
           ),
           ElevatedButton(
             onPressed: () => _onTextSubmit(controller.text, ctx),
@@ -164,8 +164,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               backgroundColor: _iconColor,
               foregroundColor: Colors.white,
             ),
-            child: const Text('TRIMITE',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            child: Text(AppStrings.of(lang, 'home.dialog_send'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -192,11 +192,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final sessionState = ref.watch(medicalSessionProvider);
-    final currentRoute = ref.watch(appNavigationProvider);
-    final bottomInset  = MediaQuery.of(context).padding.bottom;
+    final patientName  = ref.watch(patientAuthProvider).patientFirstName;
+    final lang         = ref.watch(languageProvider);
 
     return Scaffold(
       backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: _bg,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'TeleMed_K',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+            color: Color(0xFF191C1F),
+          ),
+        ),
+        actions: [
+          GestureDetector(
+            onTap: () {
+              final newLang = lang == 'ro' ? 'en' : 'ro';
+              ref.read(languageProvider.notifier).setLanguage(newLang);
+              ref.read(aiEngineServiceProvider).setLanguage(newLang);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('RO', style: TextStyle(fontWeight: FontWeight.bold, color: lang == 'ro' ? _iconColor : const Color(0xFF6B7280), fontSize: 16)),
+                  const Text(' / ', style: TextStyle(color: Color(0xFF6B7280), fontSize: 16)),
+                  Text('EN', style: TextStyle(fontWeight: FontWeight.bold, color: lang == 'en' ? _iconColor : const Color(0xFF6B7280), fontSize: 16)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         bottom: false, // nav bar handles its own safe area
         child: Column(
@@ -208,9 +241,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Bună ziua, Maria!',
-                    style: TextStyle(
+                  Text(
+                    AppStrings.greeting(lang, patientName),
+                    style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w700,
                       color: _titleColor,
@@ -218,9 +251,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Cum vă simțiți astăzi?',
-                    style: TextStyle(
+                  Text(
+                    AppStrings.of(lang, 'home.subtitle'),
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w600,
                       color: _subtitleColor,
@@ -253,7 +286,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              _aiReady ? 'AI pregătit' : 'AI se încarcă...',
+                              _aiReady ? AppStrings.of(lang, 'home.ai_ready') : AppStrings.of(lang, 'home.ai_loading'),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -280,52 +313,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     // Processing overlay replaces content while AI is running
                     if (sessionState == SessionState.processing)
-                      _ProcessingCard()
+                      _ProcessingCard(text: AppStrings.of(lang, 'home.processing'))
                     else ...[
                       _TriageCard(
                         icon: _isRecording ? Icons.stop : Icons.mic,
                         iconBg: _isRecording ? Colors.red.shade100 : _iconCircle,
                         iconColor: _isRecording ? Colors.red : _iconColor,
-                        cardColor: _isRecording
-                            ? Colors.red.shade50
-                            : _surfaceCard,
+                        cardColor: _isRecording ? Colors.red.shade50 : _surfaceCard,
                         title: _isRecording
-                            ? 'Înregistrare activă...'
-                            : 'Descrieți prin voce',
+                            ? AppStrings.of(lang, 'home.voice_recording')
+                            : AppStrings.of(lang, 'home.voice_title'),
                         subtitle: _isRecording
-                            ? 'Apăsați din nou pentru a opri'
-                            : 'Apăsați și vorbiți despre simptome',
+                            ? AppStrings.of(lang, 'home.voice_stop')
+                            : AppStrings.of(lang, 'home.voice_subtitle'),
                         onTap: _onMicTap,
                       ),
                       const SizedBox(height: 16),
                       _TriageCard(
                         icon: Icons.photo_camera,
-                        title: 'Trimiteți o fotografie',
-                        subtitle: 'Fotografiați zona afectată',
+                        title: AppStrings.of(lang, 'home.photo_title'),
+                        subtitle: AppStrings.of(lang, 'home.photo_subtitle'),
                         onTap: _onCameraTap,
                       ),
                       const SizedBox(height: 16),
                       _TriageCard(
                         icon: Icons.edit_note,
-                        title: 'Scrieți un mesaj',
-                        subtitle: 'Descrieți în scris simptomele',
-                        onTap: _showTextDialog,
+                        title: AppStrings.of(lang, 'home.text_title'),
+                        subtitle: AppStrings.of(lang, 'home.text_subtitle'),
+                        onTap: () => _showTextDialog(lang),
                       ),
                       const SizedBox(height: 16),
-                      _EmergencyCard(onTap: _onEmergencyTap),
+                      _EmergencyCard(
+                        title: AppStrings.of(lang, 'home.emergency_title'),
+                        subtitle: AppStrings.of(lang, 'home.emergency_subtitle'),
+                        semanticLabel: AppStrings.of(lang, 'home.emergency_label'),
+                        onTap: _onEmergencyTap,
+                      ),
                     ],
                   ],
                 ),
               ),
             ),
 
-            // ── Glassmorphism bottom nav ───────────────────────────────────
-            _GlassNav(
-              currentRoute: currentRoute,
-              bottomInset: bottomInset,
-              onTap: (route) =>
-                  ref.read(appNavigationProvider.notifier).navigateTo(route),
-            ),
+            const AppBottomNavBar(),
           ],
         ),
       ),
@@ -426,13 +456,21 @@ class _TriageCard extends StatelessWidget {
 
 class _EmergencyCard extends StatelessWidget {
   final VoidCallback onTap;
-  const _EmergencyCard({required this.onTap});
+  final String title;
+  final String subtitle;
+  final String semanticLabel;
+  const _EmergencyCard({
+    required this.onTap,
+    required this.title,
+    required this.subtitle,
+    required this.semanticLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Urgență 112 — Apelați serviciul de urgență',
+      label: semanticLabel,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -465,23 +503,23 @@ class _EmergencyCard extends StatelessWidget {
                     size: 32, color: Colors.white),
               ),
               const SizedBox(width: 16),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Urgență 112',
-                      style: TextStyle(
+                      title,
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                         height: 1.2,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'Apelați serviciul de urgență',
-                      style: TextStyle(
+                      subtitle,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w400,
                         color: Colors.white70,
@@ -500,6 +538,9 @@ class _EmergencyCard extends StatelessWidget {
 }
 
 class _ProcessingCard extends StatelessWidget {
+  final String text;
+  const _ProcessingCard({required this.text});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -509,14 +550,14 @@ class _ProcessingCard extends StatelessWidget {
         color: _surfaceCard,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Column(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(color: _iconColor),
-          SizedBox(height: 16),
+          const CircularProgressIndicator(color: _iconColor),
+          const SizedBox(height: 16),
           Text(
-            'Asistentul analizează...',
-            style: TextStyle(
+            text,
+            style: const TextStyle(
                 fontSize: 18, fontWeight: FontWeight.w600, color: _titleColor),
           ),
         ],
@@ -525,116 +566,3 @@ class _ProcessingCard extends StatelessWidget {
   }
 }
 
-class _GlassNav extends StatelessWidget {
-  final AppRoute currentRoute;
-  final double bottomInset;
-  final void Function(AppRoute) onTap;
-
-  const _GlassNav({
-    required this.currentRoute,
-    required this.bottomInset,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Color(0xD9FFFFFF), // white ~85%
-            border: Border(
-              top: BorderSide(color: Color(0xFFE2E2E2), width: 1),
-            ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: SizedBox(
-              height: 72,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _NavTab(
-                    icon: Icons.home,
-                    label: 'Acasă',
-                    active: currentRoute == AppRoute.home,
-                    onTap: () => onTap(AppRoute.home),
-                  ),
-                  _NavTab(
-                    icon: Icons.folder_shared,
-                    label: 'Dosar Medical',
-                    active: currentRoute == AppRoute.history,
-                    onTap: () => onTap(AppRoute.history),
-                  ),
-                  _NavTab(
-                    icon: Icons.medical_services,
-                    label: 'Medic',
-                    active: currentRoute == AppRoute.myDoctor,
-                    onTap: () => onTap(AppRoute.myDoctor),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavTab extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  const _NavTab({
-    required this.icon,
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = active ? _navActive : _navInactive;
-    return Expanded(
-      child: Semantics(
-        button: true,
-        label: label,
-        selected: active,
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: active
-                ? BoxDecoration(
-                    color: const Color(0xFFEBF5FF),
-                    borderRadius: BorderRadius.circular(12),
-                  )
-                : null,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 28, color: color),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

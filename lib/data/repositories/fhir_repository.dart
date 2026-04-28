@@ -36,6 +36,29 @@ class FhirRepository {
     }
   }
 
+  /// Looks up a Patient by their 13-digit Romanian CNP identifier.
+  /// Returns the decoded patient JSON map, or null if not found.
+  Future<Map<String, dynamic>?> getPatientByCnp(String cnp) async {
+    try {
+      final String? result =
+          await _channel.invokeMethod<String>('lookupPatientByCnp', {'cnp': cnp});
+      if (result == null) return null;
+      return jsonDecode(result) as Map<String, dynamic>;
+    } on PlatformException catch (e) {
+      throw Exception('Secure local FHIR Patient Lookup failed: Error ${e.code}');
+    }
+  }
+
+  /// Creates a new Patient FHIR resource for a newly registered user.
+  Future<void> savePatient(Map<String, dynamic> patientJson) async {
+    try {
+      final String jsonString = jsonEncode(patientJson);
+      await _channel.invokeMethod<void>('savePatient', {'resource': jsonString});
+    } on PlatformException catch (e) {
+      throw Exception('Secure local FHIR Patient Write failed: Error ${e.code}');
+    }
+  }
+
   /// Updates an existing FHIR Observation by [id] with the new [observationJson].
   /// The [id] is injected into the payload so the native FHIR engine locates the
   /// correct resource to overwrite.

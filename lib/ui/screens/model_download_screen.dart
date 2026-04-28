@@ -10,7 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
+import '../../core/providers/language_provider.dart';
 import '../../core/services/ai_engine_service.dart';
 import '../../data/repositories/fhir_repository.dart';
 
@@ -182,6 +184,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(languageProvider);
     final bool canDownload = _downloadState != _DownloadState.downloading;
     final bool showProgress = _downloadState == _DownloadState.downloading ||
         _downloadState == _DownloadState.success;
@@ -214,8 +217,8 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
               const SizedBox(height: 32),
 
               // ── Title ─────────────────────────────────────────────────────
-              const Text(
-                'Pregătim asistentul medical',
+              Text(
+                AppStrings.of(lang, 'download.title'),
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -227,8 +230,8 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
               const SizedBox(height: 16),
 
               // ── Subtitle ──────────────────────────────────────────────────
-              const Text(
-                'Se descarcă asistentul virtual. Aceasta este o operațiune ce va avea loc o singură dată, la crearea contului.',
+              Text(
+                AppStrings.of(lang, 'download.subtitle'),
                 style: TextStyle(
                   fontSize: 18,
                   color: Colors.black87,
@@ -253,7 +256,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '$_progressPercent% descărcat',
+                  AppStrings.downloadProgress(lang, _progressPercent),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -264,9 +267,9 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
               ],
 
               // ── File size hint ────────────────────────────────────────────
-              const Text(
-                'Dimensiune: ~2.4 GB',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+              Text(
+                AppStrings.of(lang, 'download.size_hint'),
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 20),
 
@@ -275,6 +278,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
                 isWifi: _isWifi,
                 isMobile: _isMobile,
                 isDownloading: _downloadState == _DownloadState.downloading,
+                lang: lang,
               ),
               const SizedBox(height: 24),
 
@@ -326,10 +330,10 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
                         elevation: 0,
                       ),
                       child: _downloadState == _DownloadState.downloading
-                          ? const Row(
+                          ? Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                SizedBox(
+                                const SizedBox(
                                   width: 24,
                                   height: 24,
                                   child: CircularProgressIndicator(
@@ -339,7 +343,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
                                 ),
                                 SizedBox(width: 16),
                                 Text(
-                                  'SE DESCARCĂ...',
+                                  AppStrings.of(lang, 'download.btn_progress'),
                                   style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
@@ -349,8 +353,8 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
                             )
                           : Text(
                               _downloadState == _DownloadState.error
-                                  ? 'ÎNCEARCĂ DIN NOU'
-                                  : 'DESCARCĂ ACUM',
+                                  ? AppStrings.of(lang, 'download.btn_retry')
+                                  : AppStrings.of(lang, 'download.btn_now'),
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
@@ -378,11 +382,13 @@ class _WifiBanner extends StatelessWidget {
   final bool isWifi;
   final bool isMobile;
   final bool isDownloading;
+  final String lang;
 
   const _WifiBanner({
     required this.isWifi,
     required this.isMobile,
     required this.isDownloading,
+    required this.lang,
   });
 
   @override
@@ -402,7 +408,7 @@ class _WifiBanner extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'WiFi activ — descărcarea este sigură',
+                AppStrings.of(lang, 'download.wifi_ok'),
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.green.shade800,
@@ -430,7 +436,7 @@ class _WifiBanner extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Descărcare prin date mobile - pot fi aplicate costuri',
+                AppStrings.of(lang, 'download.mobile_data'),
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.orange.shade900,
@@ -458,8 +464,8 @@ class _WifiBanner extends StatelessWidget {
           Expanded(
             child: Text(
               isDownloading
-                  ? 'Conexiune pierdută în timpul descărcării'
-                  : 'Fără conexiune la internet',
+                  ? AppStrings.of(lang, 'download.lost_conn')
+                  : AppStrings.of(lang, 'download.no_conn'),
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.amber.shade900,

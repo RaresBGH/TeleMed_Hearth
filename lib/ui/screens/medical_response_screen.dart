@@ -7,6 +7,9 @@
 import 'dart:async';
 import 'dart:io';
 
+import '../../core/l10n/app_strings.dart';
+import '../../core/providers/language_provider.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -59,6 +62,9 @@ class _MedicalResponseScreenState
   bool _isProcessing     = false;
   bool _isFinalizing     = false;
   bool _isPhotoAnalyzing = false;
+
+  // Readable from any method; build() uses ref.watch for reactivity.
+  String get _lang => ref.read(languageProvider);
   // Set to true when finalize is requested while _isProcessing is true.
   // Checked by inference handlers to abort appending a response mid-finalize.
   bool _cancelRequested  = false;
@@ -95,16 +101,16 @@ class _MedicalResponseScreenState
     final bool? choice = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Ieșire din conversație'),
-        content: const Text(
-          'Doriți să salvați conversația înainte de a ieși?',
+        title: Text(AppStrings.of(_lang, 'chat.back_title')),
+        content: Text(
+          AppStrings.of(_lang, 'chat.back_content'),
           style: TextStyle(fontSize: 16),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text(
-              'Ieși fără a salva',
+            child: Text(
+              AppStrings.of(_lang, 'chat.back_exit'),
               style: TextStyle(color: Colors.red, fontSize: 16),
             ),
           ),
@@ -114,9 +120,9 @@ class _MedicalResponseScreenState
               backgroundColor: _brandBlue,
               foregroundColor: Colors.white,
             ),
-            child: const Text(
-              'Finalizează Dialogul',
-              style: TextStyle(fontSize: 16),
+            child: Text(
+              AppStrings.of(_lang, 'chat.finalize_btn'),
+              style: const TextStyle(fontSize: 16),
             ),
           ),
         ],
@@ -363,6 +369,7 @@ class _MedicalResponseScreenState
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(languageProvider);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -408,9 +415,9 @@ class _MedicalResponseScreenState
         onPressed: _onBack,
       ),
       titleSpacing: 0,
-      title: const Text(
-        'Asistentul tău medical',
-        style: TextStyle(
+      title: Text(
+        AppStrings.of(_lang, 'chat.appbar_title'),
+        style: const TextStyle(
           color: _brandBlue,
           fontSize: 20,
           fontWeight: FontWeight.bold,
@@ -457,9 +464,9 @@ class _MedicalResponseScreenState
                 ),
               ),
               const SizedBox(width: 10),
-              const Text(
-                'Analiza simptomelor',
-                style: TextStyle(
+              Text(
+                AppStrings.of(_lang, 'chat.section_label'),
+                style: const TextStyle(
                   color: _muted,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -473,7 +480,7 @@ class _MedicalResponseScreenState
           Text(
             widget.initialResponse.isNotEmpty
                 ? widget.initialResponse
-                : 'Simptomele dumneavoastră au fost înregistrate.',
+                : AppStrings.of(_lang, 'chat.default_response'),
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -500,13 +507,13 @@ class _MedicalResponseScreenState
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: const Color(0xFFFFCDD2)),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.emergency, color: Color(0xFFBA1A1A), size: 16),
-              SizedBox(width: 6),
+              const Icon(Icons.emergency, color: Color(0xFFBA1A1A), size: 16),
+              const SizedBox(width: 6),
               Text(
-                'URGENȚĂ - Sunați 112',
+                AppStrings.of(_lang, 'chat.emergency_chip'),
                 style: TextStyle(
                   color: Color(0xFFBA1A1A),
                   fontSize: 14,
@@ -526,14 +533,14 @@ class _MedicalResponseScreenState
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: const Color(0xFFC8E6C9)),
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 16),
-          SizedBox(width: 6),
+          const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 16),
+          const SizedBox(width: 6),
           Text(
-            'Prioritate normală',
-            style: TextStyle(
+            AppStrings.of(_lang, 'chat.priority_normal'),
+            style: const TextStyle(
               color: Color(0xFF2E7D32),
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -547,14 +554,14 @@ class _MedicalResponseScreenState
   // ── Section divider ───────────────────────────────────────────────────────────
 
   Widget _buildSectionDivider() {
-    return const Row(
+    return Row(
       children: [
-        Expanded(child: Divider(color: Color(0xFFE0E2E7))),
+        const Expanded(child: Divider(color: Color(0xFFE0E2E7))),
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
-            'CONTINUAȚI CONVERSAȚIA',
-            style: TextStyle(
+            AppStrings.of(_lang, 'chat.divider_label'),
+            style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: _muted,
@@ -562,7 +569,7 @@ class _MedicalResponseScreenState
             ),
           ),
         ),
-        Expanded(child: Divider(color: Color(0xFFE0E2E7))),
+        const Expanded(child: Divider(color: Color(0xFFE0E2E7))),
       ],
     );
   }
@@ -698,9 +705,9 @@ class _MedicalResponseScreenState
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2.5),
                       )
-                    : const Text(
-                        'Finalizează Dialogul',
-                        style: TextStyle(
+                    : Text(
+                        AppStrings.of(_lang, 'chat.finalize_btn'),
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.3,
@@ -751,9 +758,9 @@ class _MedicalResponseScreenState
                 keyboardType: TextInputType.multiline,
                 textCapitalization: TextCapitalization.sentences,
                 style: const TextStyle(fontSize: 16, color: _onSurface),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   border: InputBorder.none,
-                  hintText: 'Scrieți sau vorbiți...',
+                  hintText: AppStrings.of(_lang, 'chat.hint'),
                   hintStyle: TextStyle(color: _muted, fontSize: 16),
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(vertical: 8),

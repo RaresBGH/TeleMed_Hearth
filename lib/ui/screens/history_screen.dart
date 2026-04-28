@@ -10,6 +10,8 @@ import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/patient_history_provider.dart';
 import '../theme/theme.dart';
+import '../widgets/app_bottom_nav_bar.dart';
+import '../../core/l10n/app_strings.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
@@ -59,30 +61,34 @@ class HistoryScreen extends ConsumerWidget {
           const SizedBox(width: 16),
         ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      body: Column(
+        children: [
+          Expanded(
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Dosar Medical',
-                style: TextStyle(fontSize: 32, color: Colors.black, fontWeight: FontWeight.w900),
+              Text(
+                AppStrings.of(lang, 'history.title'),
+                style: const TextStyle(fontSize: 32, color: Colors.black, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Consultați rapoartele trimise anterior.',
-                style: TextStyle(fontSize: 20, color: Colors.black, fontWeight: FontWeight.w500),
+              Text(
+                AppStrings.of(lang, 'history.subtitle'),
+                style: const TextStyle(fontSize: 20, color: Colors.black, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 24),
               Expanded(
                 child: historyAsync.when(
                   data: (data) {
                     if (data.isEmpty) {
-                      return const Center(
+                      return Center(
                         child: Text(
-                          'Nu există istoric medical.',
-                          style: TextStyle(fontSize: 20, color: Colors.black),
+                          AppStrings.of(lang, 'history.empty'),
+                          style: const TextStyle(fontSize: 20, color: Colors.black),
                         ),
                       );
                     }
@@ -122,6 +128,7 @@ class HistoryScreen extends ConsumerWidget {
                               onTap: () => _showDetailSheet(
                                 context,
                                 ref,
+                                lang,
                                 item,
                                 dateStr,
                                 label,
@@ -213,24 +220,8 @@ class HistoryScreen extends ConsumerWidget {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF5BA4CF),
-        unselectedItemColor: Colors.black,
-        selectedFontSize: 18,
-        unselectedFontSize: 18,
-        currentIndex: 1,
-        onTap: (index) {
-          if (index == 0) {
-            ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home);
-          } else if (index == 2) {
-            ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.myDoctor);
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home, size: 36), label: 'Acasă'),
-          BottomNavigationBarItem(icon: Icon(Icons.history, size: 36), label: 'Istoric'),
-          BottomNavigationBarItem(icon: Icon(Icons.person, size: 36), label: 'Doctorul Meu'),
+          ),
+          const AppBottomNavBar(),
         ],
       ),
     );
@@ -239,6 +230,7 @@ class HistoryScreen extends ConsumerWidget {
   static void _showDetailSheet(
     BuildContext context,
     WidgetRef ref,
+    String lang,
     Map<String, dynamic> item,
     String dateStr,
     String label,
@@ -331,9 +323,9 @@ class HistoryScreen extends ConsumerWidget {
                   children: [
                     // AI triage summary
                     if (valueString != null && valueString.isNotEmpty) ...[
-                      const Text(
-                        'Răspuns inițial AI',
-                        style: TextStyle(
+                      Text(
+                        AppStrings.of(lang, 'history.ai_label'),
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF5BA4CF),
@@ -360,9 +352,9 @@ class HistoryScreen extends ConsumerWidget {
                     ],
                     // Conversation log
                     if (noteText != null && noteText.isNotEmpty) ...[
-                      const Text(
-                        'Conversație',
-                        style: TextStyle(
+                      Text(
+                        AppStrings.of(lang, 'history.conv_label'),
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF5BA4CF),
@@ -451,9 +443,9 @@ class HistoryScreen extends ConsumerWidget {
                   height: 60,
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.chat_bubble_outline),
-                    label: const Text(
-                      'Continuă conversația',
-                      style: TextStyle(
+                    label: Text(
+                      AppStrings.of(lang, 'history.continue_btn'),
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),

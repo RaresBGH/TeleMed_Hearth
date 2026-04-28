@@ -25,6 +25,7 @@ import 'ui/screens/video_consultation_screen.dart';
 import 'ui/screens/login_identity_screen.dart';
 import 'ui/screens/login_verification_screen.dart';
 import 'ui/screens/medical_response_screen.dart';
+import 'ui/screens/profile_completion_screen.dart';
 import 'core/providers/medical_session_provider.dart';
 
 Future<void> main() async {
@@ -115,6 +116,9 @@ class TeleMedApp extends ConsumerWidget {
         break;
       case AppRoute.loginVerification:
         screen = const LoginVerificationScreen();
+        break;
+      case AppRoute.profileCompletion:
+        screen = const ProfileCompletionScreen();
         break;
     }
 

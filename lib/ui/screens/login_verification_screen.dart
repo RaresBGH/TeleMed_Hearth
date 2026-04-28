@@ -8,7 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_auth/smart_auth.dart';
 import 'package:telemed_k/ui/widgets/legal_document_modal.dart';
 import '../../core/providers/app_navigation_provider.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/language_provider.dart';
 import '../../core/services/cnp_service.dart';
 
 class LoginVerificationScreen extends ConsumerStatefulWidget {
@@ -91,11 +93,22 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
       setState(() => _isAuthenticating = false);
 
       if (otp == expectedOtp) {
-        final modelOnDisk = await _isModelOnDisk();
+        // Determine whether this CNP belongs to an existing registered patient.
+        final isReturning =
+            await ref.read(patientAuthProvider.notifier).loadPatient(cnp);
         if (!mounted) return;
-        ref.read(appNavigationProvider.notifier).navigateTo(
-          modelOnDisk ? AppRoute.home : AppRoute.modelDownload,
-        );
+        if (isReturning) {
+          final modelOnDisk = await _isModelOnDisk();
+          if (!mounted) return;
+          ref.read(appNavigationProvider.notifier).navigateTo(
+            modelOnDisk ? AppRoute.home : AppRoute.modelDownload,
+          );
+        } else {
+          // New user — collect profile details before proceeding.
+          ref
+              .read(appNavigationProvider.notifier)
+              .navigateTo(AppRoute.profileCompletion);
+        }
       } else {
         final newAttempts = _attempts + 1;
         if (newAttempts >= _maxAttempts) {
@@ -134,14 +147,15 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(languageProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFFF5F5F5),
         elevation: 0,
-        title: const Text(
-          'Verificare',
+        title: Text(
+          AppStrings.of(lang, 'otp.title'),
           style: TextStyle(color: Color(0xFF000000), fontSize: 22, fontWeight: FontWeight.bold),
         ),
       ),
@@ -151,8 +165,8 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Introduceți codul din 6 cifre primit prin SMS',
+              Text(
+                AppStrings.of(lang, 'otp.subtitle'),
                 style: TextStyle(color: Color(0xFF000000), fontSize: 24, fontWeight: FontWeight.bold, height: 1.2),
                 textAlign: TextAlign.center,
               ),
@@ -262,8 +276,8 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
                   ),
                   child: _isAuthenticating
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'SUNT DE ACORD CU TERMENII - CREEAZĂ CONT',
+                      : Text(
+                          AppStrings.of(lang, 'otp.confirm_btn'),
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                         ),
@@ -274,8 +288,8 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
               if (!_isLocked)
                 GestureDetector(
                   onTap: _startSmsListener,
-                  child: const Text(
-                    'Nu ați primit codul? Trimite din nou',
+                  child: Text(
+                    AppStrings.of(lang, 'otp.resend'),
                     style: TextStyle(
                       color: Color(0xFF000000),
                       fontSize: 18,

@@ -40,6 +40,8 @@ import org.json.JSONObject
  *   - getMostRecentMedicationRequest
  *   - updateEncounterConsent
  *   - updateObservation
+ *   - lookupPatientByCnp
+ *   - savePatient
  *   - markAsSynced
  */
 class FhirEngineChannel(
@@ -67,6 +69,8 @@ class FhirEngineChannel(
             "getMostRecentMedicationRequest" -> handleGetMostRecentMedicationRequest(result)
             "updateEncounterConsent" -> handleUpdateEncounterConsent(call, result)
             "updateObservation" -> handleUpdateObservation(call, result)
+            "lookupPatientByCnp" -> handleLookupPatientByCnp(call, result)
+            "savePatient" -> handleSavePatient(call, result)
             "markAsSynced" -> handleMarkAsSynced(call, result)
             "seedMockData" -> handleSeedMockData(result)
             else -> result.notImplemented()
@@ -323,6 +327,65 @@ class FhirEngineChannel(
     }
 
     // ──────────────────────────────────────────────────────────────────────────
+    // lookupPatientByCnp — finds a Patient whose identifier matches the CNP
+    // ──────────────────────────────────────────────────────────────────────────
+    private fun handleLookupPatientByCnp(call: MethodCall, result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                ensureInitialized()
+                val cnp = call.argument<String>("cnp")
+                    ?: return@launch result.error("INVALID_ARG", "Missing 'cnp' argument", null)
+
+                val patients = fhirEngine!!.search<org.hl7.fhir.r4.model.Patient> {}
+                val parser = fhirContext.newJsonParser()
+
+                val found = patients.firstOrNull { sr ->
+                    sr.resource.identifier.any { id ->
+                        id.system == "urn:oid:1.2.40.0.10.1.4.3.1" && id.value == cnp
+                    }
+                }
+
+                if (found != null) {
+                    Log.i(TAG, "lookupPatientByCnp: found patient ${found.resource.idElement?.idPart} for CNP $cnp")
+                    result.success(parser.encodeResourceToString(found.resource))
+                } else {
+                    Log.i(TAG, "lookupPatientByCnp: no patient found for CNP $cnp")
+                    result.success(null)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to lookup patient by CNP", e)
+                result.error("FHIR_READ_ERROR", "Patient lookup failed", null)
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // savePatient — creates a new Patient resource for a newly registered user
+    // ──────────────────────────────────────────────────────────────────────────
+    private fun handleSavePatient(call: MethodCall, result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                ensureInitialized()
+                val resourceJson = call.argument<String>("resource")
+                    ?: return@launch result.error("INVALID_ARG", "Missing 'resource' argument", null)
+
+                val parser = fhirContext.newJsonParser()
+                val patient = parser.parseResource(
+                    org.hl7.fhir.r4.model.Patient::class.java,
+                    resourceJson
+                )
+                fhirEngine!!.create(patient)
+
+                Log.i(TAG, "Patient saved: ${patient.idElement?.idPart}")
+                result.success(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to save Patient", e)
+                result.error("FHIR_WRITE_ERROR", "Patient write failed", null)
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
     // markAsSynced
     // ──────────────────────────────────────────────────────────────────────────
     private fun handleMarkAsSynced(call: MethodCall, result: MethodChannel.Result) {
@@ -388,16 +451,34 @@ class FhirEngineChannel(
                 ensureInitialized()
                 val parser = fhirContext.newJsonParser()
 
-                // Patient Mock
-                val patientJson = """
-                {
-                  "resourceType": "Patient",
-                  "id": "mock-patient-1",
-                  "name": [{"family": "Popescu", "given": ["Ion"]}],
-                  "telecom": [{"system": "phone", "value": "+40700000000", "use": "mobile"}]
+                // ── 5 mock patients — Romanian clinic roster ─────────────────
+                data class PatientSeed(val id: String, val cnp: String, val family: String,
+                    val given: String, val dob: String, val phone: String, val condition: String)
+                val seeds = listOf(
+                    PatientSeed("patient-2540203152485","2540203152485","Ionescu","Maria","1954-02-03","0721234567","Hipertensiune arterială"),
+                    PatientSeed("patient-1490815054321","1490815054321","Popescu","Ion","1949-08-15","0732345678","Diabet zaharat tip 2"),
+                    PatientSeed("patient-2621105287654","2621105287654","Dumitrescu","Elena","1962-11-05","0743456789","Artrită reumatoidă"),
+                    PatientSeed("patient-1551220187432","1551220187432","Stan","Gheorghe","1955-12-20","0754567890","Insuficiență cardiacă"),
+                    PatientSeed("patient-2480430098765","2480430098765","Constantin","Ana","1948-04-30","0765678901","Boală pulmonară obstructivă cronică")
+                )
+                val patients = seeds.map { s ->
+                    parser.parseResource(org.hl7.fhir.r4.model.Patient::class.java, """
+                    {"resourceType":"Patient","id":"${s.id}",
+                     "identifier":[{"system":"urn:oid:1.2.40.0.10.1.4.3.1","value":"${s.cnp}"}],
+                     "name":[{"family":"${s.family}","given":["${s.given}"]}],
+                     "birthDate":"${s.dob}",
+                     "telecom":[{"system":"phone","value":"${s.phone}","use":"mobile"}]}
+                    """.trimIndent())
                 }
-                """.trimIndent()
-                val patient = parser.parseResource(org.hl7.fhir.r4.model.Patient::class.java, patientJson)
+                val conditions = seeds.map { s ->
+                    parser.parseResource(org.hl7.fhir.r4.model.Condition::class.java, """
+                    {"resourceType":"Condition","id":"condition-${s.cnp}",
+                     "clinicalStatus":{"coding":[{"system":"http://terminology.hl7.org/CodeSystem/condition-clinical","code":"active"}]},
+                     "subject":{"reference":"Patient/${s.id}"},
+                     "code":{"text":"${s.condition}"},
+                     "recordedDate":"2020-01-01"}
+                    """.trimIndent())
+                }
 
                 // Practitioner Mock
                 val practitionerJson = """
@@ -442,10 +523,8 @@ class FhirEngineChannel(
                 """.trimIndent()
                 val encounter = parser.parseResource(org.hl7.fhir.r4.model.Encounter::class.java, encounterJson)
 
-                // Insert into DB if not exists.
-                // Observation and Condition mock records intentionally removed —
-                // only real patient-saved dialogs appear in Dosar Medical.
-                val resources = listOf(patient, practitioner, medication, encounter)
+                // Insert into DB if not exists (upsert pattern).
+                val resources = patients + conditions + listOf(practitioner, medication, encounter)
                 resources.forEach { resource ->
                     runCatching {
                         fhirEngine!!.create(resource)

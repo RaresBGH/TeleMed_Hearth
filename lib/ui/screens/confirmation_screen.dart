@@ -6,7 +6,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
+import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 
 class ConfirmationScreen extends ConsumerStatefulWidget {
@@ -27,6 +29,7 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(languageProvider);
     final String? aiResponse =
         ref.read(medicalSessionProvider.notifier).lastAiResponse;
 
@@ -41,15 +44,15 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
               const SizedBox(height: 32),
               const Icon(Icons.check_circle, size: 100, color: Color(0xFF5BA4CF)),
               const SizedBox(height: 32),
-              const Text(
-                'Consultația a fost salvată cu succes.',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              Text(
+                AppStrings.of(lang, 'confirm.title'),
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Datele au fost înregistrate sigur în dosarul local.',
-                style: TextStyle(fontSize: 20),
+              Text(
+                AppStrings.of(lang, 'confirm.subtitle'),
+                style: const TextStyle(fontSize: 20),
                 textAlign: TextAlign.center,
               ),
               if (aiResponse != null && aiResponse.isNotEmpty) ...[
@@ -66,13 +69,13 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.smart_toy_outlined,
+                          const Icon(Icons.smart_toy_outlined,
                               color: Color(0xFF5BA4CF), size: 22),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
-                            'Răspuns asistent AI',
+                            AppStrings.of(lang, 'confirm.ai_label'),
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,

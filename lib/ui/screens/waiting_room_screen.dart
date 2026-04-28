@@ -4,7 +4,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
+import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/services/telemedicine_service.dart';
 import '../theme/theme.dart';
@@ -16,8 +18,9 @@ class WaitingRoomScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(languageProvider);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5), // Strict brand background
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         backgroundColor: const Color(0xFFF5F5F5),
         elevation: 0,
@@ -34,10 +37,10 @@ class WaitingRoomScreen extends ConsumerWidget {
               child: const Icon(Icons.person, color: Colors.grey),
             ),
             const SizedBox(width: 16),
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Cabinetul Medical', style: TextStyle(fontSize: 16, color: Colors.black54)),
+                Text(AppStrings.of(lang, 'waiting.clinic'), style: const TextStyle(fontSize: 16, color: Colors.black54)),
                 Text('Dr. Bogheanu', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
               ],
             )
@@ -52,8 +55,8 @@ class WaitingRoomScreen extends ConsumerWidget {
             children: [
               const SizedBox(height: 32),
               // Status Message Section
-              const Text(
-                'Conectare la cabinetul Dr. Bogheanu...',
+              Text(
+                AppStrings.of(lang, 'waiting.connecting'),
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.black, height: 1.2),
                 textAlign: TextAlign.center,
               ),
@@ -84,11 +87,11 @@ class WaitingRoomScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.gavel, color: Color(0xFF5BA4CF), size: 36),
-                        SizedBox(width: 16),
-                        Expanded(child: Text('Acord de Consultanță', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black))),
+                        const Icon(Icons.gavel, color: Color(0xFF5BA4CF), size: 36),
+                        const SizedBox(width: 16),
+                        Expanded(child: Text(AppStrings.of(lang, 'waiting.consent_title'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black))),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -158,12 +161,12 @@ class WaitingRoomScreen extends ConsumerWidget {
                       BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4)),
                     ],
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Sunt de acord', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-                      SizedBox(width: 16),
-                      Icon(Icons.arrow_forward, color: Colors.white, size: 32),
+                      Text(AppStrings.of(lang, 'waiting.agree_btn'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                      const SizedBox(width: 16),
+                      const Icon(Icons.arrow_forward, color: Colors.white, size: 32),
                     ],
                   ),
                 ),
@@ -181,19 +184,19 @@ class WaitingRoomScreen extends ConsumerWidget {
                     border: Border.all(color: Colors.black, width: 2),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.close, color: Color(0xFFAB1118), size: 28),
-                      SizedBox(width: 16),
-                      Text('ANULEAZĂ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFAB1118), letterSpacing: 1.5)),
+                      const Icon(Icons.close, color: Color(0xFFAB1118), size: 28),
+                      const SizedBox(width: 16),
+                      Text(AppStrings.of(lang, 'waiting.cancel_btn'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFAB1118), letterSpacing: 1.5)),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Consultul va începe imediat după ce apăsați butonul de confirmare.',
+              Text(
+                AppStrings.of(lang, 'waiting.note'),
                 style: TextStyle(fontSize: 14, color: Colors.black54),
                 textAlign: TextAlign.center,
               )

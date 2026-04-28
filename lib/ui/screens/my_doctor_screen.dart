@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
+import '../widgets/app_bottom_nav_bar.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/providers/my_doctor_provider.dart';
 import '../../core/services/telemedicine_service.dart';
 import '../theme/theme.dart';
@@ -70,11 +72,11 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.account_circle, color: Color(0xFF5BA4CF), size: 36),
-            SizedBox(width: 8),
-            Text('The Dignified Guardian', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22)),
+            const Icon(Icons.account_circle, color: Color(0xFF5BA4CF), size: 36),
+            const SizedBox(width: 8),
+            Text(AppStrings.of(lang, 'doctor.screen_title'), style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22)),
           ],
         ),
         backgroundColor: const Color(0xFFF5F5F5),
@@ -113,9 +115,13 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
           const SizedBox(width: 16),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      body: Column(
+        children: [
+          Expanded(
+            child: SafeArea(
+              bottom: false,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -159,12 +165,12 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                         color: const Color(0xFF5BA4CF).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.check_circle, color: Color(0xFF5BA4CF), size: 24),
-                          SizedBox(width: 8),
-                          Text('Disponibil acum', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF5BA4CF))),
+                          const Icon(Icons.check_circle, color: Color(0xFF5BA4CF), size: 24),
+                          const SizedBox(width: 8),
+                          Text(AppStrings.of(lang, 'doctor.available'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF5BA4CF))),
                         ],
                       ),
                     ),
@@ -218,12 +224,12 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                               BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 4)),
                             ],
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.call, color: Colors.white, size: 48),
-                              SizedBox(width: 16),
-                              Text('RĂSPUNDE', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2)),
+                              const Icon(Icons.call, color: Colors.white, size: 48),
+                              const SizedBox(width: 16),
+                              Text(AppStrings.of(lang, 'doctor.answer'), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2)),
                             ],
                           ),
                         ),
@@ -241,8 +247,8 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                             color: Colors.grey.shade200,
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Center(
-                            child: Text('Respinge apelul', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.red)),
+                          child: Center(
+                            child: Text(AppStrings.of(lang, 'doctor.decline'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.red)),
                           ),
                         ),
                       ),
@@ -263,7 +269,7 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                         children: [
                           const Icon(Icons.schedule, color: Colors.black54, size: 36),
                           const SizedBox(height: 8),
-                          const Text('Ultima consultație', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54)),
+                          Text(AppStrings.of(lang, 'doctor.last_visit'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54)),
                           const SizedBox(height: 4),
                           encounterAsync.when(
                             data: (data) {
@@ -287,7 +293,7 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                         children: [
                           const Icon(Icons.medication, color: Colors.black54, size: 36),
                           const SizedBox(height: 8),
-                          const Text('Rețetă activă', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54)),
+                          Text(AppStrings.of(lang, 'doctor.prescription'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54)),
                           const SizedBox(height: 4),
                           medAsync.when(
                             data: (data) {
@@ -309,24 +315,8 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF5BA4CF),
-        unselectedItemColor: Colors.black,
-        selectedFontSize: 18,
-        unselectedFontSize: 18,
-        currentIndex: 2,
-        onTap: (index) {
-          if (index == 0) {
-            ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home);
-          } else if (index == 1) {
-            ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.history);
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home, size: 36), label: 'Acasă'),
-          BottomNavigationBarItem(icon: Icon(Icons.history, size: 36), label: 'Istoric'),
-          BottomNavigationBarItem(icon: Icon(Icons.person, size: 36), label: 'Doctorul Meu'),
+          ),
+          const AppBottomNavBar(),
         ],
       ),
     );

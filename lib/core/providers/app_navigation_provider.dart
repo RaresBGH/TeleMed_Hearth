@@ -19,6 +19,7 @@ enum AppRoute {
   loginIdentity,
   loginVerification,
   modelDownload,
+  profileCompletion,
 }
 
 class AppNavigationNotifier extends Notifier<AppRoute> {
@@ -29,7 +30,8 @@ class AppNavigationNotifier extends Notifier<AppRoute> {
       // Don't interrupt auth or download flows with session-state changes.
       if (currentState == AppRoute.loginIdentity ||
           currentState == AppRoute.loginVerification ||
-          currentState == AppRoute.modelDownload) {
+          currentState == AppRoute.modelDownload ||
+          currentState == AppRoute.profileCompletion) {
         return;
       }
       if (next == SessionState.emergency) {

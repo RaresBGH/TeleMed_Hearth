@@ -8,7 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/language_provider.dart';
 import '../../core/services/audio_recording_service.dart';
 import '../../core/services/camera_service.dart';
 import '../../core/services/cnp_service.dart';
@@ -288,6 +290,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(languageProvider);
     final cnpText = _cnpController.text;
     final showIndicator = cnpText.length == 13;
 
@@ -322,8 +325,8 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // ── Title ──────────────────────────────────────────────
-                    const Text(
-                      'Sănătatea ta,\nla un click distanță',
+                    Text(
+                      AppStrings.of(lang, 'login.title'),
                       style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.w900,
@@ -345,7 +348,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                     const SizedBox(height: 40),
 
                     // ── CNP Field ──────────────────────────────────────────
-                    const Text('CNP (Cod Numeric Personal)',
+                    Text(AppStrings.of(lang, 'login.cnp_label'),
                         style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -420,7 +423,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                     const SizedBox(height: 32),
 
                     // ── Phone Field ────────────────────────────────────────
-                    const Text('Număr de Telefon',
+                    Text(AppStrings.of(lang, 'login.phone_label'),
                         style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -531,17 +534,17 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                                 ]
                               : null,
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('CONTINUĂ',
-                                style: TextStyle(
+                            Text(AppStrings.of(lang, 'login.continue_btn'),
+                                style: const TextStyle(
                                     fontSize: 26,
                                     fontWeight: FontWeight.w900,
                                     color: Colors.white,
                                     letterSpacing: 2.0)),
-                            SizedBox(width: 16),
-                            Icon(Icons.arrow_forward,
+                            const SizedBox(width: 16),
+                            const Icon(Icons.arrow_forward,
                                 color: Colors.white, size: 40),
                           ],
                         ),
@@ -553,14 +556,14 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                     AccessibleTouchTarget(
                       semanticLabel: 'Deschide meniu ajutor',
                       onTap: _showAjutorModal,
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.help_outline,
+                          const Icon(Icons.help_outline,
                               color: Color(0xFF5BA4CF), size: 28),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
-                            'Ajutor',
+                            AppStrings.of(lang, 'login.help_btn'),
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
