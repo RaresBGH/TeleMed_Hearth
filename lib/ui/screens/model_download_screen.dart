@@ -82,7 +82,10 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
   // ──────────────────────────────────────────────────────────────────────────
 
   Future<void> _startDownload() async {
-    if (_downloadState == _DownloadState.downloading) return;
+    if (_downloadState == _DownloadState.downloading ||
+        _downloadState == _DownloadState.success) {
+      return;
+    }
 
     setState(() {
       _downloadState = _DownloadState.downloading;
@@ -164,12 +167,12 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
   }
 
   Future<void> _onDownloadComplete() async {
-    // Load the model into the LiteRT-LM engine now that the file is on disk.
-    // This is the one-time 5-10s initialization cost; the user sees 100% so
-    // a brief pause here is acceptable.
-    await AiEngineService(FhirRepository()).initializeModel();
+    // Kick off model init in the background — the AI status indicator on the
+    // home screen handles the not-ready → ready transition independently.
+    unawaited(AiEngineService(FhirRepository()).initializeModel());
+    // Navigate within 2 s of STATUS_SUCCESS landing on the Dart side.
+    await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;
-    // User is already authenticated — go straight to home.
     ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home);
   }
 
@@ -225,7 +228,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
 
               // ── Subtitle ──────────────────────────────────────────────────
               const Text(
-                'Se descarcă modelul de inteligență artificială.\nAceasta este o operație unică și funcționează optim cu conexiune WiFi sau date mobile.',
+                'Se descarcă asistentul virtual. Aceasta este o operațiune ce va avea loc o singură dată, la crearea contului.',
                 style: TextStyle(
                   fontSize: 18,
                   color: Colors.black87,
@@ -294,70 +297,71 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
                 const SizedBox(height: 16),
               ],
 
-              // ── Main action button ────────────────────────────────────────
-              Semantics(
-                button: true,
-                label: _downloadState == _DownloadState.downloading
-                    ? 'Se descarcă modelul AI, vă rugăm așteptați'
-                    : _downloadState == _DownloadState.error
-                        ? 'Încearcă din nou descărcarea modelului AI'
-                        : 'Descarcă modelul AI pe dispozitiv',
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 72,
-                  child: ElevatedButton(
-                    onPressed: canDownload ? _startDownload : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF5BA4CF),
-                      disabledBackgroundColor: Colors.grey.shade400,
-                      foregroundColor: Colors.white,
-                      disabledForegroundColor: Colors.white70,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: canDownload ? Colors.black : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: _downloadState == _DownloadState.downloading
-                        ? const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 3,
-                                ),
-                              ),
-                              SizedBox(width: 16),
-                              Text(
-                                'SE DESCARCĂ...',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Text(
-                            _downloadState == _DownloadState.error
-                                ? 'ÎNCEARCĂ DIN NOU'
-                                : 'DESCARCĂ ACUM',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.5,
-                            ),
+              // ── Main action button — hidden permanently after success ─────
+              if (_downloadState != _DownloadState.success) ...[
+                Semantics(
+                  button: true,
+                  label: _downloadState == _DownloadState.downloading
+                      ? 'Se descarcă modelul AI, vă rugăm așteptați'
+                      : _downloadState == _DownloadState.error
+                          ? 'Încearcă din nou descărcarea modelului AI'
+                          : 'Descarcă modelul AI pe dispozitiv',
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 72,
+                    child: ElevatedButton(
+                      onPressed: canDownload ? _startDownload : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF5BA4CF),
+                        disabledBackgroundColor: Colors.grey.shade400,
+                        foregroundColor: Colors.white,
+                        disabledForegroundColor: Colors.white70,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: canDownload ? Colors.black : Colors.transparent,
+                            width: 2,
                           ),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _downloadState == _DownloadState.downloading
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 3,
+                                  ),
+                                ),
+                                SizedBox(width: 16),
+                                Text(
+                                  'SE DESCARCĂ...',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              _downloadState == _DownloadState.error
+                                  ? 'ÎNCEARCĂ DIN NOU'
+                                  : 'DESCARCĂ ACUM',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                    ),
                   ),
                 ),
-              ),
-
-              const SizedBox(height: 32),
+                const SizedBox(height: 32),
+              ],
             ],
           ),
         ),

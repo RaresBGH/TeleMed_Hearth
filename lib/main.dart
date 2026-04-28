@@ -92,6 +92,7 @@ class TeleMedApp extends ConsumerWidget {
           initialResponse:
               notifier.lastAiResponse ?? 'Simptomele au fost înregistrate.',
           isEmergency: notifier.lastIsEmergency,
+          initialMessages: notifier.lastResumeMessages,
         );
         break;
       case AppRoute.home:

@@ -30,11 +30,16 @@ const Color _surfContainer = Color(0xFFECEEF2);
 class MedicalResponseScreen extends ConsumerStatefulWidget {
   final String initialResponse;
   final bool isEmergency;
+  /// When resuming a saved dialog from Dosar Medical, the prior messages are
+  /// passed here and used to pre-populate the chat instead of the default
+  /// "Aveți și alte simptome?" seed message.
+  final List<ChatMessage>? initialMessages;
 
   const MedicalResponseScreen({
     super.key,
     required this.initialResponse,
     required this.isEmergency,
+    this.initialMessages,
   });
 
   @override
@@ -49,19 +54,25 @@ class _MedicalResponseScreenState
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  bool _isRecording   = false;
-  bool _isProcessing  = false;
-  bool _isFinalizing  = false;
+  bool _isRecording      = false;
+  bool _isProcessing     = false;
+  bool _isFinalizing     = false;
+  bool _isPhotoAnalyzing = false;
 
   @override
   void initState() {
     super.initState();
-    // Seed chat with the default follow-up prompt from the AI.
-    _messages.add(ChatMessage(
-      role: 'ai',
-      text: 'Aveți și alte simptome pe care doriți să le descrieți?',
-      timestamp: DateTime.now(),
-    ));
+    if (widget.initialMessages != null && widget.initialMessages!.isNotEmpty) {
+      // Resume from Dosar Medical — restore prior conversation.
+      _messages.addAll(widget.initialMessages!);
+    } else {
+      // Fresh triage entry — seed with default follow-up prompt.
+      _messages.add(ChatMessage(
+        role: 'ai',
+        text: 'Aveți și alte simptome pe care doriți să le descrieți?',
+        timestamp: DateTime.now(),
+      ));
+    }
     _textController.addListener(() => setState(() {}));
   }
 
@@ -74,9 +85,45 @@ class _MedicalResponseScreenState
 
   // ── Navigation ──────────────────────────────────────────────────────────────
 
-  void _onBack() {
-    // reset() → SessionState.idle → AppNavigationNotifier listener → AppRoute.home
-    ref.read(medicalSessionProvider.notifier).reset();
+  Future<void> _onBack() async {
+    final bool? choice = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ieșire din conversație'),
+        content: const Text(
+          'Doriți să salvați conversația înainte de a ieși?',
+          style: TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text(
+              'Ieși fără a salva',
+              style: TextStyle(color: Colors.red, fontSize: 16),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _brandBlue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text(
+              'Finalizează Dialogul',
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (choice == true) {
+      await _onFinalize();
+    } else if (choice == false) {
+      // Discard — reset() → SessionState.idle → AppRoute.home
+      ref.read(medicalSessionProvider.notifier).reset();
+    }
+    // choice == null means the dialog was dismissed; stay in chat.
   }
 
   // ── Scroll ──────────────────────────────────────────────────────────────────
@@ -103,6 +150,7 @@ class _MedicalResponseScreenState
     if (!mounted) return;
     setState(() {
       _isProcessing = false;
+      _isPhotoAnalyzing = false;
       _messages.add(ChatMessage(role: 'ai', text: text, timestamp: DateTime.now()));
     });
     _scrollToBottom();
@@ -178,6 +226,7 @@ class _MedicalResponseScreenState
 
     setState(() {
       _isProcessing = true;
+      _isPhotoAnalyzing = true;
       // Show patient's own bubble immediately while AI processes.
       _messages.add(ChatMessage(
           role: 'patient',
@@ -193,7 +242,12 @@ class _MedicalResponseScreenState
       _appendAiResponse(result);
     } catch (_) {
       cameraService.deleteTempFile(imagePath);
-      if (mounted) setState(() => _isProcessing = false);
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _isPhotoAnalyzing = false;
+        });
+      }
     }
   }
 
@@ -539,7 +593,23 @@ class _MedicalResponseScreenState
               bottomRight: Radius.circular(20),
             ),
           ),
-          child: const _TypingDots(),
+          child: _isPhotoAnalyzing
+              ? const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.photo_camera, size: 16, color: _brandBlue),
+                    SizedBox(width: 8),
+                    Text(
+                      'Se analizează fotografia...',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: _muted,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                )
+              : const _TypingDots(),
         ),
       ),
     );

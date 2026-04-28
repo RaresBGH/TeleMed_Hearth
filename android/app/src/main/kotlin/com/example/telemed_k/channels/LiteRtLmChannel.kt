@@ -19,9 +19,11 @@ import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.io.File
 
@@ -73,8 +75,15 @@ REGULI STRICTE:
 6. La finalul colectării simptomelor, generezi un sumar structurat pentru medic
    în format: Simptome principale / Durată / Intensitate / Context.
 
+STRUCTURA OBLIGATORIE A FIECĂRUI RĂSPUNS (respectă această ordine):
+a) Confirmare — spune pe scurt ce ai înțeles din ce a descris sau arătat pacientul,
+   în cuvinte simple, ca și cum ai vorbi cu un bunic drag.
+   Exemplu: "Am înțeles că aveți dureri de cap de la prânz."
+b) Evaluare — prezintă ce observi din simptomele descrise, fără a pune diagnostic.
+c) Continuare — întreabă dacă mai sunt și alte simptome sau detalii importante.
+
 Răspunsul tău JSON trebuie să conțină întotdeauna:
-- "response": textul afișat pacientului (în română, simplu și clar)
+- "response": textul afișat pacientului (în română, simplu și clar, respectând structura a/b/c)
 - "emergency": true sau false
 - "confidence": număr între 0.0 și 1.0
 - "doctor_summary": sumarul pentru medic (completat doar când pacientul
@@ -301,14 +310,22 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
                         Log.w(TAG, "Video input — Content.VideoFile not in LiteRT-LM API; using fallback")
                         buildFallbackResponse()
                     } else {
-                        // Image: use Content.ImageFile(path) — documented explicitly in docs §5
-                        runEngineInference(
-                            systemPrompt = effectivePrompt,
-                            contents = listOf(
-                                Content.ImageFile(filePath),
-                                Content.Text(effectivePrompt)
-                            )
-                        )
+                        // Image: 30-second timeout — Gemma 4 image encoding can stall
+                        // indefinitely on some Android CPU configurations.
+                        try {
+                            withTimeout(30_000L) {
+                                runEngineInference(
+                                    systemPrompt = effectivePrompt,
+                                    contents = listOf(
+                                        Content.ImageFile(filePath),
+                                        Content.Text(effectivePrompt)
+                                    )
+                                )
+                            }
+                        } catch (e: TimeoutCancellationException) {
+                            Log.w(TAG, "Photo analysis timed out after 30 s")
+                            buildPhotoTimeoutFallback()
+                        }
                     }
                 } else {
                     Log.w(TAG, "Engine not ready — keyword fallback for media")
@@ -430,6 +447,15 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
         val lower = text.lowercase()
         return EMERGENCY_KEYWORDS_RO.any { lower.contains(it) }
     }
+
+    /** Returned when photo analysis exceeds the 30-second timeout. */
+    private fun buildPhotoTimeoutFallback(): String = JSONObject().apply {
+        put("emergency", false)
+        put("confidence", 0.0)
+        put("response",
+            "Nu am putut analiza fotografia. Vă rugăm descrieți simptomele prin voce sau text.")
+        put("fallback", true)
+    }.toString()
 
     /** Returned when engine is unavailable — app stays functional, no crash. */
     private fun buildFallbackResponse(): String = JSONObject().apply {

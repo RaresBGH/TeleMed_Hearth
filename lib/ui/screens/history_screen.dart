@@ -4,7 +4,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/models/chat_message.dart';
 import '../../core/providers/app_navigation_provider.dart';
+import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/patient_history_provider.dart';
 import '../theme/theme.dart';
 
@@ -92,6 +94,7 @@ class HistoryScreen extends ConsumerWidget {
                               semanticLabel: 'Deschide detalii raport',
                               onTap: () => _showDetailSheet(
                                 context,
+                                ref,
                                 item,
                                 dateStr,
                                 label,
@@ -171,10 +174,10 @@ class HistoryScreen extends ConsumerWidget {
                     );
                   },
                   loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF5BA4CF))),
-                  error: (err, stack) => Center(
+                  error: (err, stack) => const Center(
                     child: Text(
                       'Eroare la încărcarea istoricului.',
-                      style: const TextStyle(fontSize: 18, color: Colors.red),
+                      style: TextStyle(fontSize: 18, color: Colors.red),
                     ),
                   ),
                 ),
@@ -208,6 +211,7 @@ class HistoryScreen extends ConsumerWidget {
 
   static void _showDetailSheet(
     BuildContext context,
+    WidgetRef ref,
     Map<String, dynamic> item,
     String dateStr,
     String label,
@@ -412,11 +416,71 @@ class HistoryScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              // ── "Continuă conversația" button ─────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 60,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    label: const Text(
+                      'Continuă conversația',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF5BA4CF),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      ref.read(medicalSessionProvider.notifier).prepareResume(
+                        aiResponse: valueString ?? '',
+                        messages: _parseNoteToMessages(noteText ?? ''),
+                      );
+                      ref
+                          .read(appNavigationProvider.notifier)
+                          .navigateTo(AppRoute.medicalResponse);
+                    },
+                  ),
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// Parses a saved note string (lines like "[AI] HH:mm: text") into a
+  /// list of ChatMessage objects for pre-populating the resumed chat.
+  static List<ChatMessage> _parseNoteToMessages(String noteText) {
+    if (noteText.trim().isEmpty) return [];
+    return noteText
+        .trim()
+        .split('\n')
+        .where((l) => l.trim().isNotEmpty)
+        .map((line) {
+          final bool isAi = line.startsWith('[AI]');
+          final String text = line
+              .replaceFirst(RegExp(r'^\[(AI|Pacient)\]\s*\d+:\d+:\s*'), '')
+              .trim();
+          if (text.isEmpty) return null;
+          return ChatMessage(
+            role: isAi ? 'ai' : 'patient',
+            text: text,
+            timestamp: DateTime.now(),
+          );
+        })
+        .whereType<ChatMessage>()
+        .toList();
   }
 
   String _getFallbackText(Map<String, dynamic> item) {

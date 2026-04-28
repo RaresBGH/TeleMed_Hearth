@@ -1,5 +1,5 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-04-25
+Last updated: 2026-04-28
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
@@ -48,32 +48,35 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 
 ## Current App State
 
-### WORKING (confirmed in code, CI green)
+### WORKING (confirmed in code, CI green as of commit 663aa48 — 2026-04-28)
 
 - **App launches and navigates** — session guard prevents medicalSessionProvider from hijacking auth flow (loginIdentity, loginVerification, modelDownload routes are protected)
 - **CNP validation** — full official spec rewrite: S=1-9 (S=9 non-resident valid), county set includes 99 (foreign residents), month 01-12, day 01-31, checksum verified; `isAdult()` enforces 18+ with Romanian error message; test CNP `1850415150017` documented with full checksum trace in source
-- **OTP system** — demo OTP = **last 6 digits** of CNP (`substring(7,13)`); for CNP 1850415150017 → OTP 150017; 3-attempt lockout; SmartAuth SMS listener wired; **button stays disabled until all 6 boxes filled** (`setState` fix applied to `_onDigitChanged` and `_startSmsListener`)
+- **Phone number validation** — validated in login identity screen alongside CNP; commit 663aa48
+- **OTP system** — demo OTP = **last 6 digits** of CNP (`substring(7,13)`); for CNP 1850415150017 → OTP 150017; 3-attempt lockout; SmartAuth SMS listener wired; button stays disabled until all 6 boxes filled (`setState` fix applied to `_onDigitChanged` and `_startSmsListener`)
 - **Home screen** — Stitch-design rewrite: inline header "Bună ziua, Maria!" + "Cum vă simțiți astăzi?", 4 triage cards (Voice, Photo, Text, Emergency 112), glassmorphism bottom nav (BackdropFilter blur:20)
 - **Bottom nav labels** — "Acasă", "Dosar Medical" (was "Istoric"), "Medic" (was "Doctorul Meu")
 - **AI status indicator** — pill below header subtitle: yellow "AI se încarcă..." → green "AI pregătit" when `initializeModel()` succeeds; calls `_checkAiStatus()` in `initState()`
 - **Legal screens** — `LegalDocumentModal` rewritten from Stitch; `LegalDocumentType` enum (terms/privacy); full Romanian GDPR content; glassmorphism back button; all `#0D631B` green replaced with `#5BA4CF`; backward-compat with existing string callers
-- **History screen** — title changed from "Istoric Medical" to "Dosar Medical"
+- **History screen** — title "Dosar Medical" (was "Istoric Medical"); displays real FHIR-backed consultations (mock observations removed, commit 064b86f); tapping an entry opens consultation detail view (commit 064b86f)
+- **Chat screen (Gemma 4 dialog)** — full Romanian conversation UI with patient and AI response bubbles styled distinctly (commit 663aa48); raw JSON tokens stripped from AI output before rendering (commit 064b86f); follow-up text inference fixed — correct results on all subsequent turns (commit 064b86f); commit 66c39f2
+- **"Finalizează Dialogul" button** — saves completed consultation to FHIR as a single entry per session; enforces no-duplicate constraint; navigates back to history on completion; commit 66c39f2 + 663aa48
 - **LiteRT-LM E2B integration** — real Engine via `litertlm-android:0.10.2`; Romanian system prompt; dual-path model lookup (`filesDir/models/` or `/sdcard/Download/`); sideloaded model auto-copied to app-private storage
-- **Audio recording** — WAV 16kHz mono for LiteRT-LM; async WAV→AAC via `AudioTranscodeChannel` (Android MediaCodec, no FFmpeg)
+- **Voice login** — WAV 16kHz mono recording routed through LiteRT-LM for voice-based triage entry; commit 663aa48
+- **Audio recording** — WAV 16kHz mono; async WAV→AAC transcode via `AudioTranscodeChannel` (Android MediaCodec, no FFmpeg)
 - **Camera capture** — JPEG quality 85 for inference; async MP4 compression for storage
-- **Model download screen** — WiFi check every 5s, DownloadManager progress polling every 2s, error reason codes (ERROR_HTTP_DATA_ERROR etc.), auto-navigate after download
-- **Model download URL** — `http://192.168.0.37:8080/gemma-4-E2B-it.litertlm` (local GX10, testing only); `usesCleartextTraffic="true"` enabled
+- **Model download service** — OkHttp replaces DownloadManager (commit d3900bb); resume-capable via HTTP Range header; model written directly to `filesDir/models/`; runs as foreground service to survive backgrounding; triggers only after auth flow completes (commit 663aa48); mobile data download allowed with soft warning dialog (commit 771e5ff); progress callbacks every 2s; auto-navigates on completion
 - **VideoConsultationScreen** — RTCVideoView, PiP local camera, mute toggle, voice visualizer, chat strip, end-call navigation
 - **Emergency routing** — SessionState.emergency → EmergencyScreen → tel:112
-- **FHIR local storage** — SQLCipher encrypted SQLite; mock data seeded on first launch
+- **FHIR local storage** — SQLCipher encrypted SQLite; real consultations stored; mock seed data removed (commit 064b86f)
 - **Lexend font** — `GoogleFonts.lexendTextTheme()` system-wide; DESIGN.md committed
 
 ### BROKEN / NOT YET TESTED ON DEVICE
 
-- **Login screen visibility** — scroll fix applied (removed SizedBox.expand, crossAxisAlignment.stretch, phantom bottomNavigationBar removed), CI builds passing, **NOT YET CONFIRMED ON DEVICE**
-- **LiteRT-LM actual inference** — model at `/sdcard/Download/gemma-4-E2B-it.litertlm` on test device (Pixel 9 Pro); `initializeModel()` wired; **AI status indicator on home screen will show green if init succeeds — not yet observed on device**
-- **Model download in production** — URL is `http://192.168.0.37:8080` (local GX10 only); production endpoint not implemented
-- **WebRTC signaling** — PeerConnection wired with Google STUN; no signaling server; remote video stays black
+- **Login screen visibility on device** — scroll fix applied (removed SizedBox.expand, crossAxisAlignment.stretch, phantom bottomNavigationBar removed), CI builds passing, **NOT YET CONFIRMED ON DEVICE**
+- **LiteRT-LM actual inference** — model in `filesDir/models/` after download service writes it; `initializeModel()` wired; **AI status indicator on home screen will show green if init succeeds — not yet observed on device**
+- **Model download URL in source** — `model_download_screen.dart` still references `http://192.168.0.37:8080/gemma-4-E2B-it.litertlm`; Caddy now serves the same file at `https://telemed-b.duckdns.org` — production URL not yet updated in code; `usesCleartextTraffic="true"` still set in manifest (required for local fallback)
+- **WebRTC signaling** — PeerConnection wired with Google STUN; no signaling server deployed on GX10; remote video stays black
 - **Document sharing** — chat strip UI present; `_onAttachDocument` and `_onSendMessage` are empty stubs
 - **Text card inference** — `'runInference'` MethodChannel method not yet implemented in `LiteRtLmChannel.kt`; currently falls back to SnackBar "Mesaj primit"
 - **Login camera extraction** — `_extractViaCamera()` passes `File('dummy_id.jpg')`; not real OCR
@@ -131,6 +134,21 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 | ADB | USB cable (unreliable); wireless not configured |
 | Install method | Download APK from GitHub Actions artifact on phone browser |
 | GX10 model server | http://192.168.0.37:8080 (local dev only) |
+
+---
+
+## Infrastructure
+
+| Item | Value |
+|---|---|
+| GX10 LAN IP | 192.168.0.101 |
+| Caddy version | 2.11.2 (ARM64 binary) |
+| Caddy systemd service | `caddy-telemed` — running on GX10, managed by systemd |
+| Public HTTPS endpoint | `https://telemed-b.duckdns.org` — serves `gemma-4-E2B-it.litertlm` |
+| TLS certificate | Let's Encrypt, issued via DuckDNS DNS-01 challenge; auto-renews |
+| Router port forward | TCP 443 → 192.168.0.101:443 on TP-Link AX5400 |
+| Old local endpoint | `http://192.168.0.37:8080` — still referenced in app source; superseded by HTTPS above |
+| Required app change | Update model URL in `model_download_screen.dart` to `https://telemed-b.duckdns.org/gemma-4-E2B-it.litertlm`; `usesCleartextTraffic` can remain for local dev fallback |
 
 ---
 

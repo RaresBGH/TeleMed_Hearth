@@ -23,6 +23,10 @@ class MedicalSessionNotifier extends Notifier<SessionState> {
   /// Carried as a field so MedicalResponseScreen can read it from the notifier.
   bool lastIsEmergency = false;
 
+  /// Pre-populated messages when resuming a saved dialog from Dosar Medical.
+  /// Null on normal triage entry; cleared by reset().
+  List<ChatMessage>? lastResumeMessages;
+
   @override
   SessionState build() => SessionState.idle;
 
@@ -117,11 +121,22 @@ class MedicalSessionNotifier extends Notifier<SessionState> {
     });
   }
 
+  /// Called from Dosar Medical before navigating to medicalResponse route.
+  void prepareResume({
+    required String aiResponse,
+    required List<ChatMessage> messages,
+  }) {
+    lastAiResponse      = aiResponse;
+    lastIsEmergency     = false;
+    lastResumeMessages  = messages;
+  }
+
   void reset() {
-    state = SessionState.idle;
-    errorMessage   = null;
-    lastAiResponse  = null;
-    lastIsEmergency = false;
+    state               = SessionState.idle;
+    errorMessage        = null;
+    lastAiResponse      = null;
+    lastIsEmergency     = false;
+    lastResumeMessages  = null;
   }
 
   // ── Result parser ─────────────────────────────────────────────────────────
