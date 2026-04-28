@@ -144,29 +144,9 @@ class MedicalSessionNotifier extends Notifier<SessionState> {
       );
     }
 
-    // Persist triage output as a FHIR Observation so it appears in history
-    // and is included in future AI context injections.
-    final String? doctorSummary = result['doctor_summary'] as String?;
-    final String observationText =
-        doctorSummary ?? lastAiResponse ?? 'Triaj AI';
-
-    await _fhirRepository.saveObservation({
-      'resourceType': 'Observation',
-      'status': 'final',
-      'code': {
-        'coding': [
-          {
-            'system': 'http://loinc.org',
-            'code': '75325-1',
-            'display': 'Symptom',
-          }
-        ],
-        'text': 'Triaj AI',
-      },
-      'valueString': observationText,
-      'effectiveDateTime': DateTime.now().toIso8601String(),
-    });
-
+    // No auto-save here — the single FHIR Observation is written only when
+    // the patient explicitly taps "Finalizează Dialogul". This prevents
+    // duplicate entries in Dosar Medical.
     state = SessionState.success;
   }
 }

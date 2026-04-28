@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/services/audio_recording_service.dart';
 import '../../core/services/camera_service.dart';
 import '../../core/services/cnp_service.dart';
 import '../theme/theme.dart';
@@ -23,14 +24,17 @@ class LoginIdentityScreen extends ConsumerStatefulWidget {
 class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
   final TextEditingController _cnpController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  bool _isLoading = false;
-  bool _cnpValid = false;
+  bool _isLoading  = false;
+  bool _cnpValid   = false;
+  bool _phoneValid = false;
   String? _ageError;
+  String? _phoneError;
 
   @override
   void initState() {
     super.initState();
     _cnpController.addListener(_onCnpChanged);
+    _phoneController.addListener(_onPhoneChanged);
   }
 
   void _onCnpChanged() {
@@ -49,6 +53,20 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       setState(() {
         _cnpValid = newValid;
         _ageError = newAgeError;
+      });
+    }
+  }
+
+  void _onPhoneChanged() {
+    final phone = _phoneController.text.trim();
+    final valid = RegExp(r'^07\d{8}$').hasMatch(phone);
+    final String? err = (phone.isNotEmpty && !valid)
+        ? 'Număr de telefon invalid. Format: 07XXXXXXXX'
+        : null;
+    if (valid != _phoneValid || err != _phoneError) {
+      setState(() {
+        _phoneValid = valid;
+        _phoneError = err;
       });
     }
   }
@@ -183,33 +201,75 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
   }
 
   Future<void> _extractViaVoice() async {
-    setState(() => _isLoading = true);
     final messenger = ScaffoldMessenger.of(context);
+    final audioService = ref.read(audioRecordingServiceProvider);
+
+    final hasPermission = await audioService.requestPermission();
+    if (!mounted) return;
+    if (!hasPermission) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Permisiunea pentru microfon este necesară.',
+            style: TextStyle(fontSize: 18)),
+      ));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
     try {
+      await audioService.startRecording();
+
+      // Show countdown so the patient knows to speak now.
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Vorbiți acum… (8 secunde)',
+            style: TextStyle(fontSize: 18)),
+        duration: Duration(seconds: 8),
+      ));
+
+      await Future.delayed(const Duration(seconds: 8));
+      if (!mounted) return;
+
+      final wavPath = await audioService.stopRecording();
+      if (wavPath.isEmpty) {
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Nu am putut extrage datele. Vă rugăm completați manual.',
+              style: TextStyle(fontSize: 18)),
+        ));
+        return;
+      }
+
       final aiEngine = ref.read(aiEngineServiceProvider);
-      final dummyAudio = File('dummy_voice.wav');
       final result = await aiEngine.evaluateAudio(
-        dummyAudio,
+        File(wavPath),
         customPrompt:
             'You are a medical speech-to-text assistant. The user is dictating their personal details. Extract the 13-digit CNP and/or Phone number. Output JSON strictly constrained to: {"cnp": "1234567890123", "phone": "07..."} (include fields only if detected)',
       );
-      if (result.containsKey('cnp')) {
-        _cnpController.text = result['cnp'].toString();
-      }
-      if (result.containsKey('phone')) {
-        _phoneController.text = result['phone'].toString();
+      audioService.deleteWavFile(wavPath);
+
+      final cnp   = result['cnp']   as String?;
+      final phone = result['phone'] as String?;
+
+      if ((cnp == null || cnp.isEmpty) && (phone == null || phone.isEmpty)) {
+        messenger.showSnackBar(const SnackBar(
+          content: Text(
+            'Nu am putut extrage datele. Vă rugăm completați manual.',
+            style: TextStyle(fontSize: 18),
+          ),
+        ));
+      } else {
+        if (cnp != null && cnp.isNotEmpty) _cnpController.text = cnp;
+        if (phone != null && phone.isNotEmpty) _phoneController.text = phone;
       }
     } catch (e) {
       messenger.showSnackBar(SnackBar(
-          content:
-              Text('Eroare voce: $e', style: const TextStyle(fontSize: 18))));
+          content: Text('Eroare voce: $e', style: const TextStyle(fontSize: 18))));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   void _onContinuaTap() {
-    if (!_cnpValid) return;
+    if (!_cnpValid || !_phoneValid) return;
     final cnp = _cnpController.text.trim();
     ref.read(loginCnpProvider.notifier).setCnp(cnp);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -406,6 +466,18 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                         ],
                       ),
                     ),
+                    if (_phoneError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, left: 4),
+                        child: Text(
+                          _phoneError!,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 48),
 
                     // ── Info prompt ────────────────────────────────────────
@@ -445,13 +517,13 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                       child: Container(
                         height: 96,
                         decoration: BoxDecoration(
-                          color: _cnpValid
+                          color: (_cnpValid && _phoneValid)
                               ? const Color(0xFF5BA4CF)
                               : Colors.grey.shade400,
                           borderRadius: BorderRadius.circular(16),
                           border:
                               Border.all(color: Colors.black, width: 2),
-                          boxShadow: _cnpValid
+                          boxShadow: (_cnpValid && _phoneValid)
                               ? const [
                                   BoxShadow(
                                       color: Colors.black,
@@ -509,6 +581,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
   @override
   void dispose() {
     _cnpController.removeListener(_onCnpChanged);
+    _phoneController.removeListener(_onPhoneChanged);
     _cnpController.dispose();
     _phoneController.dispose();
     super.dispose();

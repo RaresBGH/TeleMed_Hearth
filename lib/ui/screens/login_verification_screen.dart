@@ -1,7 +1,9 @@
 // Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
 // You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
 
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_auth/smart_auth.dart';
 import 'package:telemed_k/ui/widgets/legal_document_modal.dart';
@@ -84,12 +86,16 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
     setState(() => _isAuthenticating = true);
 
     // Small artificial delay so the spinner is visible — mimics network call
-    Future.delayed(const Duration(milliseconds: 600), () {
+    Future.delayed(const Duration(milliseconds: 600), () async {
       if (!mounted) return;
       setState(() => _isAuthenticating = false);
 
       if (otp == expectedOtp) {
-        ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home);
+        final modelOnDisk = await _isModelOnDisk();
+        if (!mounted) return;
+        ref.read(appNavigationProvider.notifier).navigateTo(
+          modelOnDisk ? AppRoute.home : AppRoute.modelDownload,
+        );
       } else {
         final newAttempts = _attempts + 1;
         if (newAttempts >= _maxAttempts) {
@@ -341,5 +347,18 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
         ),
       ),
     );
+  }
+
+  /// Checks whether the Gemma model file is present on disk.
+  /// Used after successful OTP to decide whether to show the download screen.
+  static Future<bool> _isModelOnDisk() async {
+    try {
+      const channel = MethodChannel('com.telemed_k/litert_lm');
+      final String? path = await channel.invokeMethod<String>('getModelPath');
+      if (path == null) return false;
+      return File(path).existsSync();
+    } catch (_) {
+      return false;
+    }
   }
 }

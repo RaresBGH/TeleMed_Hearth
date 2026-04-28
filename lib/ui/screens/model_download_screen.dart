@@ -169,8 +169,8 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
     // a brief pause here is acceptable.
     await AiEngineService(FhirRepository()).initializeModel();
     if (!mounted) return;
-    // Navigate to authentication — download screen will never show again.
-    ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.loginIdentity);
+    // User is already authenticated — go straight to home.
+    ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home);
   }
 
   // ──────────────────────────────────────────────────────────────────────────

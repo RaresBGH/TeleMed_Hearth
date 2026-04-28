@@ -22,15 +22,11 @@ enum AppRoute {
 }
 
 class AppNavigationNotifier extends Notifier<AppRoute> {
-  // Set by main() before runApp when the model file is absent on disk.
-  // Causes the first screen shown to be ModelDownloadScreen instead of login.
-  // Resets to false once the user reaches loginIdentity after a successful download.
-  static bool needsModelDownload = false;
-
   @override
   AppRoute build() {
     ref.listen<SessionState>(medicalSessionProvider, (previous, next) {
       final currentState = state;
+      // Don't interrupt auth or download flows with session-state changes.
       if (currentState == AppRoute.loginIdentity ||
           currentState == AppRoute.loginVerification ||
           currentState == AppRoute.modelDownload) {
@@ -44,7 +40,8 @@ class AppNavigationNotifier extends Notifier<AppRoute> {
         state = AppRoute.home;
       }
     });
-    return needsModelDownload ? AppRoute.modelDownload : AppRoute.loginIdentity;
+    // Always start at login — model check happens after successful OTP.
+    return AppRoute.loginIdentity;
   }
 
   void navigateTo(AppRoute route) {

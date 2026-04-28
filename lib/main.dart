@@ -40,16 +40,11 @@ Future<void> main() async {
     // Android FHIR SDK (e.g. flutter test on desktop).
   }
 
-  // Fast file-existence check — does NOT load the engine (loading can take
-  // up to 10 s and must not block runApp). Just reads the path from the
-  // native layer and checks if the file is present on disk.
+  // If model is already on disk, start loading it in background while the
+  // user completes login. Navigation to the download screen now happens
+  // after successful OTP verification, not here.
   final bool modelOnDisk = await _isModelFileOnDisk();
-
-  if (!modelOnDisk) {
-    // First launch or model deleted — show download screen before login.
-    AppNavigationNotifier.needsModelDownload = true;
-  } else {
-    // Model is present: load engine in background, never delays runApp.
+  if (modelOnDisk) {
     unawaited(AiEngineService(FhirRepository()).initializeModel());
   }
 

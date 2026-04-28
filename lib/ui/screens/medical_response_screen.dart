@@ -119,6 +119,11 @@ class _MedicalResponseScreenState
       setState(() {
         _isRecording = false;
         _isProcessing = true;
+        // Show patient's own bubble immediately while AI processes.
+        _messages.add(ChatMessage(
+            role: 'patient',
+            text: '🎤 Mesaj vocal',
+            timestamp: DateTime.now()));
       });
       _scrollToBottom();
 
@@ -171,7 +176,14 @@ class _MedicalResponseScreenState
     final imagePath = await cameraService.captureImage();
     if (!mounted || imagePath == null) return;
 
-    setState(() => _isProcessing = true);
+    setState(() {
+      _isProcessing = true;
+      // Show patient's own bubble immediately while AI processes.
+      _messages.add(ChatMessage(
+          role: 'patient',
+          text: '📷 Fotografie',
+          timestamp: DateTime.now()));
+    });
     _scrollToBottom();
 
     try {
