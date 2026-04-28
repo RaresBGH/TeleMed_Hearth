@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/chat_message.dart';
 import '../../core/providers/app_navigation_provider.dart';
+import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/patient_history_provider.dart';
 import '../theme/theme.dart';
@@ -16,6 +17,7 @@ class HistoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(patientHistoryProvider);
+    final String lang = ref.watch(languageProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -26,8 +28,33 @@ class HistoryScreen extends ConsumerWidget {
         actions: [
           AccessibleTouchTarget(
             semanticLabel: 'Schimbă Limba / Change Language',
-            onTap: () {},
-            child: const Text('RO/EN', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF5BA4CF), fontSize: 18)),
+            onTap: () {
+              final newLang = lang == 'ro' ? 'en' : 'ro';
+              ref.read(languageProvider.notifier).setLanguage(newLang);
+              ref.read(aiEngineServiceProvider).setLanguage(newLang);
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'RO',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: lang == 'ro' ? const Color(0xFF5BA4CF) : Colors.black38,
+                    fontSize: 18,
+                  ),
+                ),
+                const Text(' / ', style: TextStyle(color: Colors.black38, fontSize: 18)),
+                Text(
+                  'EN',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: lang == 'en' ? const Color(0xFF5BA4CF) : Colors.black38,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(width: 16),
         ],
@@ -444,6 +471,7 @@ class HistoryScreen extends ConsumerWidget {
                       ref.read(medicalSessionProvider.notifier).prepareResume(
                         aiResponse: valueString ?? '',
                         messages: _parseNoteToMessages(noteText ?? ''),
+                        existingObservationId: item['id'] as String?,
                       );
                       ref
                           .read(appNavigationProvider.notifier)

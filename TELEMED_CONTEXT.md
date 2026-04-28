@@ -48,7 +48,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 
 ## Current App State
 
-### WORKING (confirmed in code, CI green as of commit 663aa48 — 2026-04-28)
+### WORKING (confirmed in code, CI green as of 2026-04-28)
 
 - **App launches and navigates** — session guard prevents medicalSessionProvider from hijacking auth flow (loginIdentity, loginVerification, modelDownload routes are protected)
 - **CNP validation** — full official spec rewrite: S=1-9 (S=9 non-resident valid), county set includes 99 (foreign residents), month 01-12, day 01-31, checksum verified; `isAdult()` enforces 18+ with Romanian error message; test CNP `1850415150017` documented with full checksum trace in source
@@ -70,12 +70,19 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Emergency routing** — SessionState.emergency → EmergencyScreen → tel:112
 - **FHIR local storage** — SQLCipher encrypted SQLite; real consultations stored; mock seed data removed (commit 064b86f)
 - **Lexend font** — `GoogleFonts.lexendTextTheme()` system-wide; DESIGN.md committed
+- **AI response acknowledgment structure** — `LiteRtLmChannel.kt` system prompt has mandatory a/b/c structure: (a) Confirmare — repeat in simple Romanian what was understood from the patient; (b) Evaluare — observations without diagnosis; (c) Continuare — ask for additional symptoms; applies to all input types (voice, text, photo)
+- **Photo analysis timeout** — `evaluateMedia()` in `LiteRtLmChannel.kt` wrapped in `withTimeout(30_000L)`; `TimeoutCancellationException` caught specifically (does not interfere with coroutine cancellation); fallback returns `"Nu am putut analiza fotografia. Vă rugăm descrieți simptomele prin voce sau text."`
+- **Photo loading indicator** — `_isPhotoAnalyzing` bool in `MedicalResponseScreen`; while awaiting `evaluateMedia()`, typing indicator shows camera icon + "Se analizează fotografia..." italic text instead of animated dots; reset in `_appendAiResponse` and camera catch block
+- **Resume conversation from Dosar Medical** — detail sheet in `history_screen.dart` has "Continuă conversația" button; tapping it parses the saved note into `List<ChatMessage>` (strips `[AI/Pacient] HH:mm:` prefix via regex), calls `notifier.prepareResume(aiResponse, messages)`, navigates to `AppRoute.medicalResponse`; `MedicalResponseScreen` accepts optional `initialMessages` param; if provided, `initState()` seeds `_messages` from it instead of the default follow-up prompt; patient can add new messages and finalize again
+- **Back button exit dialog** — tapping back arrow or Android hardware back in `MedicalResponseScreen` shows `AlertDialog` with two options: "Finalizează Dialogul" (calls `_onFinalize()`, saves and exits) and "Ieși fără a salva" (calls `notifier.reset()`, exits without saving); dismissing the dialog stays in chat; `PopScope(canPop: false)` routes hardware back through the same `_onBack()` async handler
+- **Model download auto-advances to home** — on `STATUS_SUCCESS` (status code 8) received in `_pollProgress()`: `initializeModel()` fired via `unawaited()` (background, non-blocking); `Future.delayed(1500ms)` then `navigateTo(AppRoute.home)`; transition guaranteed within 2s of STATUS_SUCCESS; progress timer cancelled before navigation
+- **Model download subtitle** — subtitle text reads: "Se descarcă asistentul virtual. Aceasta este o operațiune ce va avea loc o singură dată, la crearea contului."
+- **Model download terminal state guard** — `_startDownload()` returns early if `_downloadState` is `downloading` OR `success`; UI guard (`if (_downloadState != success)`) hides button and its trailing spacer; STATUS_SUCCESS has no reset path in the Dart state machine
 
 ### BROKEN / NOT YET TESTED ON DEVICE
 
 - **Login screen visibility on device** — scroll fix applied (removed SizedBox.expand, crossAxisAlignment.stretch, phantom bottomNavigationBar removed), CI builds passing, **NOT YET CONFIRMED ON DEVICE**
 - **LiteRT-LM actual inference** — model in `filesDir/models/` after download service writes it; `initializeModel()` wired; **AI status indicator on home screen will show green if init succeeds — not yet observed on device**
-- **Model download URL in source** — `model_download_screen.dart` still references `http://192.168.0.37:8080/gemma-4-E2B-it.litertlm`; Caddy now serves the same file at `https://telemed-b.duckdns.org` — production URL not yet updated in code; `usesCleartextTraffic="true"` still set in manifest (required for local fallback)
 - **WebRTC signaling** — PeerConnection wired with Google STUN; no signaling server deployed on GX10; remote video stays black
 - **Document sharing** — chat strip UI present; `_onAttachDocument` and `_onSendMessage` are empty stubs
 - **Text card inference** — `'runInference'` MethodChannel method not yet implemented in `LiteRtLmChannel.kt`; currently falls back to SnackBar "Mesaj primit"
@@ -160,25 +167,35 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - [x] CNP validation rewritten to official spec (S=9, county 99, 18+ age)
 - [x] OTP: last-6-digits formula, button state fixed (setState in onDigitChanged)
 - [x] Login screen scroll/visibility fix committed
+- [x] Model download: OkHttp + foreground service + resume + triggers after auth
+- [x] Chat screen: Gemma 4 dialog, patient bubbles, raw JSON stripped, follow-up inference fixed
+- [x] FHIR: single entry per consultation, no duplicates, mock data removed
+- [x] Production model download URL — `ModelDownloadForegroundService.kt` uses `https://telemed-b.duckdns.org/gemma-4-E2B-it.litertlm`
+- [x] Model download auto-advances to home on STATUS_SUCCESS (1.5s delay, unawaited initializeModel)
+- [x] Model download subtitle updated to final Romanian text
+- [x] Model download terminal state guard — success blocks re-entry to startDownload
+- [x] AI response acknowledgment structure (a/b/c: confirm/evaluate/continue) in system prompt
+- [x] Photo analysis 30s timeout with Romanian fallback in evaluateMedia
+- [x] Photo loading indicator "Se analizează fotografia..." replaces animated dots during photo processing
+- [x] Resume conversation from Dosar Medical — "Continuă conversația" button + prepareResume flow + initialMessages param
+- [x] Back button exit dialog — AlertDialog with Finalizează/Ieși fără a salva; hardware back wired via PopScope
 
 ### P1 — IN PROGRESS
 - [ ] **Confirm login screen visible on device** (CI passing, untested on device)
-- [ ] **Confirm AI status indicator shows green on device** (model on sdcard, initializeModel not yet observed succeeding)
+- [ ] **Confirm AI status indicator shows green on device** (initializeModel not yet observed succeeding on device)
 
 ### P1 — NEXT
-- [ ] Wire `'runInference'` in `LiteRtLmChannel.kt` for text card
+- [ ] Wire `'runInference'` in `LiteRtLmChannel.kt` for text card (currently falls back to SnackBar)
 - [ ] WebRTC signaling server on GX10 for real doctor↔patient video
 
 ### P2 — NEXT
-- [ ] Production model download endpoint (replace 192.168.0.37:8080)
-- [ ] Real camera OCR in login (replace dummy_id.jpg)
+- [ ] Real camera OCR in login (replace `File('dummy_id.jpg')` in `_extractViaCamera()`)
 - [ ] Make GitHub repo public before May 18 deadline
 - [ ] Record competition demo video
 
 ### P3 — NEXT
 - [ ] DeviceConflictModal trigger from auth flow
 - [ ] Language toggle (RO/EN)
-- [ ] History item detail screen
 
 ---
 

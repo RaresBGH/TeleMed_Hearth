@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/app_navigation_provider.dart';
+import '../../core/providers/language_provider.dart';
+import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/my_doctor_provider.dart';
 import '../../core/services/telemedicine_service.dart';
 import '../theme/theme.dart';
@@ -63,6 +65,7 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
   Widget build(BuildContext context) {
     final encounterAsync = ref.watch(mostRecentEncounterProvider);
     final medAsync = ref.watch(mostRecentMedicationProvider);
+    final String lang = ref.watch(languageProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -79,8 +82,33 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
         actions: [
           AccessibleTouchTarget(
             semanticLabel: 'Schimbă Limba / Change Language',
-            onTap: () {},
-            child: const Text('RO / EN', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF5BA4CF), fontSize: 18)),
+            onTap: () {
+              final newLang = lang == 'ro' ? 'en' : 'ro';
+              ref.read(languageProvider.notifier).setLanguage(newLang);
+              ref.read(aiEngineServiceProvider).setLanguage(newLang);
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'RO',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: lang == 'ro' ? const Color(0xFF5BA4CF) : Colors.black38,
+                    fontSize: 18,
+                  ),
+                ),
+                const Text(' / ', style: TextStyle(color: Colors.black38, fontSize: 18)),
+                Text(
+                  'EN',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: lang == 'en' ? const Color(0xFF5BA4CF) : Colors.black38,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(width: 16),
         ],

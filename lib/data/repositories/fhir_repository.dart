@@ -36,6 +36,21 @@ class FhirRepository {
     }
   }
 
+  /// Updates an existing FHIR Observation by [id] with the new [observationJson].
+  /// The [id] is injected into the payload so the native FHIR engine locates the
+  /// correct resource to overwrite.
+  Future<void> updateObservation(
+      String id, Map<String, dynamic> observationJson) async {
+    try {
+      final payload = Map<String, dynamic>.from(observationJson);
+      payload['id'] = id;
+      final String jsonString = jsonEncode(payload);
+      await _channel.invokeMethod<void>('updateObservation', {'resource': jsonString});
+    } on PlatformException catch (e) {
+      throw Exception('Secure local FHIR Observation Update failed: Error ${e.code}');
+    }
+  }
+
   /// Saves a parsed FHIR Condition resource (e.g. inferred from audio).
   Future<void> saveCondition(Map<String, dynamic> conditionJson) async {
     try {

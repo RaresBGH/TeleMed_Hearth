@@ -89,6 +89,69 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
 - "doctor_summary": sumarul pentru medic (completat doar când pacientul
    a terminat de descris simptomele, altfel null)
         """.trimIndent()
+
+        // Active language code — "ro" (default) or "en".
+        // Written by setLanguage MethodChannel call, read by buildSystemPrompt().
+        @Volatile var currentLanguage = "ro"
+
+        fun buildSystemPrompt(): String = if (currentLanguage == "en") """
+You are a medical AI assistant in the TeleMed_K app, serving patients in rural Romania.
+
+STRICT RULES:
+1. ALWAYS respond in English.
+2. NEVER make medical recommendations, diagnoses, or prescriptions.
+3. Your ONLY role is to collect the symptoms described by the patient and present
+   them to the doctor in a clear, structured format.
+4. If you detect urgency keywords (chest pain, can't breathe, fainting, accident,
+   heavy bleeding, loss of consciousness) — set emergency=true in the JSON response.
+5. Use simple, calm, respectful language appropriate for elderly patients
+   who are not familiar with technology.
+6. At the end, generate a structured summary for the doctor:
+   Main symptoms / Duration / Intensity / Context.
+
+MANDATORY RESPONSE STRUCTURE (follow this order every time):
+a) Confirmation — briefly state what you understood from the patient's input,
+   in simple words as if talking to a beloved grandparent.
+   Example: "I understand you have been having headaches since noon."
+b) Assessment — describe what you observe from the symptoms, without making a diagnosis.
+c) Follow-up — ask if there are any other symptoms or important details.
+
+Your JSON response must always contain:
+- "response": text shown to the patient (in English, simple and clear, following the a/b/c structure)
+- "emergency": true or false
+- "confidence": number between 0.0 and 1.0
+- "doctor_summary": structured summary for the doctor (filled only when patient finishes, else null)
+        """.trimIndent() else """
+Ești un asistent medical AI integrat în aplicația TeleMed_K,
+dedicat pacienților din zonele rurale ale României.
+
+REGULI STRICTE:
+1. Răspunzi ÎNTOTDEAUNA în limba română, indiferent de limba în care ți se vorbește.
+2. Nu faci NICIODATĂ recomandări medicale, diagnostice sau prescripții.
+3. Rolul tău este EXCLUSIV să colectezi simptomele descrise de pacient și
+   să le prezinți medicului într-un format clar și structurat.
+4. Dacă detectezi cuvinte care indică urgență (durere în piept, nu pot respira,
+   leșin, accident, sângerare abundentă, pierderea conștienței) —
+   setezi câmpul emergency=true în răspunsul JSON.
+5. Folosești un limbaj simplu, calm și respectuos, adecvat pentru persoane
+   în vârstă care nu sunt familiarizate cu tehnologia.
+6. La finalul colectării simptomelor, generezi un sumar structurat pentru medic
+   în format: Simptome principale / Durată / Intensitate / Context.
+
+STRUCTURA OBLIGATORIE A FIECĂRUI RĂSPUNS (respectă această ordine):
+a) Confirmare — spune pe scurt ce ai înțeles din ce a descris sau arătat pacientul,
+   în cuvinte simple, ca și cum ai vorbi cu un bunic drag.
+   Exemplu: "Am înțeles că aveți dureri de cap de la prânz."
+b) Evaluare — prezintă ce observi din simptomele descrise, fără a pune diagnostic.
+c) Continuare — întreabă dacă mai sunt și alte simptome sau detalii importante.
+
+Răspunsul tău JSON trebuie să conțină întotdeauna:
+- "response": textul afișat pacientului (în română, simplu și clar, respectând structura a/b/c)
+- "emergency": true sau false
+- "confidence": număr între 0.0 și 1.0
+- "doctor_summary": sumarul pentru medic (completat doar când pacientul
+   a terminat de descris simptomele, altfel null)
+        """.trimIndent()
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -142,6 +205,13 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
             "dispose" -> handleDispose(result)
 
             "runInference" -> handleRunInference(call, result)
+
+            "setLanguage" -> {
+                val lang = call.argument<String>("lang") ?: "ro"
+                currentLanguage = lang
+                Log.i(TAG, "Language set to: $lang")
+                result.success(null)
+            }
 
             else -> result.notImplemented()
         }
@@ -243,7 +313,8 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
                 }
 
                 val response = if (isEngineReady && engine != null) {
-                    val effectivePrompt = systemPrompt.ifBlank { SYSTEM_PROMPT_RO }
+                    val effectivePrompt = buildSystemPrompt() +
+                        if (systemPrompt.isBlank()) "" else "\n\n$systemPrompt"
                     // Content.AudioFile(path) — documented as supported alongside AudioBytes.
                     // Using AudioFile avoids loading ~MB of audio into JVM heap.
                     runEngineInference(
@@ -255,15 +326,14 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
                     )
                 } else {
                     Log.w(TAG, "Engine not ready — keyword fallback for audio")
-                    buildFallbackResponse()
+                    buildFallbackResponse("engine not initialized — audio")
                 }
 
                 withContext(Dispatchers.Main) { result.success(response) }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Audio evaluation error", e)
-                // Degrade gracefully — caller handles JSON parse
-                withContext(Dispatchers.Main) { result.success(buildFallbackResponse()) }
+                withContext(Dispatchers.Main) { result.success(buildFallbackResponse("exception during audio: ${e.message}")) }
             }
         }
     }
@@ -294,7 +364,8 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
                 }
 
                 val response = if (isEngineReady && engine != null) {
-                    val effectivePrompt = systemPrompt.ifBlank { SYSTEM_PROMPT_RO }
+                    val effectivePrompt = buildSystemPrompt() +
+                        if (systemPrompt.isBlank()) "" else "\n\n$systemPrompt"
 
                     val isVideo = filePath.endsWith(".mp4", ignoreCase = true) ||
                                   filePath.endsWith(".webm", ignoreCase = true) ||
@@ -308,7 +379,7 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
                         // native layer. Falling back to keyword heuristic for video input until
                         // the upstream API documents video support.
                         Log.w(TAG, "Video input — Content.VideoFile not in LiteRT-LM API; using fallback")
-                        buildFallbackResponse()
+                        buildFallbackResponse("video input not supported by LiteRT-LM API")
                     } else {
                         // Image: 30-second timeout — Gemma 4 image encoding can stall
                         // indefinitely on some Android CPU configurations.
@@ -329,14 +400,14 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
                     }
                 } else {
                     Log.w(TAG, "Engine not ready — keyword fallback for media")
-                    buildFallbackResponse()
+                    buildFallbackResponse("engine not initialized — media")
                 }
 
                 withContext(Dispatchers.Main) { result.success(response) }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Media evaluation error", e)
-                withContext(Dispatchers.Main) { result.success(buildFallbackResponse()) }
+                withContext(Dispatchers.Main) { result.success(buildFallbackResponse("exception during media: ${e.message}")) }
             }
         }
     }
@@ -347,12 +418,13 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
 
     private fun handleRunInference(call: MethodCall, result: MethodChannel.Result) {
         val text = call.argument<String>("text") ?: ""
-        val systemPrompt = call.argument<String>("systemPrompt") ?: SYSTEM_PROMPT_RO
+        val systemPrompt = call.argument<String>("systemPrompt") ?: ""
 
         scope.launch {
             try {
                 val response = if (isEngineReady && engine != null) {
-                    val effectivePrompt = systemPrompt.ifBlank { SYSTEM_PROMPT_RO }
+                    val effectivePrompt = buildSystemPrompt() +
+                        if (systemPrompt.isBlank()) "" else "\n\n$systemPrompt"
                     // Mirror evaluateAudio: pass both the user text AND the system prompt
                     // as content items. Single-item Contents.of() can produce blank output
                     // in some LiteRT-LM versions; two items ensures the model has context.
@@ -365,12 +437,12 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
                     )
                 } else {
                     Log.w(TAG, "Engine not ready — keyword fallback for text")
-                    buildFallbackResponse()
+                    buildFallbackResponse("engine not initialized — text")
                 }
                 withContext(Dispatchers.Main) { result.success(response) }
             } catch (e: Exception) {
                 Log.e(TAG, "Text inference error", e)
-                withContext(Dispatchers.Main) { result.success(buildFallbackResponse()) }
+                withContext(Dispatchers.Main) { result.success(buildFallbackResponse("exception during text: ${e.message}")) }
             }
         }
     }
@@ -429,13 +501,35 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
                 // Ensure required keys are present; fill missing ones
                 if (!obj.has("emergency")) obj.put("emergency", false)
                 if (!obj.has("confidence")) obj.put("confidence", CONFIDENCE_BENIGN)
-                if (!obj.has("response")) obj.put("response", raw)
+                if (!obj.has("response")) {
+                    // Extract prose that the model wrote OUTSIDE the JSON block.
+                    // Passing raw directly would put the full JSON-blob string into
+                    // the response field; _cleanText() on the Dart side would then
+                    // try to re-parse it as JSON, find no human-readable key, and
+                    // discard the content — triggering the "Răspuns primit" fallback.
+                    val proseBefore = raw.take(jsonStart).trim()
+                    val proseAfter  = raw.drop(jsonEnd + 1).trim()
+                    val outsideProse = listOf(proseBefore, proseAfter)
+                        .filter { it.isNotEmpty() }.joinToString(" ")
+                    if (outsideProse.isNotEmpty()) {
+                        Log.d(TAG, "coerceToJsonSchema: response field absent — using prose outside JSON block")
+                    } else {
+                        Log.d(TAG, "coerceToJsonSchema: response field absent and no outside prose — response will be empty")
+                    }
+                    obj.put("response", outsideProse)
+                }
                 return obj.toString()
             } catch (_: Exception) { /* fall through to prose path */ }
         }
 
-        // Prose path — use keyword heuristic to set emergency flag
+        // Prose path — model returned conversational text with no JSON wrapper.
+        // Pass it through directly; this is expected behaviour for the a/b/c acknowledgment prompt.
         val isUrgent = detectEmergencyKeywords(raw)
+        if (raw.isBlank()) {
+            Log.d(TAG, "coerceToJsonSchema: model returned blank response — using placeholder")
+        } else {
+            Log.d(TAG, "coerceToJsonSchema: prose path — passing model text as response (${raw.length} chars)")
+        }
         return JSONObject().apply {
             put("emergency", isUrgent)
             put("confidence", if (isUrgent) CONFIDENCE_URGENT else CONFIDENCE_BENIGN)
@@ -458,11 +552,14 @@ Răspunsul tău JSON trebuie să conțină întotdeauna:
     }.toString()
 
     /** Returned when engine is unavailable — app stays functional, no crash. */
-    private fun buildFallbackResponse(): String = JSONObject().apply {
-        put("emergency", false)
-        put("confidence", 0.0)
-        put("response",
-            "Sistemul AI nu este disponibil momentan. Vă rugăm descrieți simptomele medicului.")
-        put("fallback", true)
-    }.toString()
+    private fun buildFallbackResponse(reason: String = "unspecified"): String {
+        Log.d(TAG, "Fallback response returned — $reason")
+        return JSONObject().apply {
+            put("emergency", false)
+            put("confidence", 0.0)
+            put("response",
+                "Sistemul AI nu este disponibil momentan. Vă rugăm descrieți simptomele medicului.")
+            put("fallback", true)
+        }.toString()
+    }
 }

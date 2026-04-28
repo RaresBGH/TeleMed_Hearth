@@ -4,6 +4,7 @@
 // TeleMed_K: Offline-first telemedicine app for seniors
 // Design reference: stitch_telemed_k/chat_screen/screen.png + code.html
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -58,6 +59,9 @@ class _MedicalResponseScreenState
   bool _isProcessing     = false;
   bool _isFinalizing     = false;
   bool _isPhotoAnalyzing = false;
+  // Set to true when finalize is requested while _isProcessing is true.
+  // Checked by inference handlers to abort appending a response mid-finalize.
+  bool _cancelRequested  = false;
 
   @override
   void initState() {
@@ -78,6 +82,8 @@ class _MedicalResponseScreenState
 
   @override
   void dispose() {
+    // Release microphone if the screen is destroyed while recording or processing.
+    unawaited(ref.read(audioRecordingServiceProvider).stopAndRelease());
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -184,10 +190,14 @@ class _MedicalResponseScreenState
         final result =
             await ref.read(aiEngineServiceProvider).evaluateAudio(File(wavPath));
         audioService.deleteWavFile(wavPath);
+        if (_cancelRequested) {
+          if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
+          return;
+        }
         _appendAiResponse(result);
       } catch (_) {
         audioService.deleteWavFile(wavPath);
-        if (mounted) setState(() => _isProcessing = false);
+        if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
       }
     } else {
       final hasPermission = await audioService.requestPermission();
@@ -239,6 +249,10 @@ class _MedicalResponseScreenState
       final result =
           await ref.read(aiEngineServiceProvider).evaluateMedia(File(imagePath));
       cameraService.deleteTempFile(imagePath);
+      if (_cancelRequested) {
+        if (mounted) setState(() { _isProcessing = false; _isPhotoAnalyzing = false; _cancelRequested = false; });
+        return;
+      }
       _appendAiResponse(result);
     } catch (_) {
       cameraService.deleteTempFile(imagePath);
@@ -246,6 +260,7 @@ class _MedicalResponseScreenState
         setState(() {
           _isProcessing = false;
           _isPhotoAnalyzing = false;
+          _cancelRequested = false;
         });
       }
     }
@@ -268,9 +283,13 @@ class _MedicalResponseScreenState
     try {
       final result =
           await ref.read(aiEngineServiceProvider).evaluateText(text);
+      if (_cancelRequested) {
+        if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
+        return;
+      }
       _appendAiResponse(result);
     } catch (_) {
-      if (mounted) setState(() => _isProcessing = false);
+      if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
     }
   }
 
@@ -285,6 +304,24 @@ class _MedicalResponseScreenState
 
   Future<void> _onFinalize() async {
     if (_isFinalizing) return;
+
+    // If an inference call is in progress, signal it to abort and wait up to
+    // 3 seconds. After the timeout we force-finalize with whatever messages
+    // are already in _messages — never leave the app in a stuck state.
+    if (_isProcessing) {
+      setState(() => _cancelRequested = true);
+      final deadline = DateTime.now().add(const Duration(seconds: 3));
+      while (mounted && _isProcessing && DateTime.now().isBefore(deadline)) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      if (!mounted) return;
+      setState(() => _cancelRequested = false);
+    }
+
+    // Release the microphone before writing FHIR data.
+    await ref.read(audioRecordingServiceProvider).stopAndRelease();
+    if (!mounted) return;
+
     setState(() => _isFinalizing = true);
 
     try {

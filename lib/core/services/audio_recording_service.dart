@@ -132,6 +132,21 @@ class AudioRecordingService {
     }
   }
 
+  /// Stops any active recording and releases the microphone resource.
+  /// Safe to call when not recording — no-op in that case.
+  /// Call from session reset, finalization, and screen dispose.
+  Future<void> stopAndRelease() async {
+    try {
+      if (await _recorder.isRecording()) {
+        await _recorder.stop();
+        debugPrint('AudioRecordingService: recording stopped via stopAndRelease');
+      }
+      debugPrint('AudioRecordingService: microphone released');
+    } catch (e) {
+      debugPrint('AudioRecordingService.stopAndRelease error: $e');
+    }
+  }
+
   void dispose() {
     _recorder.dispose();
   }

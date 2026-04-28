@@ -39,6 +39,7 @@ import org.json.JSONObject
  *   - getMostRecentEncounter
  *   - getMostRecentMedicationRequest
  *   - updateEncounterConsent
+ *   - updateObservation
  *   - markAsSynced
  */
 class FhirEngineChannel(
@@ -65,6 +66,7 @@ class FhirEngineChannel(
             "getMostRecentEncounter" -> handleGetMostRecentEncounter(result)
             "getMostRecentMedicationRequest" -> handleGetMostRecentMedicationRequest(result)
             "updateEncounterConsent" -> handleUpdateEncounterConsent(call, result)
+            "updateObservation" -> handleUpdateObservation(call, result)
             "markAsSynced" -> handleMarkAsSynced(call, result)
             "seedMockData" -> handleSeedMockData(result)
             else -> result.notImplemented()
@@ -259,6 +261,32 @@ class FhirEngineChannel(
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to get most recent medication request", e)
                 result.error("FHIR_READ_ERROR", "MedicationRequest query failed", null)
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // updateObservation — overwrites an existing Observation by logical ID
+    // ──────────────────────────────────────────────────────────────────────────
+    private fun handleUpdateObservation(call: MethodCall, result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                ensureInitialized()
+                val resourceJson = call.argument<String>("resource")
+                    ?: return@launch result.error("INVALID_ARG", "Missing 'resource' argument", null)
+
+                val parser = fhirContext.newJsonParser()
+                val observation = parser.parseResource(
+                    org.hl7.fhir.r4.model.Observation::class.java,
+                    resourceJson
+                )
+                fhirEngine!!.update(observation)
+
+                Log.i(TAG, "Observation updated: ${observation.idElement?.idPart}")
+                result.success(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update Observation", e)
+                result.error("FHIR_WRITE_ERROR", "Observation update failed", null)
             }
         }
     }

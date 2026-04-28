@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/chat_message.dart';
 import '../services/ai_engine_service.dart';
+import '../services/audio_recording_service.dart';
 import '../../data/repositories/fhir_repository.dart';
 import 'auth_provider.dart';
 
@@ -26,6 +27,11 @@ class MedicalSessionNotifier extends Notifier<SessionState> {
   /// Pre-populated messages when resuming a saved dialog from Dosar Medical.
   /// Null on normal triage entry; cleared by reset().
   List<ChatMessage>? lastResumeMessages;
+
+  /// FHIR Observation ID of the entry being resumed.
+  /// When set, finalizeConsultation() updates the existing Observation instead
+  /// of creating a new one, preventing duplicate Dosar Medical entries.
+  String? lastResumeObservationId;
 
   @override
   SessionState build() => SessionState.idle;
@@ -94,7 +100,7 @@ class MedicalSessionNotifier extends Notifier<SessionState> {
       noteBuffer.writeln('$prefix $timeStr: ${msg.text}');
     }
 
-    await _fhirRepository.saveObservation({
+    final observationPayload = {
       'resourceType': 'Observation',
       'status': 'preliminary',
       'code': {
@@ -118,25 +124,41 @@ class MedicalSessionNotifier extends Notifier<SessionState> {
       'note': [
         {'text': noteBuffer.toString()}
       ],
-    });
+    };
+
+    final existingId = lastResumeObservationId;
+    if (existingId != null && existingId.isNotEmpty) {
+      // Resume path — update the existing Observation instead of creating a new one.
+      await _fhirRepository.updateObservation(existingId, observationPayload);
+    } else {
+      await _fhirRepository.saveObservation(observationPayload);
+    }
   }
 
   /// Called from Dosar Medical before navigating to medicalResponse route.
+  /// [existingObservationId] is the FHIR resource ID of the saved dialog being
+  /// resumed. When provided, finalizeConsultation() will update that resource
+  /// instead of creating a duplicate entry.
   void prepareResume({
     required String aiResponse,
     required List<ChatMessage> messages,
+    String? existingObservationId,
   }) {
-    lastAiResponse      = aiResponse;
-    lastIsEmergency     = false;
-    lastResumeMessages  = messages;
+    lastAiResponse          = aiResponse;
+    lastIsEmergency         = false;
+    lastResumeMessages      = messages;
+    lastResumeObservationId = existingObservationId;
   }
 
   void reset() {
-    state               = SessionState.idle;
-    errorMessage        = null;
-    lastAiResponse      = null;
-    lastIsEmergency     = false;
-    lastResumeMessages  = null;
+    // Release the microphone before tearing down session state.
+    ref.read(audioRecordingServiceProvider).stopAndRelease();
+    state                   = SessionState.idle;
+    errorMessage            = null;
+    lastAiResponse          = null;
+    lastIsEmergency         = false;
+    lastResumeMessages      = null;
+    lastResumeObservationId = null;
   }
 
   // ── Result parser ─────────────────────────────────────────────────────────

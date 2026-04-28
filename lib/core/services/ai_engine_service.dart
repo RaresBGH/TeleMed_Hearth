@@ -96,6 +96,12 @@ class AiEngineService {
             if (text.isNotEmpty) break;
           }
         }
+        if (text == null || text.isEmpty) {
+          debugPrint(
+              'AiEngineService._parseAndNormalize: FALLBACK — '
+              'response/recommendation field absent or empty after _cleanText; '
+              'snippet="${s.length > 80 ? s.substring(0, 80) : s}"');
+        }
         out['response'] = (text != null && text.isNotEmpty)
             ? text
             : 'Răspuns primit. Medicul va fi contactat.';
@@ -109,6 +115,21 @@ class AiEngineService {
       ..['response'] = prose.isNotEmpty
           ? prose
           : _fallbackResponse['response'] as String;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Language
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /// Instructs the native LiteRtLmChannel to generate responses in [lang].
+  /// [lang] must be "ro" (Romanian) or "en" (English).
+  Future<void> setLanguage(String lang) async {
+    try {
+      await _channel.invokeMethod<void>('setLanguage', {'lang': lang});
+      debugPrint('AiEngineService: language set to $lang');
+    } on PlatformException catch (e) {
+      debugPrint('AiEngineService.setLanguage PlatformException: ${e.code}');
+    }
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -209,22 +230,15 @@ class AiEngineService {
       final StringBuffer systemPromptBuffer = StringBuffer();
       if (customPrompt != null) {
         systemPromptBuffer.writeln(customPrompt);
-      } else {
-        systemPromptBuffer.writeln(
-            'You are a medical triage assistant. You must purely output valid JSON constrained to our schema.');
-        systemPromptBuffer.writeln(
-            "Evaluate the patient's incoming audio symptoms contextually against their known medical history.");
       }
-
+      // Base role, language, and acknowledgment structure are provided by
+      // LiteRtLmChannel.buildSystemPrompt() on the native side.
       if (patientHistory.isNotEmpty) {
         systemPromptBuffer.writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):');
         for (final resource in patientHistory) {
           systemPromptBuffer
               .writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
         }
-      } else {
-        systemPromptBuffer
-            .writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR): None documented.');
       }
 
       final String? jsonResponse =
@@ -273,22 +287,15 @@ class AiEngineService {
       final StringBuffer systemPromptBuffer = StringBuffer();
       if (customPrompt != null) {
         systemPromptBuffer.writeln(customPrompt);
-      } else {
-        systemPromptBuffer.writeln(
-            'You are a medical visual triage assistant running natively. Analyze the provided image/video.');
-        systemPromptBuffer.writeln(
-            'Output purely valid JSON constrained to our schema mapping to HL7 FHIR Observation.');
       }
-
+      // Base role, language, and acknowledgment structure are provided by
+      // LiteRtLmChannel.buildSystemPrompt() on the native side.
       if (patientHistory.isNotEmpty) {
         systemPromptBuffer.writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):');
         for (final resource in patientHistory) {
           systemPromptBuffer
               .writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
         }
-      } else {
-        systemPromptBuffer
-            .writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR): None documented.');
       }
 
       final String? jsonResponse =
@@ -338,22 +345,15 @@ class AiEngineService {
       final StringBuffer systemPromptBuffer = StringBuffer();
       if (customPrompt != null) {
         systemPromptBuffer.writeln(customPrompt);
-      } else {
-        systemPromptBuffer.writeln(
-            'You are a medical triage assistant. You must purely output valid JSON constrained to our schema.');
-        systemPromptBuffer.writeln(
-            "Evaluate the patient's text symptom description contextually against their known medical history.");
       }
-
+      // Base role, language, and acknowledgment structure are provided by
+      // LiteRtLmChannel.buildSystemPrompt() on the native side.
       if (patientHistory.isNotEmpty) {
         systemPromptBuffer.writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):');
         for (final resource in patientHistory) {
           systemPromptBuffer
               .writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
         }
-      } else {
-        systemPromptBuffer
-            .writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR): None documented.');
       }
 
       final String? jsonResponse =
