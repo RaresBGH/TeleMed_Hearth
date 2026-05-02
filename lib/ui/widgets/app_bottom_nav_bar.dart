@@ -51,8 +51,8 @@ class AppBottomNavBar extends ConsumerWidget {
                   _NavTab(
                     icon: Icons.home,
                     label: 'Acasă',
-                    active: currentRoute == AppRoute.home,
-                    onTap: () => go(AppRoute.home),
+                    active: currentRoute == AppRoute.dashboard,
+                    onTap: () => go(AppRoute.dashboard),
                   ),
                   _NavTab(
                     icon: Icons.folder_shared,

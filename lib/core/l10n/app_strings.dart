@@ -208,6 +208,25 @@ class AppStrings {
     'video.end_sem':          'Închide consultația',
     'video.chat_sem':         'Deschide chat și documente',
 
+    // ── Dashboard ─────────────────────────────────────────────────────────
+    'dashboard.greeting_small':   'Bună ziua,',
+    'dashboard.health_title':     'Starea ta de sănătate',
+    'dashboard.no_condition':     'Nicio condiție înregistrată',
+    'dashboard.last_dialog':      'Ultimul dialog:',
+    'dashboard.no_dialog':        'Niciun dialog anterior',
+    'dashboard.doctor_label':     'Medicul tău:',
+    'dashboard.doctor_name':      'Dr. Adriana Bogheanu',
+    'dashboard.next_appt':        'Următoarea programare',
+    'dashboard.no_appt':          'Nicio programare',
+    'dashboard.active_treatment': 'Tratament activ',
+    'dashboard.no_treatment':     'Niciun tratament',
+    'dashboard.recent_activity':  'Activitate recentă',
+    'dashboard.triage_dialog':    'Dialog Triaj AI',
+    'dashboard.no_activity':      'Nicio activitate recentă',
+    'dashboard.priority_normal':  'Prioritate normală',
+    'dashboard.priority_urgent':  'Urgent',
+    'dashboard.cta_btn':          '+ Înregistrează o problemă nouă',
+
     // ── Shared / nav ──────────────────────────────────────────────────────
     'nav.home':               'Acasă',
     'nav.history':            'Dosar Medical',
@@ -408,6 +427,25 @@ class AppStrings {
     'video.unmute_sem':       'Enable microphone',
     'video.end_sem':          'End consultation',
     'video.chat_sem':         'Open chat and documents',
+
+    // ── Dashboard ─────────────────────────────────────────────────────────
+    'dashboard.greeting_small':   'Good day,',
+    'dashboard.health_title':     'Your health status',
+    'dashboard.no_condition':     'No condition recorded',
+    'dashboard.last_dialog':      'Last dialog:',
+    'dashboard.no_dialog':        'No previous dialog',
+    'dashboard.doctor_label':     'Your doctor:',
+    'dashboard.doctor_name':      'Dr. Adriana Bogheanu',
+    'dashboard.next_appt':        'Next appointment',
+    'dashboard.no_appt':          'No appointment',
+    'dashboard.active_treatment': 'Active treatment',
+    'dashboard.no_treatment':     'No treatment',
+    'dashboard.recent_activity':  'Recent activity',
+    'dashboard.triage_dialog':    'AI Triage Dialog',
+    'dashboard.no_activity':      'No recent activity',
+    'dashboard.priority_normal':  'Normal priority',
+    'dashboard.priority_urgent':  'Urgent',
+    'dashboard.cta_btn':          '+ Register a new issue',
 
     // ── Shared / nav ──────────────────────────────────────────────────────
     'nav.home':               'Home',

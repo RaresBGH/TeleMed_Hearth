@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'medical_session_provider.dart';
 
 enum AppRoute {
+  dashboard,
   home,
   confirmation,
   medicalResponse,
@@ -39,7 +40,7 @@ class AppNavigationNotifier extends Notifier<AppRoute> {
       } else if (next == SessionState.success) {
         state = AppRoute.medicalResponse;
       } else if (next == SessionState.idle) {
-        state = AppRoute.home;
+        state = AppRoute.dashboard;
       }
     });
     // Always start at login — model check happens after successful OTP.

@@ -14,6 +14,7 @@ import 'core/providers/app_navigation_provider.dart';
 import 'core/services/ai_engine_service.dart';
 import 'data/repositories/fhir_repository.dart';
 import 'ui/theme/theme.dart';
+import 'ui/screens/dashboard_screen.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/confirmation_screen.dart';
 import 'ui/screens/emergency_screen.dart';
@@ -78,6 +79,9 @@ class TeleMedApp extends ConsumerWidget {
 
     Widget screen;
     switch (currentRoute) {
+      case AppRoute.dashboard:
+        screen = const DashboardScreen();
+        break;
       case AppRoute.modelDownload:
         screen = const ModelDownloadScreen();
         break;

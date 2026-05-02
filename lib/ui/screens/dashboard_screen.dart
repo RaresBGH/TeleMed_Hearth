@@ -1,0 +1,916 @@
+// Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
+// You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
+//
+// TeleMed_K: Offline-first telemedicine app for seniors
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../../core/l10n/app_strings.dart';
+import '../../core/models/chat_message.dart';
+import '../../core/providers/app_navigation_provider.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/providers/language_provider.dart';
+import '../../core/providers/medical_session_provider.dart';
+import '../../core/providers/my_doctor_provider.dart';
+import '../../core/providers/patient_history_provider.dart';
+import '../../core/services/ai_engine_service.dart';
+import '../../data/repositories/fhir_repository.dart';
+import '../widgets/app_bottom_nav_bar.dart';
+import '../widgets/language_toggle.dart';
+
+// ── Design tokens (Horizon/Stitch palette) ────────────────────────────────────
+const Color _bg         = Color(0xFFF7F9FE);
+const Color _cardBg     = Color(0xFFFFFFFF);
+const Color _cardBorder = Color(0xFFECEEF2);
+const Color _onSurface  = Color(0xFF191C1F);
+const Color _onSurfaceV = Color(0xFF40484E);
+const Color _brand      = Color(0xFF5BA4CF);
+const Color _greenBg    = Color(0xFFE6F4EA);
+const Color _greenFg    = Color(0xFF137333);
+const Color _amberBg    = Color(0xFFFEF9C3);
+const Color _amberFg    = Color(0xFFCA8A04);
+
+class DashboardScreen extends ConsumerStatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  bool _aiReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAiStatus();
+  }
+
+  Future<void> _checkAiStatus() async {
+    final ready = await AiEngineService(FhirRepository()).initializeModel();
+    if (mounted) setState(() => _aiReady = ready);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lang        = ref.watch(languageProvider);
+    final firstName   = ref.watch(patientAuthProvider).patientFirstName;
+    final historyAsync = ref.watch(patientHistoryProvider);
+    final medAsync    = ref.watch(mostRecentMedicationProvider);
+
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: _bg,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: const [
+          LanguageToggle(),
+          SizedBox(width: 16),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SafeArea(
+              top: false,
+              bottom: false,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Patient header ─────────────────────────────────────
+                    _buildHeader(lang, firstName),
+                    const SizedBox(height: 24),
+
+                    // ── Health summary card ────────────────────────────────
+                    historyAsync.when(
+                      data: (data) => _buildHealthCard(context, lang, data),
+                      loading: () => _buildHealthCardShimmer(),
+                      error: (_, __) => _buildHealthCard(context, lang, const []),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Quick status row ───────────────────────────────────
+                    medAsync.when(
+                      data: (med) => _buildQuickStatusRow(lang, med),
+                      loading: () => _buildQuickStatusRow(lang, null),
+                      error: (_, __) => _buildQuickStatusRow(lang, null),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Recent activity ────────────────────────────────────
+                    historyAsync.when(
+                      data: (data) => _buildRecentActivity(context, lang, data),
+                      loading: () => const Center(child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: CircularProgressIndicator(color: _brand),
+                      )),
+                      error: (_, __) => _buildRecentActivity(context, lang, const []),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Primary CTA ────────────────────────────────────────────────
+          _buildCta(lang),
+
+          // ── Bottom nav ──────────────────────────────────────────────────
+          const AppBottomNavBar(),
+        ],
+      ),
+    );
+  }
+
+  // ── Header ───────────────────────────────────────────────────────────────
+
+  Widget _buildHeader(String lang, String? firstName) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: const BoxDecoration(
+            color: Color(0xFFD0D3D8),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.person, size: 26, color: Color(0xFF8A8E95)),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppStrings.of(lang, 'dashboard.greeting_small'),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: _onSurfaceV,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              if (firstName != null && firstName.isNotEmpty)
+                Text(
+                  firstName,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: _onSurface,
+                    height: 1.1,
+                  ),
+                ),
+              const SizedBox(height: 6),
+              _AiStatusPill(isReady: _aiReady, lang: lang),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Health summary card ───────────────────────────────────────────────────
+
+  Widget _buildHealthCardShimmer() {
+    return Container(
+      height: 130,
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _cardBorder),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0A000000), blurRadius: 24, offset: Offset(0, 4)),
+        ],
+      ),
+      child: const Center(child: CircularProgressIndicator(color: _brand)),
+    );
+  }
+
+  Widget _buildHealthCard(
+    BuildContext context,
+    String lang,
+    List<Map<String, dynamic>> data,
+  ) {
+    final conditions = data.where((e) => e['resourceType'] == 'Condition').toList();
+    final conditionCode = conditions.isNotEmpty
+        ? (conditions.first['code'] as Map<String, dynamic>? ?? const {})
+        : const <String, dynamic>{};
+    final conditionName = conditionCode['text'] as String? ??
+        AppStrings.of(lang, 'dashboard.no_condition');
+
+    final observations = data.where((e) => e['resourceType'] == 'Observation').toList();
+    String lastDialogText = AppStrings.of(lang, 'dashboard.no_dialog');
+    if (observations.isNotEmpty) {
+      final iso = observations.first['effectiveDateTime'] as String? ??
+                  observations.first['recordedDate'] as String? ?? '';
+      if (iso.isNotEmpty) lastDialogText = _formatDate(iso);
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _cardBorder),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0A000000), blurRadius: 24, offset: Offset(0, 4)),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppStrings.of(lang, 'dashboard.health_title').toUpperCase(),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: _onSurfaceV,
+              letterSpacing: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Icon(Icons.favorite, color: _brand, size: 30),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  conditionName,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: _onSurface,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 42),
+            child: Text(
+              '${AppStrings.of(lang, 'dashboard.last_dialog')} $lastDialogText',
+              style: const TextStyle(fontSize: 14, color: _onSurfaceV),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(color: Color(0xFFE0E2E7), thickness: 1, height: 1),
+          ),
+          Row(
+            children: [
+              const Icon(Icons.medical_services, color: _onSurfaceV, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${AppStrings.of(lang, 'dashboard.doctor_label')} ${AppStrings.of(lang, 'dashboard.doctor_name')}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: _onSurface,
+                  ),
+                ),
+              ),
+              _GreenChip(label: AppStrings.of(lang, 'doctor.available')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Quick status row ──────────────────────────────────────────────────────
+
+  Widget _buildQuickStatusRow(String lang, Map<String, dynamic>? med) {
+    final medText = med != null
+        ? (med['medicationCodeableConcept']?['text'] as String? ??
+           AppStrings.of(lang, 'doctor.treatment'))
+        : AppStrings.of(lang, 'dashboard.no_treatment');
+
+    return Row(
+      children: [
+        Expanded(
+          child: _StatusCard(
+            icon: Icons.calendar_month,
+            label: AppStrings.of(lang, 'dashboard.next_appt'),
+            value: AppStrings.of(lang, 'dashboard.no_appt'),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _StatusCard(
+            icon: Icons.medication,
+            label: AppStrings.of(lang, 'dashboard.active_treatment'),
+            value: medText,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Recent activity ───────────────────────────────────────────────────────
+
+  Widget _buildRecentActivity(
+    BuildContext context,
+    String lang,
+    List<Map<String, dynamic>> data,
+  ) {
+    final observations = data
+        .where((e) => e['resourceType'] == 'Observation')
+        .take(2)
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          AppStrings.of(lang, 'dashboard.recent_activity').toUpperCase(),
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: _onSurfaceV,
+            letterSpacing: 1.4,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (observations.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+              child: Text(
+                AppStrings.of(lang, 'dashboard.no_activity'),
+                style: const TextStyle(fontSize: 15, color: _onSurfaceV),
+              ),
+            ),
+          )
+        else
+          ...observations.map((item) {
+            final iso = item['effectiveDateTime'] as String? ??
+                        item['recordedDate'] as String? ?? '';
+            final dateStr = iso.isNotEmpty ? _formatDate(iso) : '';
+            final status  = item['status'] as String?;
+            final code    = item['code'] as Map?;
+            final label   = code?['text'] as String? ??
+                            AppStrings.of(lang, 'dashboard.triage_dialog');
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _ActivityItem(
+                title: AppStrings.of(lang, 'dashboard.triage_dialog'),
+                subtitle: '$dateStr · ${AppStrings.of(lang, 'dashboard.priority_normal')}',
+                onTap: () => _showDetailSheet(
+                  context,
+                  ref,
+                  lang,
+                  item,
+                  dateStr,
+                  label,
+                  status,
+                ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
+  // ── Primary CTA ───────────────────────────────────────────────────────────
+
+  Widget _buildCta(String lang) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+      child: SizedBox(
+        width: double.infinity,
+        height: 64,
+        child: ElevatedButton(
+          onPressed: () =>
+              ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _brand,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: Text(
+            AppStrings.of(lang, 'dashboard.cta_btn'),
+            style: GoogleFonts.lexend(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  static String _formatDate(String iso) {
+    if (iso.isEmpty) return '';
+    final dt = DateTime.tryParse(iso);
+    if (dt == null) return iso;
+    final d = dt.day.toString().padLeft(2, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    return '$d.$m.${dt.year}';
+  }
+
+  // ── Detail bottom sheet (mirrors history_screen._showDetailSheet) ─────────
+
+  static void _showDetailSheet(
+    BuildContext context,
+    WidgetRef ref,
+    String lang,
+    Map<String, dynamic> item,
+    String dateStr,
+    String label,
+    String? status,
+  ) {
+    final valueString = item['valueString'] as String?;
+    final noteList    = item['note'] as List?;
+    final noteText    = noteList?.isNotEmpty == true
+        ? ((noteList!.first as Map?)?['text'] as String?)
+        : null;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.65,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        builder: (ctx, scrollCtrl) => Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF5F5F5),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Drag handle
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header row
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        dateStr,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Builder(builder: (_) {
+                      final isPrelim = status == 'preliminary';
+                      final lbl = isPrelim
+                          ? 'Dialog Salvat'
+                          : status == 'final'
+                              ? 'Triaj AI'
+                              : 'Raport';
+                      final bg = isPrelim
+                          ? const Color(0xFFE3F2FD)
+                          : const Color(0x1A5BA4CF);
+                      final fg = isPrelim
+                          ? const Color(0xFF1565C0)
+                          : const Color(0xFF5BA4CF);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: bg,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          lbl,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: fg,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // Scrollable content
+              Expanded(
+                child: ListView(
+                  controller: scrollCtrl,
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    if (valueString != null && valueString.isNotEmpty) ...[
+                      Text(
+                        AppStrings.of(lang, 'history.ai_label'),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF5BA4CF),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: const Border(
+                            left: BorderSide(color: Color(0xFF5BA4CF), width: 4),
+                          ),
+                        ),
+                        child: Text(
+                          valueString,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            height: 1.5,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                    if (noteText != null && noteText.isNotEmpty) ...[
+                      Text(
+                        AppStrings.of(lang, 'history.conv_label'),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF5BA4CF),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ...noteText
+                          .trim()
+                          .split('\n')
+                          .where((l) => l.trim().isNotEmpty)
+                          .map((line) {
+                        final isAi = line.startsWith('[AI]');
+                        final displayText = line
+                            .replaceFirst(
+                                RegExp(r'^\[(AI|Pacient)\]\s*\d+:\d+:\s*'), '')
+                            .trim();
+                        if (displayText.isEmpty) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Align(
+                            alignment: isAi
+                                ? Alignment.centerLeft
+                                : Alignment.centerRight,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth:
+                                    MediaQuery.of(context).size.width * 0.78,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isAi
+                                      ? const Color(0x1A5BA4CF)
+                                      : const Color(0xFF5BA4CF),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: const Radius.circular(16),
+                                    topRight: const Radius.circular(16),
+                                    bottomLeft:
+                                        Radius.circular(isAi ? 4 : 16),
+                                    bottomRight:
+                                        Radius.circular(isAi ? 16 : 4),
+                                  ),
+                                ),
+                                child: Text(
+                                  displayText,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    height: 1.4,
+                                    color: isAi
+                                        ? const Color(0xFF191C1F)
+                                        : Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                    if ((valueString == null || valueString.isEmpty) &&
+                        (noteText == null || noteText.isEmpty))
+                      const Padding(
+                        padding: EdgeInsets.only(top: 32),
+                        child: Center(
+                          child: Text(
+                            'Nu există conținut detaliat pentru acest raport.',
+                            style: TextStyle(
+                                fontSize: 16, color: Colors.black54),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+              // "Continuă conversația" button
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 60,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    label: Text(
+                      AppStrings.of(lang, 'history.continue_btn'),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF5BA4CF),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      ref.read(medicalSessionProvider.notifier).prepareResume(
+                        aiResponse: valueString ?? '',
+                        messages: _parseNoteToMessages(noteText ?? ''),
+                        existingObservationId: item['id'] as String?,
+                      );
+                      ref
+                          .read(appNavigationProvider.notifier)
+                          .navigateTo(AppRoute.medicalResponse);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static List<ChatMessage> _parseNoteToMessages(String noteText) {
+    if (noteText.trim().isEmpty) return [];
+    return noteText
+        .trim()
+        .split('\n')
+        .where((l) => l.trim().isNotEmpty)
+        .map((line) {
+          final isAi = line.startsWith('[AI]');
+          final text = line
+              .replaceFirst(
+                  RegExp(r'^\[(AI|Pacient)\]\s*\d+:\d+:\s*'), '')
+              .trim();
+          if (text.isEmpty) return null;
+          return ChatMessage(
+            role: isAi ? 'ai' : 'patient',
+            text: text,
+            timestamp: DateTime.now(),
+          );
+        })
+        .whereType<ChatMessage>()
+        .toList();
+  }
+}
+
+// ── Private widgets ────────────────────────────────────────────────────────────
+
+class _AiStatusPill extends StatelessWidget {
+  final bool isReady;
+  final String lang;
+
+  const _AiStatusPill({required this.isReady, required this.lang});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: isReady ? _greenBg : _amberBg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            isReady ? '●' : '⟳',
+            style: TextStyle(
+              fontSize: 10,
+              color: isReady ? _greenFg : _amberFg,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isReady
+                ? AppStrings.of(lang, 'home.ai_ready')
+                : AppStrings.of(lang, 'home.ai_loading'),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isReady ? _greenFg : _amberFg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GreenChip extends StatelessWidget {
+  final String label;
+
+  const _GreenChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: _greenBg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('●',
+              style: TextStyle(fontSize: 10, color: _greenFg)),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: _greenFg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _StatusCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      constraints: const BoxConstraints(minHeight: 110),
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _cardBorder),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x08000000), blurRadius: 12, offset: Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0x1A5BA4CF),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Icon(icon, color: _brand, size: 16),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: _onSurfaceV,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+              color: _onSurface,
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityItem extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ActivityItem({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: title,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          constraints: const BoxConstraints(minHeight: 72),
+          decoration: BoxDecoration(
+            color: _cardBg,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: _cardBorder),
+            boxShadow: const [
+              BoxShadow(
+                  color: Color(0x05000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 2)),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: _onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: _onSurfaceV,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: _brand, size: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

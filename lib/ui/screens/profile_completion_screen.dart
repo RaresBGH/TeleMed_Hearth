@@ -71,7 +71,7 @@ class _ProfileCompletionScreenState
       final modelOnDisk = await _isModelOnDisk();
       if (!mounted) return;
       ref.read(appNavigationProvider.notifier).navigateTo(
-          modelOnDisk ? AppRoute.home : AppRoute.modelDownload);
+          modelOnDisk ? AppRoute.dashboard : AppRoute.modelDownload);
     } catch (_) {
       if (mounted) {
         setState(() {

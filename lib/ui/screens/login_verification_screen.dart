@@ -101,7 +101,7 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
           final modelOnDisk = await _isModelOnDisk();
           if (!mounted) return;
           ref.read(appNavigationProvider.notifier).navigateTo(
-            modelOnDisk ? AppRoute.home : AppRoute.modelDownload,
+            modelOnDisk ? AppRoute.dashboard : AppRoute.modelDownload,
           );
         } else {
           // New user — collect profile details before proceeding.
