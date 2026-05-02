@@ -97,13 +97,16 @@ class FhirRepository {
     }
   }
 
-  /// Returns all historical Observation and Condition resources for the active patient
-  /// securely from the local encrypted SQLite DB to serve as context for the AI Engine.
-  Future<List<Map<String, dynamic>>> getPatientHistory() async {
+  /// Returns Observation and Condition resources for the patient identified by [cnp].
+  /// Passing an empty [cnp] returns all resources (fallback for unauthenticated contexts).
+  Future<List<Map<String, dynamic>>> getPatientHistory({String cnp = ''}) async {
     try {
-      final String? result = await _channel.invokeMethod<String>('getPatientHistory');
+      final String? result = await _channel.invokeMethod<String>(
+        'getPatientHistory',
+        {'cnp': cnp},
+      );
       if (result == null) return [];
-      
+
       final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;
       return parsed.cast<Map<String, dynamic>>();
     } on PlatformException catch (e) {

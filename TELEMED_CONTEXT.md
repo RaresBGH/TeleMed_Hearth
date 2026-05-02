@@ -1,5 +1,5 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-04-29
+Last updated: 2026-05-02
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
@@ -71,6 +71,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **VideoConsultationScreen** — RTCVideoView, PiP, mute, voice visualizer, chat strip (signaling absent — remote stays black)
 - **Legal screens** — GDPR-compliant Romanian content; `LegalDocumentType` enum; accessible touch targets
 - **Lexend font** — `GoogleFonts.lexendTextTheme()` system-wide
+- **Dark theme** — `AppTheme.darkTheme` defined; `MaterialApp(themeMode: ThemeMode.system)` follows device setting automatically; no manual toggle needed
 
 ### BUILT — AWAITING DEVICE TEST
 
@@ -86,6 +87,11 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Microphone release** — `AudioRecordingService.stopAndRelease()` called from `MedicalSessionNotifier.reset()`, `_onFinalize()` before FHIR write, and `dispose()` in `MedicalResponseScreen` (via `unawaited`)
 - **Finalize during inference deadlock fix** — `_onFinalize()` checks `_isProcessing`; sets `_cancelRequested=true`; polls 100ms intervals up to 3s for inference to complete; inference handlers check `_cancelRequested` after await and abort; force-finalizes with current `_messages` on timeout; never leaves app stuck
 - **Duplicate FHIR entry fix on resume** — `prepareResume()` accepts `existingObservationId`; `finalizeConsultation()` calls `_fhirRepository.updateObservation(id, payload)` instead of `saveObservation` when ID present; `FhirEngineChannel.kt` `handleUpdateObservation` calls `fhirEngine!!.update(observation)`
+- **Dashboard screen** — new post-auth landing screen; loads primary FHIR Condition, last dialog date, active medication, 2 recent Observations; CTA navigates to triaj; `AppRoute.dashboard` is initial post-auth route
+- **LanguageToggle shared widget** — pill toggle (88×36dp, 6dp radius, #5BA4CF border); replaces all three per-screen implementations in home, history, doctor AppBars; calls `languageProvider` + `aiEngineServiceProvider`
+- **DateFormatter utility** — `lib/core/utils/date_formatter.dart`; `format(iso, {includeTime})` replaces `_formatDate` in dashboard and `_formatDateTime` in history; single source of truth
+- **DialogDetailSheet shared widget** — `lib/ui/widgets/dialog_detail_sheet.dart`; static `show()` method replaces duplicated ~130-line bottom sheet in history and dashboard; handles replay, "Continuă conversația", status badge
+- **aiReadyProvider** — `FutureProvider<bool>` in `lib/core/providers/ai_ready_provider.dart`; shared between home and dashboard screens; eliminates redundant `AiEngineService(FhirRepository()).initializeModel()` calls in both `initState()` methods
 
 ### STILL BROKEN / SKIPPED FOR HACKATHON
 
@@ -116,12 +122,17 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 | lib/ui/screens/model_download_screen.dart | First-launch model download; WiFi check; progress polling; error reason codes |
 | lib/ui/screens/login_identity_screen.dart | CNP + phone login; 18+ age validation; real-time CNP validation |
 | lib/ui/screens/login_verification_screen.dart | 6-digit OTP; setState fix (button enables correctly); SmartAuth; legal modals |
+| lib/ui/screens/dashboard_screen.dart | Post-auth landing; health summary, quick status, recent activity; CTA → triaj |
 | lib/ui/screens/home_screen.dart | 4-card Stitch design; AI status indicator; glassmorphism nav; all triage logic |
 | lib/ui/screens/history_screen.dart | "Dosar Medical" (was "Istoric Medical"); FHIR list |
 | lib/ui/screens/my_doctor_screen.dart | Doctor profile; mock incoming call |
 | lib/ui/screens/waiting_room_screen.dart | Consent before video call |
 | lib/ui/screens/video_consultation_screen.dart | RTCVideoView; PiP; mute; voice visualizer; chat strip |
 | lib/ui/theme/theme.dart | AppTheme + GoogleFonts.lexendTextTheme + AccessibleTouchTarget |
+| lib/ui/widgets/language_toggle.dart | Shared RO/EN pill toggle (88×36dp); used in home, history, doctor AppBars |
+| lib/ui/widgets/dialog_detail_sheet.dart | Shared FHIR Observation bottom sheet; used by history and dashboard |
+| lib/core/utils/date_formatter.dart | `DateFormatter.format(iso, {includeTime})`; replaces per-screen date helpers |
+| lib/core/providers/ai_ready_provider.dart | `FutureProvider<bool>` shared by home and dashboard; calls `initializeModel()` once |
 | lib/ui/widgets/legal_document_modal.dart | Stitch-based legal screens; LegalDocumentType enum; GDPR content |
 | DESIGN.md | The Dignified Guardian design system (permanent reference) |
 
@@ -167,6 +178,19 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 
 ---
 
+## Code Quality
+
+Two full audit cycles completed 2026-05-02. Codebase is clean: **0 critical, 0 high, 0 medium, 0 low** issues remaining.
+
+Refactoring completed during audit:
+- Dead code removed — 3 dead service files, 2 dead screens/routes, 1 unused Gradle dependency
+- Duplicate logic unified — `AiEngineService.isModelOnDisk()`, `DateFormatter`, `DialogDetailSheet`, `_buildHistoryContext()`, `aiReadyProvider`
+- AppStrings coverage complete — all screens fully wired; 3 new keys added (`chat.followup_prompt`, `doctor.unknown_date`, `doctor.name`)
+- State management — `MedicalSessionState` immutable value object; data-shuttle fields removed from notifier
+- Error handling — `finalizeConsultation()` wrapped in try/catch; `reset()` awaits `stopAndRelease()`
+
+---
+
 ## Priority Tasks
 
 ### P0 — ACTIVE
@@ -200,6 +224,10 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - [x] Microphone release on session reset, finalize, and screen dispose
 - [x] Finalize during inference deadlock fix — 3s timeout, force-finalize
 - [x] Duplicate FHIR entry fix on resume — updateObservation when existingObservationId present
+- [x] Dark theme — AppTheme.darkTheme; ThemeMode.system; no manual toggle
+- [x] Dashboard screen — post-auth landing; AppRoute.dashboard initial route; live FHIR data
+- [x] LanguageToggle shared widget — replaces all per-screen RO/EN implementations
+- [x] Two full audit cycles — codebase clean: 0 critical, 0 high, 0 medium, 0 low
 
 ### P1 — NEXT
 - [ ] End-to-end text card inference device test (handleRunInference → model output)
@@ -217,7 +245,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 
 ## Hackathon
 
-- **Deadline:** May 18, 2026 — **23 days remaining**
+- **Deadline:** May 18, 2026 — **16 days remaining**
 - **Public repo required:** currently PRIVATE — **must make public before deadline**
 - **Demo video:** not yet recorded
 - **Gemma 4 on-device status:** model file present on test device; `initializeModel()` wired; end-to-end inference **not yet confirmed**

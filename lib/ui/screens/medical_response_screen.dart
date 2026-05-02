@@ -324,11 +324,17 @@ class _MedicalResponseScreenState
       setState(() => _cancelRequested = false);
     }
 
+    // Explicitly clear cancel flag before the FHIR write — guards the edge case
+    // where _isProcessing was already false when finalize was triggered, leaving
+    // _cancelRequested true from a previous inference cancellation.
+    setState(() {
+      _cancelRequested = false;
+      _isFinalizing    = true;
+    });
+
     // Release the microphone before writing FHIR data.
     await ref.read(audioRecordingServiceProvider).stopAndRelease();
     if (!mounted) return;
-
-    setState(() => _isFinalizing = true);
 
     try {
       await ref

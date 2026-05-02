@@ -64,7 +64,7 @@ class FhirEngineChannel(
             "saveObservation" -> handleSaveObservation(call, result)
             "saveCondition" -> handleSaveCondition(call, result)
             "getUnsyncedResources" -> handleGetUnsyncedResources(result)
-            "getPatientHistory" -> handleGetPatientHistory(result)
+            "getPatientHistory" -> handleGetPatientHistory(call, result)
             "getMostRecentEncounter" -> handleGetMostRecentEncounter(result)
             "getMostRecentMedicationRequest" -> handleGetMostRecentMedicationRequest(result)
             "updateEncounterConsent" -> handleUpdateEncounterConsent(call, result)
@@ -189,29 +189,53 @@ class FhirEngineChannel(
     // ──────────────────────────────────────────────────────────────────────────
     // getPatientHistory
     // ──────────────────────────────────────────────────────────────────────────
-    private fun handleGetPatientHistory(result: MethodChannel.Result) {
+    private fun handleGetPatientHistory(call: MethodCall, result: MethodChannel.Result) {
         scope.launch {
             try {
                 ensureInitialized()
+                val cnp = call.argument<String>("cnp") ?: ""
+
                 val observations = fhirEngine!!.search<org.hl7.fhir.r4.model.Observation> {}
-                val conditions = fhirEngine!!.search<org.hl7.fhir.r4.model.Condition> {}
+                val conditions   = fhirEngine!!.search<org.hl7.fhir.r4.model.Condition> {}
 
                 val parser = fhirContext.newJsonParser()
                 val jsonArray = JSONArray()
 
                 observations.forEach { searchResult ->
-                    jsonArray.put(JSONObject(parser.encodeResourceToString(searchResult.resource)))
+                    val obs = searchResult.resource
+                    if (cnp.isEmpty() || matchesPatientCnp(obs.subject, cnp)) {
+                        jsonArray.put(JSONObject(parser.encodeResourceToString(obs)))
+                    }
                 }
                 conditions.forEach { searchResult ->
-                    jsonArray.put(JSONObject(parser.encodeResourceToString(searchResult.resource)))
+                    val cond = searchResult.resource
+                    if (cnp.isEmpty() || matchesPatientCnp(cond.subject, cnp)) {
+                        jsonArray.put(JSONObject(parser.encodeResourceToString(cond)))
+                    }
                 }
 
+                Log.i(TAG, "getPatientHistory: returned ${jsonArray.length()} resources for CNP=$cnp")
                 result.success(jsonArray.toString())
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to get patient history", e)
                 result.error("FHIR_READ_ERROR", "Patient history query failed", null)
             }
         }
+    }
+
+    /**
+     * Returns true if [subject] belongs to the patient identified by [cnp].
+     *
+     * Handles two formats used in this app:
+     *  - Triage Observations: subject.identifier.value == cnp
+     *  - Mock Conditions:     subject.reference == "Patient/patient-<cnp>"
+     */
+    private fun matchesPatientCnp(subject: org.hl7.fhir.r4.model.Reference, cnp: String): Boolean {
+        // Format 1 — identifier-based (triage Observations from medical_session_provider)
+        if (subject.hasIdentifier() && subject.identifier?.value == cnp) return true
+        // Format 2 — literal reference (mock seed Conditions: "Patient/patient-<cnp>")
+        val ref = subject.reference ?: return false
+        return ref == "Patient/patient-$cnp"
     }
 
     // ──────────────────────────────────────────────────────────────────────────

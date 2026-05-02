@@ -170,12 +170,12 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
 
   Future<void> _onDownloadComplete() async {
     // Kick off model init in the background — the AI status indicator on the
-    // home screen handles the not-ready → ready transition independently.
+    // dashboard handles the not-ready → ready transition independently.
     unawaited(AiEngineService(FhirRepository()).initializeModel());
     // Navigate within 2 s of STATUS_SUCCESS landing on the Dart side.
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;
-    ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home);
+    ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.dashboard);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
