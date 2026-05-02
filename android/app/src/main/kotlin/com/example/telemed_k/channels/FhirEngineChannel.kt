@@ -553,7 +553,7 @@ class FhirEngineChannel(
                             }
                         }
                         required = org.hl7.fhir.r4.model.Appointment.ParticipantRequired.REQUIRED
-                        status   = org.hl7.fhir.r4.model.Appointment.ParticipationStatus.ACCEPTED
+                        setStatus(org.hl7.fhir.r4.model.Appointment.ParticipationStatus.ACCEPTED)
                     }
                 )
 
@@ -561,7 +561,7 @@ class FhirEngineChannel(
                 appointment.addParticipant(
                     org.hl7.fhir.r4.model.Appointment.AppointmentParticipantComponent().apply {
                         actor  = org.hl7.fhir.r4.model.Reference("Practitioner/$practitionerId")
-                        status = org.hl7.fhir.r4.model.Appointment.ParticipationStatus.ACCEPTED
+                        setStatus(org.hl7.fhir.r4.model.Appointment.ParticipationStatus.ACCEPTED)
                     }
                 )
 
