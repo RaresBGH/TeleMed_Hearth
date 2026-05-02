@@ -67,8 +67,6 @@ class _ProfileCompletionScreenState
             phone: _phoneCtrl.text.trim(),
           );
       if (!mounted) return;
-      final modelOnDisk = await _isModelOnDisk();
-      if (!mounted) return;
       ref.read(appNavigationProvider.notifier).navigateTo(
           await AiEngineService.isModelOnDisk() ? AppRoute.dashboard : AppRoute.modelDownload);
     } catch (_) {
