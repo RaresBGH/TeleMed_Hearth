@@ -21,8 +21,9 @@ DuckDNS token: stored as DUCKDNS_TOKEN env in caddy-telemed.service
 1. VERIFY before acting — read the file before editing it
 2. ONE step at a time — never assume previous steps succeeded
 3. FINISH MESSAGE required on every task — format: "TASK_NAME — key: value — key: value — analyze errors: N"
-4. Never guess — if unsure, say so and ask for guidance
-5. Clean up failed attempts before retrying
+4. BEFORE EVERY COMMIT — run: flutter analyze --no-pub 2>&1 | grep -E 'error|warning' | head -20 — fix all errors before committing. Warnings are acceptable, errors are not.
+5. Never guess — if unsure, say so and ask for guidance
+6. Clean up failed attempts before retrying
 
 ## Tech Stack
 - Flutter/Dart + Kotlin native Android

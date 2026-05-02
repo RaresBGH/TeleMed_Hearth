@@ -4,10 +4,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/providers/app_navigation_provider.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/providers/language_provider.dart';
-import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/patient_history_provider.dart';
 import '../theme/theme.dart';
 import '../widgets/app_bottom_nav_bar.dart';

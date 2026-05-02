@@ -41,7 +41,7 @@ class WaitingRoomScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(AppStrings.of(lang, 'waiting.clinic'), style: const TextStyle(fontSize: 16, color: Colors.black54)),
-                Text('Dr. Bogheanu', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
+                Text(AppStrings.of(lang, 'doctor.name'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
               ],
             )
           ],
@@ -114,12 +114,12 @@ class WaitingRoomScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: const Color(0xFFE8E8E8), borderRadius: BorderRadius.circular(12)),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.info, color: Colors.black),
-                    SizedBox(width: 12),
-                    Expanded(child: Text('Vă rugăm să citiți înainte de a începe.', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black))),
+                    const Icon(Icons.info, color: Colors.black),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(AppStrings.of(lang, 'waiting.info'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black))),
                   ],
                 ),
               ),
@@ -147,7 +147,7 @@ class WaitingRoomScreen extends ConsumerWidget {
                   } catch (e) {
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Eroare conexiune: $e', style: const TextStyle(fontSize: 18))),
+                      SnackBar(content: Text('${AppStrings.of(lang, 'waiting.conn_error')} $e', style: const TextStyle(fontSize: 18))),
                     );
                   }
                 },

@@ -70,6 +70,8 @@ class AppStrings {
     'doctor.error':           'Eroare',
     'doctor.answer_sem':      'Răspunde la apel',
     'doctor.decline_sem':     'Respinge apelul',
+    'doctor.unknown_date':    'Necunoscută',
+    'doctor.name':            'Dr. Bogheanu',
 
     // ── Login identity ────────────────────────────────────────────────────
     'login.appbar':           'Autentificare',
@@ -112,6 +114,7 @@ class AppStrings {
     'otp.privacy_title':      'Politica de Confidențialitate',
 
     // ── Chat / Medical response ────────────────────────────────────────────
+    'chat.followup_prompt':   'Aveți și alte simptome pe care doriți să le descrieți?',
     'chat.appbar_title':      'Asistentul tău medical',
     'chat.section_label':     'Analiza simptomelor',
     'chat.default_response':  'Simptomele dumneavoastră au fost înregistrate.',
@@ -290,6 +293,8 @@ class AppStrings {
     'doctor.error':           'Error',
     'doctor.answer_sem':      'Answer the call',
     'doctor.decline_sem':     'Decline the call',
+    'doctor.unknown_date':    'Unknown',
+    'doctor.name':            'Dr. Bogheanu',
 
     // ── Login identity ────────────────────────────────────────────────────
     'login.appbar':           'Sign In',
@@ -332,6 +337,7 @@ class AppStrings {
     'otp.privacy_title':      'Privacy Policy',
 
     // ── Chat / Medical response ────────────────────────────────────────────
+    'chat.followup_prompt':   'Do you have any other symptoms you would like to describe?',
     'chat.appbar_title':      'Your medical assistant',
     'chat.section_label':     'Symptom analysis',
     'chat.default_response':  'Your symptoms have been recorded.',

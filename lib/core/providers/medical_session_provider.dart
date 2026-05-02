@@ -98,50 +98,54 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   // doctor-side app. Auto-save is intentionally disabled — patient must
   // explicitly finalize.
   Future<void> finalizeConsultation(List<ChatMessage> messages) async {
-    final String cnp           = ref.read(loginCnpProvider);
-    final String timestamp     = DateTime.now().toIso8601String();
-    final String triageResponse = state.lastAiResponse ?? 'Triaj AI';
+    try {
+      final String cnp           = ref.read(loginCnpProvider);
+      final String timestamp     = DateTime.now().toIso8601String();
+      final String triageResponse = state.lastAiResponse ?? 'Triaj AI';
 
-    final StringBuffer noteBuffer = StringBuffer();
-    for (final msg in messages) {
-      final String prefix = msg.role == 'ai' ? '[AI]' : '[Pacient]';
-      final String timeStr =
-          '${msg.timestamp.hour.toString().padLeft(2, '0')}:'
-          '${msg.timestamp.minute.toString().padLeft(2, '0')}';
-      noteBuffer.writeln('$prefix $timeStr: ${msg.text}');
-    }
+      final StringBuffer noteBuffer = StringBuffer();
+      for (final msg in messages) {
+        final String prefix = msg.role == 'ai' ? '[AI]' : '[Pacient]';
+        final String timeStr =
+            '${msg.timestamp.hour.toString().padLeft(2, '0')}:'
+            '${msg.timestamp.minute.toString().padLeft(2, '0')}';
+        noteBuffer.writeln('$prefix $timeStr: ${msg.text}');
+      }
 
-    final observationPayload = {
-      'resourceType': 'Observation',
-      'status': 'preliminary',
-      'code': {
-        'coding': [
-          {
-            'system': 'http://loinc.org',
-            'code': '75325-1',
-            'display': 'Symptom',
+      final observationPayload = {
+        'resourceType': 'Observation',
+        'status': 'preliminary',
+        'code': {
+          'coding': [
+            {
+              'system': 'http://loinc.org',
+              'code': '75325-1',
+              'display': 'Symptom',
+            }
+          ],
+          'text': 'Dialog Triaj AI',
+        },
+        'subject': {
+          'identifier': {
+            'system': 'urn:oid:1.2.40.0.10.1.4.3.1',
+            'value': cnp.isNotEmpty ? cnp : 'unknown',
           }
+        },
+        'effectiveDateTime': timestamp,
+        'valueString': triageResponse,
+        'note': [
+          {'text': noteBuffer.toString()}
         ],
-        'text': 'Dialog Triaj AI',
-      },
-      'subject': {
-        'identifier': {
-          'system': 'urn:oid:1.2.40.0.10.1.4.3.1',
-          'value': cnp.isNotEmpty ? cnp : 'unknown',
-        }
-      },
-      'effectiveDateTime': timestamp,
-      'valueString': triageResponse,
-      'note': [
-        {'text': noteBuffer.toString()}
-      ],
-    };
+      };
 
-    final existingId = state.lastResumeObservationId;
-    if (existingId != null && existingId.isNotEmpty) {
-      await _fhirRepository.updateObservation(existingId, observationPayload);
-    } else {
-      await _fhirRepository.saveObservation(observationPayload);
+      final existingId = state.lastResumeObservationId;
+      if (existingId != null && existingId.isNotEmpty) {
+        await _fhirRepository.updateObservation(existingId, observationPayload);
+      } else {
+        await _fhirRepository.saveObservation(observationPayload);
+      }
+    } catch (e) {
+      throw Exception('Failed to save consultation to local FHIR database: $e');
     }
   }
 

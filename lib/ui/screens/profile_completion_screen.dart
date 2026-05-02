@@ -73,7 +73,7 @@ class _ProfileCompletionScreenState
       if (mounted) {
         setState(() {
           _isSaving = false;
-          _errorMessage = 'Eroare la salvare. Vă rugăm încercați din nou.';
+          _errorMessage = AppStrings.of(ref.read(languageProvider), 'profile.save_error');
         });
       }
     }

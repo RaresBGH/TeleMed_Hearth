@@ -79,7 +79,7 @@ class _MedicalResponseScreenState
       // Fresh triage entry — seed with default follow-up prompt.
       _messages.add(ChatMessage(
         role: 'ai',
-        text: 'Aveți și alte simptome pe care doriți să le descrieți?',
+        text: AppStrings.of(_lang, 'chat.followup_prompt'),
         timestamp: DateTime.now(),
       ));
     }

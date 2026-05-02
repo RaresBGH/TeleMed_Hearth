@@ -163,16 +163,16 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                   ),
                   child: Column(
                     children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.video_call, color: Color(0xFF5BA4CF), size: 48),
-                          SizedBox(width: 16),
+                          const Icon(Icons.video_call, color: Color(0xFF5BA4CF), size: 48),
+                          const SizedBox(width: 16),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Apel Video de la Dr. Bogheanu', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.black)),
-                                Text('Consultație programată', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black54)),
+                                Text(AppStrings.of(lang, 'doctor.incoming_call'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.black)),
+                                Text(AppStrings.of(lang, 'doctor.scheduled'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black54)),
                               ],
                             ),
                           ),
@@ -245,11 +245,11 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                           const SizedBox(height: 4),
                           encounterAsync.when(
                             data: (data) {
-                              if (data == null) return const Text('Niciuna', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black));
-                              return Text(data['period']?['start'] ?? 'Necunoscută', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black));
+                              if (data == null) return Text(AppStrings.of(lang, 'doctor.none'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black));
+                              return Text(data['period']?['start'] ?? AppStrings.of(lang, 'doctor.unknown_date'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black));
                             },
                             loading: () => const CircularProgressIndicator(color: Color(0xFF5BA4CF)),
-                            error: (err, stack) => const Text('Eroare', style: TextStyle(fontSize: 22, color: Colors.red)),
+                            error: (err, stack) => Text(AppStrings.of(lang, 'doctor.error'), style: const TextStyle(fontSize: 22, color: Colors.red)),
                           ),
                         ],
                       ),
@@ -269,12 +269,12 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
                           const SizedBox(height: 4),
                           medAsync.when(
                             data: (data) {
-                              if (data == null) return const Text('Niciuna', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black));
-                              final text = data['medicationCodeableConcept']?['text'] ?? 'Tratament';
+                              if (data == null) return Text(AppStrings.of(lang, 'doctor.none'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black));
+                              final text = data['medicationCodeableConcept']?['text'] ?? AppStrings.of(lang, 'doctor.treatment');
                               return Text(text, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black));
                             },
                             loading: () => const CircularProgressIndicator(color: Color(0xFF5BA4CF)),
-                            error: (err, stack) => const Text('Eroare', style: TextStyle(fontSize: 22, color: Colors.red)),
+                            error: (err, stack) => Text(AppStrings.of(lang, 'doctor.error'), style: const TextStyle(fontSize: 22, color: Colors.red)),
                           ),
                         ],
                       ),
