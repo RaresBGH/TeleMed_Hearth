@@ -14,72 +14,83 @@ import 'auth_provider.dart';
 
 enum SessionState { idle, recording, processing, success, emergency, error }
 
-class MedicalSessionNotifier extends Notifier<SessionState> {
-  String? errorMessage;
+// ── Immutable state ───────────────────────────────────────────────────────────
 
-  /// The `response` text returned by the AI — displayed on MedicalResponseScreen.
-  String? lastAiResponse;
+class MedicalSessionState {
+  final SessionState sessionState;
+  final String? lastAiResponse;
+  final bool lastIsEmergency;
+  final List<ChatMessage>? lastResumeMessages;
+  final String? lastResumeObservationId;
+  final String? errorMessage;
 
-  /// Always false in the success path (emergency=true throws before reaching success).
-  /// Carried as a field so MedicalResponseScreen can read it from the notifier.
-  bool lastIsEmergency = false;
+  const MedicalSessionState({
+    required this.sessionState,
+    this.lastAiResponse,
+    this.lastIsEmergency = false,
+    this.lastResumeMessages,
+    this.lastResumeObservationId,
+    this.errorMessage,
+  });
 
-  /// Pre-populated messages when resuming a saved dialog from Dosar Medical.
-  /// Null on normal triage entry; cleared by reset().
-  List<ChatMessage>? lastResumeMessages;
+  static const idle = MedicalSessionState(sessionState: SessionState.idle);
+}
 
-  /// FHIR Observation ID of the entry being resumed.
-  /// When set, finalizeConsultation() updates the existing Observation instead
-  /// of creating a new one, preventing duplicate Dosar Medical entries.
-  String? lastResumeObservationId;
+// ── Notifier ──────────────────────────────────────────────────────────────────
 
+class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   @override
-  SessionState build() => SessionState.idle;
+  MedicalSessionState build() => MedicalSessionState.idle;
 
   AiEngineService get _aiEngineService => ref.read(aiEngineServiceProvider);
   FhirRepository  get _fhirRepository  => ref.read(fhirRepositoryProvider);
 
   void startRecording() {
-    state = SessionState.recording;
-    errorMessage = null;
+    state = const MedicalSessionState(sessionState: SessionState.recording);
   }
 
   Future<void> processAudio(File audioFile) async {
-    state = SessionState.processing;
+    state = const MedicalSessionState(sessionState: SessionState.processing);
     try {
       final result = await _aiEngineService.evaluateAudio(audioFile);
       await _handleResult(result);
     } on EmergencyFlagException catch (_) {
-      state = SessionState.emergency;
+      state = const MedicalSessionState(sessionState: SessionState.emergency);
     } catch (e) {
-      errorMessage = e.toString();
-      state = SessionState.error;
+      state = MedicalSessionState(
+        sessionState: SessionState.error,
+        errorMessage: e.toString(),
+      );
     }
   }
 
   Future<void> processMedia(File mediaFile) async {
-    state = SessionState.processing;
+    state = const MedicalSessionState(sessionState: SessionState.processing);
     try {
       final result = await _aiEngineService.evaluateMedia(mediaFile);
       await _handleResult(result);
     } on EmergencyFlagException catch (_) {
-      state = SessionState.emergency;
+      state = const MedicalSessionState(sessionState: SessionState.emergency);
     } catch (e) {
-      errorMessage = e.toString();
-      state = SessionState.error;
+      state = MedicalSessionState(
+        sessionState: SessionState.error,
+        errorMessage: e.toString(),
+      );
     }
   }
 
   Future<void> processText(String text) async {
-    state = SessionState.processing;
+    state = const MedicalSessionState(sessionState: SessionState.processing);
     try {
       final result = await _aiEngineService.evaluateText(text);
       await _handleResult(result);
     } on EmergencyFlagException catch (_) {
-      state = SessionState.emergency;
+      state = const MedicalSessionState(sessionState: SessionState.emergency);
     } catch (e) {
-      errorMessage = e.toString();
-      state = SessionState.error;
+      state = MedicalSessionState(
+        sessionState: SessionState.error,
+        errorMessage: e.toString(),
+      );
     }
   }
 
@@ -87,9 +98,9 @@ class MedicalSessionNotifier extends Notifier<SessionState> {
   // doctor-side app. Auto-save is intentionally disabled — patient must
   // explicitly finalize.
   Future<void> finalizeConsultation(List<ChatMessage> messages) async {
-    final String cnp = ref.read(loginCnpProvider);
-    final String timestamp = DateTime.now().toIso8601String();
-    final String triageResponse = lastAiResponse ?? 'Triaj AI';
+    final String cnp           = ref.read(loginCnpProvider);
+    final String timestamp     = DateTime.now().toIso8601String();
+    final String triageResponse = state.lastAiResponse ?? 'Triaj AI';
 
     final StringBuffer noteBuffer = StringBuffer();
     for (final msg in messages) {
@@ -126,9 +137,8 @@ class MedicalSessionNotifier extends Notifier<SessionState> {
       ],
     };
 
-    final existingId = lastResumeObservationId;
+    final existingId = state.lastResumeObservationId;
     if (existingId != null && existingId.isNotEmpty) {
-      // Resume path — update the existing Observation instead of creating a new one.
       await _fhirRepository.updateObservation(existingId, observationPayload);
     } else {
       await _fhirRepository.saveObservation(observationPayload);
@@ -144,47 +154,33 @@ class MedicalSessionNotifier extends Notifier<SessionState> {
     required List<ChatMessage> messages,
     String? existingObservationId,
   }) {
-    lastAiResponse          = aiResponse;
-    lastIsEmergency         = false;
-    lastResumeMessages      = messages;
-    lastResumeObservationId = existingObservationId;
+    state = MedicalSessionState(
+      sessionState: state.sessionState,
+      lastAiResponse: aiResponse,
+      lastIsEmergency: false,
+      lastResumeMessages: messages,
+      lastResumeObservationId: existingObservationId,
+    );
   }
 
-  void reset() {
-    // Release the microphone before tearing down session state.
-    ref.read(audioRecordingServiceProvider).stopAndRelease();
-    state                   = SessionState.idle;
-    errorMessage            = null;
-    lastAiResponse          = null;
-    lastIsEmergency         = false;
-    lastResumeMessages      = null;
-    lastResumeObservationId = null;
+  Future<void> reset() async {
+    await ref.read(audioRecordingServiceProvider).stopAndRelease();
+    state = MedicalSessionState.idle;
   }
 
-  // ── Result parser ─────────────────────────────────────────────────────────
-  //
-  // AI schema: { response, emergency, confidence, doctor_summary }
-  //
-  // • response       — text shown to the patient on ConfirmationScreen
-  // • emergency      — bool; triggers EmergencyFlagException when true
-  //                    (AiEngineService already throws for confidence > 0.8;
-  //                     this catches any emergency=true that slipped through)
-  // • confidence     — float 0–1, forwarded to EmergencyFlagException
-  // • doctor_summary — stored as FHIR Observation text for the doctor
   Future<void> _handleResult(Map<String, dynamic> result) async {
-    lastAiResponse = result['response'] as String?;
-
-    final bool isEmergency = result['emergency'] == true;
+    final String? response  = result['response'] as String?;
+    final bool isEmergency  = result['emergency'] == true;
     if (isEmergency) {
       throw EmergencyFlagException(
         (result['confidence'] as num?)?.toDouble() ?? 0.0,
       );
     }
-
-    // No auto-save here — the single FHIR Observation is written only when
-    // the patient explicitly taps "Finalizează Dialogul". This prevents
-    // duplicate entries in Dosar Medical.
-    state = SessionState.success;
+    state = MedicalSessionState(
+      sessionState: SessionState.success,
+      lastAiResponse: response,
+      lastIsEmergency: false,
+    );
   }
 }
 
@@ -198,6 +194,6 @@ final aiEngineServiceProvider = Provider<AiEngineService>((ref) {
 });
 
 final medicalSessionProvider =
-    NotifierProvider<MedicalSessionNotifier, SessionState>(() {
+    NotifierProvider<MedicalSessionNotifier, MedicalSessionState>(() {
   return MedicalSessionNotifier();
 });

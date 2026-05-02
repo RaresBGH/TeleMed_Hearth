@@ -132,8 +132,8 @@ class _MedicalResponseScreenState
     if (choice == true) {
       await _onFinalize();
     } else if (choice == false) {
-      // Discard — reset() → SessionState.idle → AppRoute.home
-      ref.read(medicalSessionProvider.notifier).reset();
+      // Discard — reset() → SessionState.idle → AppRoute.dashboard
+      await ref.read(medicalSessionProvider.notifier).reset();
     }
     // choice == null means the dialog was dismissed; stay in chat.
   }
@@ -158,7 +158,7 @@ class _MedicalResponseScreenState
     final String text =
         (result['response'] as String?)?.trim().isNotEmpty == true
             ? result['response'] as String
-            : 'Nu am înțeles. Vă rog reformulați.';
+            : AppStrings.of(_lang, 'chat.no_understand');
     if (!mounted) return;
     setState(() {
       _isProcessing = false;
@@ -182,7 +182,7 @@ class _MedicalResponseScreenState
         // Show patient's own bubble immediately while AI processes.
         _messages.add(ChatMessage(
             role: 'patient',
-            text: '🎤 Mesaj vocal',
+            text: AppStrings.of(_lang, 'chat.voice_bubble'),
             timestamp: DateTime.now()));
       });
       _scrollToBottom();
@@ -209,9 +209,9 @@ class _MedicalResponseScreenState
       final hasPermission = await audioService.requestPermission();
       if (!mounted) return;
       if (!hasPermission) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Permisiunea pentru microfon este necesară.',
-              style: TextStyle(fontSize: 16)),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(AppStrings.of(_lang, 'chat.mic_no_perm'),
+              style: const TextStyle(fontSize: 16)),
         ));
         return;
       }
@@ -230,9 +230,9 @@ class _MedicalResponseScreenState
     if (!mounted) return;
 
     if (!hasPermission) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Permisiunea pentru cameră este necesară.',
-            style: TextStyle(fontSize: 16)),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppStrings.of(_lang, 'chat.cam_no_perm'),
+            style: const TextStyle(fontSize: 16)),
       ));
       return;
     }
@@ -246,7 +246,7 @@ class _MedicalResponseScreenState
       // Show patient's own bubble immediately while AI processes.
       _messages.add(ChatMessage(
           role: 'patient',
-          text: '📷 Fotografie',
+          text: AppStrings.of(_lang, 'chat.photo_bubble'),
           timestamp: DateTime.now()));
     });
     _scrollToBottom();
@@ -337,27 +337,27 @@ class _MedicalResponseScreenState
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Dialogul a fost salvat în dosarul medical',
-            style: TextStyle(fontSize: 16),
+            AppStrings.of(_lang, 'chat.saved_snack'),
+            style: const TextStyle(fontSize: 16),
           ),
-          backgroundColor: Color(0xFF2E7D32),
-          duration: Duration(seconds: 2),
+          backgroundColor: const Color(0xFF2E7D32),
+          duration: const Duration(seconds: 2),
         ),
       );
 
       await Future.delayed(const Duration(milliseconds: 1400));
       if (!mounted) return;
 
-      // Explicit patient finalization — navigate home, do not auto-save again.
-      ref.read(medicalSessionProvider.notifier).reset();
+      // Explicit patient finalization — reset session and return to dashboard.
+      await ref.read(medicalSessionProvider.notifier).reset();
     } catch (e) {
       if (!mounted) return;
       setState(() => _isFinalizing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Eroare la salvare: $e',
+          content: Text('${AppStrings.of(_lang, 'chat.save_error')} $e',
               style: const TextStyle(fontSize: 16)),
           backgroundColor: Colors.red,
         ),
@@ -638,14 +638,14 @@ class _MedicalResponseScreenState
             ),
           ),
           child: _isPhotoAnalyzing
-              ? const Row(
+              ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.photo_camera, size: 16, color: _brandBlue),
-                    SizedBox(width: 8),
+                    const Icon(Icons.photo_camera, size: 16, color: _brandBlue),
+                    const SizedBox(width: 8),
                     Text(
-                      'Se analizează fotografia...',
-                      style: TextStyle(
+                      AppStrings.of(_lang, 'chat.analyzing_photo'),
+                      style: const TextStyle(
                         fontSize: 15,
                         color: _muted,
                         fontStyle: FontStyle.italic,

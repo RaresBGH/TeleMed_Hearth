@@ -75,9 +75,6 @@ dependencies {
     // --- Google Android FHIR SDK ---
     // Local FHIR Engine: encrypted SQLite storage for Observation/Condition/Encounter resources
     implementation("com.google.android.fhir:engine:1.2.0")
-    // Structured Data Capture: FHIR Questionnaire rendering (future consent forms)
-    implementation("com.google.android.fhir:data-capture:1.1.0")
-
     // LiteRT-LM — on-device Gemma 4 E2B inference (Google Maven)
     implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.2")
 

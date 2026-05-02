@@ -47,7 +47,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
     String? newAgeError;
 
     if (checksumOk && !CnpService.isAdult(cnp)) {
-      newAgeError = 'Vârsta minimă este 18 ani.';
+      newAgeError = AppStrings.of(ref.read(languageProvider), 'login.age_error');
       newValid = false;
     }
 
@@ -63,7 +63,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
     final phone = _phoneController.text.trim();
     final valid = RegExp(r'^07\d{8}$').hasMatch(phone);
     final String? err = (phone.isNotEmpty && !valid)
-        ? 'Număr de telefon invalid. Format: 07XXXXXXXX'
+        ? AppStrings.of(ref.read(languageProvider), 'login.phone_error')
         : null;
     if (valid != _phoneValid || err != _phoneError) {
       setState(() {
@@ -80,23 +80,24 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (BuildContext context) {
+        final lang = ref.read(languageProvider);
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Ajutor Multimodal',
-                    style: TextStyle(
+                Text(AppStrings.of(lang, 'login.help_title'),
+                    style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.black)),
                 const SizedBox(height: 16),
-                const Text('Alegeți metoda preferată de a completa datele:',
-                    style: TextStyle(fontSize: 18, color: Colors.black)),
+                Text(AppStrings.of(lang, 'login.help_desc'),
+                    style: const TextStyle(fontSize: 18, color: Colors.black)),
                 const SizedBox(height: 32),
                 AccessibleTouchTarget(
-                  semanticLabel: 'Folosește Camera pentru Buletin',
+                  semanticLabel: AppStrings.of(lang, 'login.camera_sem'),
                   onTap: () {
                     Navigator.pop(context);
                     _extractViaCamera();
@@ -108,13 +109,13 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                       color: const Color(0xFF5BA4CF),
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.camera_alt, color: Colors.white, size: 32),
-                        SizedBox(width: 16),
-                        Text('Cameră (Buletin)',
-                            style: TextStyle(
+                        const Icon(Icons.camera_alt, color: Colors.white, size: 32),
+                        const SizedBox(width: 16),
+                        Text(AppStrings.of(lang, 'login.camera_btn'),
+                            style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white)),
@@ -124,7 +125,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                 ),
                 const SizedBox(height: 16),
                 AccessibleTouchTarget(
-                  semanticLabel: 'Folosește Vocea',
+                  semanticLabel: AppStrings.of(lang, 'login.voice_sem'),
                   onTap: () {
                     Navigator.pop(context);
                     _extractViaVoice();
@@ -136,13 +137,13 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                       color: const Color(0xFF5BA4CF),
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.mic, color: Colors.white, size: 32),
-                        SizedBox(width: 16),
-                        Text('Voce',
-                            style: TextStyle(
+                        const Icon(Icons.mic, color: Colors.white, size: 32),
+                        const SizedBox(width: 16),
+                        Text(AppStrings.of(lang, 'login.voice_btn'),
+                            style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white)),
@@ -166,9 +167,9 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       final hasPermission = await cameraService.requestPermission();
       if (!hasPermission) {
         if (mounted) {
-          messenger.showSnackBar(const SnackBar(
-            content: Text('Permisiunea pentru cameră este necesară.',
-                style: TextStyle(fontSize: 18)),
+          messenger.showSnackBar(SnackBar(
+            content: Text(AppStrings.of(ref.read(languageProvider), 'home.cam_no_perm'),
+                style: const TextStyle(fontSize: 18)),
           ));
         }
         return;
@@ -195,8 +196,8 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       }
     } catch (e) {
       messenger.showSnackBar(SnackBar(
-          content:
-              Text('Eroare cameră: $e', style: const TextStyle(fontSize: 18))));
+          content: Text('${AppStrings.of(ref.read(languageProvider), 'login.cam_error')} $e',
+              style: const TextStyle(fontSize: 18))));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -209,9 +210,9 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
     final hasPermission = await audioService.requestPermission();
     if (!mounted) return;
     if (!hasPermission) {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Permisiunea pentru microfon este necesară.',
-            style: TextStyle(fontSize: 18)),
+      messenger.showSnackBar(SnackBar(
+        content: Text(AppStrings.of(ref.read(languageProvider), 'home.mic_no_perm'),
+            style: const TextStyle(fontSize: 18)),
       ));
       return;
     }
@@ -222,10 +223,10 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       await audioService.startRecording();
 
       // Show countdown so the patient knows to speak now.
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Vorbiți acum… (8 secunde)',
-            style: TextStyle(fontSize: 18)),
-        duration: Duration(seconds: 8),
+      messenger.showSnackBar(SnackBar(
+        content: Text(AppStrings.of(ref.read(languageProvider), 'login.voice_listening'),
+            style: const TextStyle(fontSize: 18)),
+        duration: const Duration(seconds: 8),
       ));
 
       await Future.delayed(const Duration(seconds: 8));
@@ -233,9 +234,9 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
 
       final wavPath = await audioService.stopRecording();
       if (wavPath.isEmpty) {
-        messenger.showSnackBar(const SnackBar(
-          content: Text('Nu am putut extrage datele. Vă rugăm completați manual.',
-              style: TextStyle(fontSize: 18)),
+        messenger.showSnackBar(SnackBar(
+          content: Text(AppStrings.of(ref.read(languageProvider), 'login.voice_no_data'),
+              style: const TextStyle(fontSize: 18)),
         ));
         return;
       }
@@ -252,10 +253,10 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       final phone = result['phone'] as String?;
 
       if ((cnp == null || cnp.isEmpty) && (phone == null || phone.isEmpty)) {
-        messenger.showSnackBar(const SnackBar(
+        messenger.showSnackBar(SnackBar(
           content: Text(
-            'Nu am putut extrage datele. Vă rugăm completați manual.',
-            style: TextStyle(fontSize: 18),
+            AppStrings.of(ref.read(languageProvider), 'login.voice_no_data'),
+            style: const TextStyle(fontSize: 18),
           ),
         ));
       } else {
@@ -264,7 +265,8 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       }
     } catch (e) {
       messenger.showSnackBar(SnackBar(
-          content: Text('Eroare voce: $e', style: const TextStyle(fontSize: 18))));
+          content: Text('${AppStrings.of(ref.read(languageProvider), 'login.voice_error')} $e',
+              style: const TextStyle(fontSize: 18))));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -275,12 +277,12 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
     final cnp = _cnpController.text.trim();
     ref.read(loginCnpProvider.notifier).setCnp(cnp);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          'Codul de verificare a fost trimis la numărul asociat CNP-ului dumneavoastră. Introduceți codul primit.',
-          style: TextStyle(fontSize: 16),
+          AppStrings.of(ref.read(languageProvider), 'login.otp_sent'),
+          style: const TextStyle(fontSize: 16),
         ),
-        duration: Duration(seconds: 4),
+        duration: const Duration(seconds: 4),
       ),
     );
     ref
@@ -300,13 +302,13 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
         backgroundColor: const Color(0xFFF3F3F3),
         elevation: 0,
         centerTitle: true,
-        title: const Row(
+        title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.shield, color: Color(0xFF5BA4CF), size: 32),
-            SizedBox(width: 8),
-            Text('Autentificare',
-                style: TextStyle(
+            const Icon(Icons.shield, color: Color(0xFF5BA4CF), size: 32),
+            const SizedBox(width: 8),
+            Text(AppStrings.of(lang, 'login.appbar'),
+                style: const TextStyle(
                     color: Color(0xFF5BA4CF),
                     fontSize: 20,
                     fontWeight: FontWeight.bold)),
@@ -380,12 +382,12 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.black),
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(
+                                contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 24),
-                                hintText: 'Introduceți cele 13 cifre',
-                                hintStyle: TextStyle(
+                                hintText: AppStrings.of(lang, 'login.cnp_hint'),
+                                hintStyle: const TextStyle(
                                     fontSize: 24, color: Colors.black54),
                               ),
                             ),
@@ -451,12 +453,12 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.black),
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(
+                                contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 24),
-                                hintText: 'Ex: 0722 000 000',
-                                hintStyle: TextStyle(
+                                hintText: AppStrings.of(lang, 'login.phone_hint'),
+                                hintStyle: const TextStyle(
                                     fontSize: 24, color: Colors.black54),
                               ),
                             ),
@@ -493,16 +495,16 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                             left: BorderSide(
                                 color: Color(0xFF5BA4CF), width: 8)),
                       ),
-                      child: const Row(
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.info,
+                          const Icon(Icons.info,
                               color: Color(0xFF5BA4CF), size: 36),
-                          SizedBox(width: 16),
+                          const SizedBox(width: 16),
                           Expanded(
                             child: Text(
-                              'Dacă aveți nevoie de ajutor, apăsați butonul de Ajutor de mai jos. Câmpurile pot fi completate audio sau prin fotografierea actului de identitate.',
-                              style: TextStyle(
+                              AppStrings.of(lang, 'login.info_text'),
+                              style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.black),
@@ -515,7 +517,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
 
                     // ── CONTINUĂ ───────────────────────────────────────────
                     AccessibleTouchTarget(
-                      semanticLabel: 'Continuă autentificarea',
+                      semanticLabel: AppStrings.of(lang, 'login.continue_sem'),
                       onTap: _onContinuaTap,
                       child: Container(
                         height: 96,
@@ -554,7 +556,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
 
                     // ── Ajutor link (moved from bottom nav) ────────────────
                     AccessibleTouchTarget(
-                      semanticLabel: 'Deschide meniu ajutor',
+                      semanticLabel: AppStrings.of(lang, 'login.help_sem'),
                       onTap: _showAjutorModal,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,

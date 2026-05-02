@@ -1,16 +1,15 @@
 // Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
 // You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
 
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_auth/smart_auth.dart';
-import 'package:telemed_k/ui/widgets/legal_document_modal.dart';
+import '../widgets/legal_document_modal.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
+import '../../core/services/ai_engine_service.dart';
 import '../../core/services/cnp_service.dart';
 
 class LoginVerificationScreen extends ConsumerStatefulWidget {
@@ -98,7 +97,7 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
             await ref.read(patientAuthProvider.notifier).loadPatient(cnp);
         if (!mounted) return;
         if (isReturning) {
-          final modelOnDisk = await _isModelOnDisk();
+          final modelOnDisk = await AiEngineService.isModelOnDisk();
           if (!mounted) return;
           ref.read(appNavigationProvider.notifier).navigateTo(
             modelOnDisk ? AppRoute.dashboard : AppRoute.modelDownload,
@@ -117,12 +116,12 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
             _isLocked = true;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                'Prea multe încercări. Contactați clinica.',
-                style: TextStyle(fontSize: 18),
+                AppStrings.of(ref.read(languageProvider), 'otp.locked_msg'),
+                style: const TextStyle(fontSize: 18),
               ),
-              duration: Duration(seconds: 6),
+              duration: const Duration(seconds: 6),
               backgroundColor: Colors.red,
             ),
           );
@@ -131,7 +130,7 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Cod incorect. Vă rugăm încercați din nou. (${_maxAttempts - newAttempts} încercări rămase)',
+                AppStrings.otpWrongCode(ref.read(languageProvider), _maxAttempts - newAttempts),
                 style: const TextStyle(fontSize: 18),
               ),
               backgroundColor: Colors.orange.shade800,
@@ -224,15 +223,15 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
                   border: const Border(left: BorderSide(color: Color(0xFF5BA4CF), width: 8)),
                 ),
                 padding: const EdgeInsets.all(24),
-                child: const Row(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.security, color: Color(0xFF5BA4CF), size: 32),
-                    SizedBox(width: 16),
+                    const Icon(Icons.security, color: Color(0xFF5BA4CF), size: 32),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Text(
-                        'Siguranța datelor dumneavoastră este prioritatea noastră. Prin acest cod, confirmăm identitatea dumneavoastră pentru a vă proteja dosarul medical.',
-                        style: TextStyle(color: Color(0xFF000000), fontSize: 18, height: 1.5),
+                        AppStrings.of(lang, 'otp.security_text'),
+                        style: const TextStyle(color: Color(0xFF000000), fontSize: 18, height: 1.5),
                       ),
                     ),
                   ],
@@ -250,10 +249,10 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.red, width: 2),
                   ),
-                  child: const Text(
-                    'Prea multe încercări. Contactați clinica.',
+                  child: Text(
+                    AppStrings.of(lang, 'otp.locked_msg'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red),
                   ),
                 )
               else
@@ -308,7 +307,7 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
                   ElevatedButton(
                     onPressed: () => _openLegalModal(
                       context,
-                      'Termeni de Utilizare',
+                      AppStrings.of(lang, 'otp.terms_title'),
                       'Placeholder pentru Termeni de Utilizare.\n\n1. Acceptarea Termenilor\nPrin accesarea și utilizarea acestei aplicații, confirmați că ați citit, înțeles și sunteți de acord cu acești termeni. Serviciul nostru este dedicat exclusiv utilizării personale, oferind suport pentru sănătate și monitorizare zilnică, respectând cele mai înalte standarde de etică digitală.\n\n2. Confidențialitatea Datelor\nProtecția informațiilor dumneavoastră este prioritatea noastră absolută.',
                     ),
                     style: ElevatedButton.styleFrom(
@@ -321,13 +320,13 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
                       ),
                       elevation: 0,
                     ),
-                    child: const Text('📖 Termeni de Utilizare', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    child: Text(AppStrings.of(lang, 'otp.terms_btn'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => _openLegalModal(
                       context,
-                      'Politica de Confidențialitate',
+                      AppStrings.of(lang, 'otp.privacy_title'),
                       'Placeholder pentru Politica de Confidențialitate.\n\nModul de stocare al datelor:\nToate datele medicale sunt stocate local pe dispozitiv via Google Android FHIR SDK SQLCipher.\n\nFără Telemetrie Ascunsă:\nInference-ul se realizează exclusiv On-Device utilizând LiteRT-LM (Gemma 4 E2B). Nu vor exista apeluri către servere cloud pentru procesarea RAG.\n',
                     ),
                     style: ElevatedButton.styleFrom(
@@ -340,7 +339,7 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
                       ),
                       elevation: 0,
                     ),
-                    child: const Text('🔒 Politica de Confidențialitate', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    child: Text(AppStrings.of(lang, 'otp.privacy_btn'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -348,11 +347,10 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
               const SizedBox(height: 32),
 
               // Demo hint — visible to competition judges
-              const Text(
-                'Mod demonstrativ: codul este format din ultimele 6 cifre ale CNP-ului '
-                '(ex: CNP 1850415150017 → cod 150017)',
+              Text(
+                AppStrings.of(lang, 'otp.demo_hint'),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.black38),
+                style: const TextStyle(fontSize: 13, color: Colors.black38),
               ),
 
               const SizedBox(height: 24),
@@ -363,16 +361,4 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
     );
   }
 
-  /// Checks whether the Gemma model file is present on disk.
-  /// Used after successful OTP to decide whether to show the download screen.
-  static Future<bool> _isModelOnDisk() async {
-    try {
-      const channel = MethodChannel('com.telemed_k/litert_lm');
-      final String? path = await channel.invokeMethod<String>('getModelPath');
-      if (path == null) return false;
-      return File(path).existsSync();
-    } catch (_) {
-      return false;
-    }
-  }
 }

@@ -10,7 +10,6 @@ import 'medical_session_provider.dart';
 enum AppRoute {
   dashboard,
   home,
-  confirmation,
   medicalResponse,
   emergency,
   history,
@@ -26,7 +25,7 @@ enum AppRoute {
 class AppNavigationNotifier extends Notifier<AppRoute> {
   @override
   AppRoute build() {
-    ref.listen<SessionState>(medicalSessionProvider, (previous, next) {
+    ref.listen<MedicalSessionState>(medicalSessionProvider, (previous, next) {
       final currentState = state;
       // Don't interrupt auth or download flows with session-state changes.
       if (currentState == AppRoute.loginIdentity ||
@@ -35,11 +34,11 @@ class AppNavigationNotifier extends Notifier<AppRoute> {
           currentState == AppRoute.profileCompletion) {
         return;
       }
-      if (next == SessionState.emergency) {
+      if (next.sessionState == SessionState.emergency) {
         state = AppRoute.emergency;
-      } else if (next == SessionState.success) {
+      } else if (next.sessionState == SessionState.success) {
         state = AppRoute.medicalResponse;
-      } else if (next == SessionState.idle) {
+      } else if (next.sessionState == SessionState.idle) {
         state = AppRoute.dashboard;
       }
     });

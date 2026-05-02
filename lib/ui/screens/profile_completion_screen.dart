@@ -3,8 +3,6 @@
 //
 // TeleMed_K: Offline-first telemedicine app for seniors
 
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +11,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
+import '../../core/services/ai_engine_service.dart';
 import '../theme/theme.dart';
 
 class ProfileCompletionScreen extends ConsumerStatefulWidget {
@@ -71,7 +70,7 @@ class _ProfileCompletionScreenState
       final modelOnDisk = await _isModelOnDisk();
       if (!mounted) return;
       ref.read(appNavigationProvider.notifier).navigateTo(
-          modelOnDisk ? AppRoute.dashboard : AppRoute.modelDownload);
+          await AiEngineService.isModelOnDisk() ? AppRoute.dashboard : AppRoute.modelDownload);
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -79,17 +78,6 @@ class _ProfileCompletionScreenState
           _errorMessage = 'Eroare la salvare. Vă rugăm încercați din nou.';
         });
       }
-    }
-  }
-
-  static Future<bool> _isModelOnDisk() async {
-    try {
-      const channel = MethodChannel('com.telemed_k/litert_lm');
-      final String? path = await channel.invokeMethod<String>('getModelPath');
-      if (path == null) return false;
-      return File(path).existsSync();
-    } catch (_) {
-      return false;
     }
   }
 

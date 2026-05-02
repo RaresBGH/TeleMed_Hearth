@@ -144,7 +144,7 @@ class AiEngineService {
   ///   2. /sdcard/Download/ (sideloaded for testing — used directly, not copied)
   ///
   /// Returns null if absent from both locations.
-  Future<String?> _getModelPath() async {
+  static Future<String?> _getModelPath() async {
     try {
       // Check primary path first (app-private storage, set by native layer).
       final String? nativePath =
@@ -173,6 +173,10 @@ class AiEngineService {
       return null;
     }
   }
+
+  /// Returns true if the model file is present on disk (either app-private or
+  /// sdcard path). Safe to call from any context; never throws.
+  static Future<bool> isModelOnDisk() async => (await _getModelPath()) != null;
 
   /// Initializes the LiteRT-LM engine with the locally stored model file.
   ///
@@ -212,6 +216,22 @@ class AiEngineService {
   // Inference
   // ──────────────────────────────────────────────────────────────────────────
 
+  /// Builds the system prompt string from [customPrompt] and the patient's
+  /// local FHIR history. Called by all three evaluate methods.
+  Future<String> _buildHistoryContext(String? customPrompt) async {
+    final List<Map<String, dynamic>> patientHistory =
+        await _fhirRepository.getPatientHistory();
+    final buffer = StringBuffer();
+    if (customPrompt != null) buffer.writeln(customPrompt);
+    if (patientHistory.isNotEmpty) {
+      buffer.writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):');
+      for (final resource in patientHistory) {
+        buffer.writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
+      }
+    }
+    return buffer.toString();
+  }
+
   /// Feeds a WAV audio file to the LiteRT-LM engine for triage analysis.
   /// Injects the patient's FHIR history as system-prompt context (local RAG).
   /// Returns [_fallbackResponse] if the model is not yet initialized.
@@ -224,27 +244,12 @@ class AiEngineService {
     }
 
     try {
-      final List<Map<String, dynamic>> patientHistory =
-          await _fhirRepository.getPatientHistory();
-
-      final StringBuffer systemPromptBuffer = StringBuffer();
-      if (customPrompt != null) {
-        systemPromptBuffer.writeln(customPrompt);
-      }
-      // Base role, language, and acknowledgment structure are provided by
-      // LiteRtLmChannel.buildSystemPrompt() on the native side.
-      if (patientHistory.isNotEmpty) {
-        systemPromptBuffer.writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):');
-        for (final resource in patientHistory) {
-          systemPromptBuffer
-              .writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
-        }
-      }
+      final String systemPrompt = await _buildHistoryContext(customPrompt);
 
       final String? jsonResponse =
           await _channel.invokeMethod<String>('evaluateAudio', {
         'audioPath': audioFile.path,
-        'systemPrompt': systemPromptBuffer.toString(),
+        'systemPrompt': systemPrompt,
         'constraintFormat': 'json',
       });
 
@@ -281,27 +286,12 @@ class AiEngineService {
     }
 
     try {
-      final List<Map<String, dynamic>> patientHistory =
-          await _fhirRepository.getPatientHistory();
-
-      final StringBuffer systemPromptBuffer = StringBuffer();
-      if (customPrompt != null) {
-        systemPromptBuffer.writeln(customPrompt);
-      }
-      // Base role, language, and acknowledgment structure are provided by
-      // LiteRtLmChannel.buildSystemPrompt() on the native side.
-      if (patientHistory.isNotEmpty) {
-        systemPromptBuffer.writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):');
-        for (final resource in patientHistory) {
-          systemPromptBuffer
-              .writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
-        }
-      }
+      final String systemPrompt = await _buildHistoryContext(customPrompt);
 
       final String? jsonResponse =
           await _channel.invokeMethod<String>('evaluateMedia', {
         'mediaPath': mediaFile.path,
-        'systemPrompt': systemPromptBuffer.toString(),
+        'systemPrompt': systemPrompt,
         'constraintFormat': 'json',
         'maxDurationSeconds': 60,
       });
@@ -339,27 +329,12 @@ class AiEngineService {
     }
 
     try {
-      final List<Map<String, dynamic>> patientHistory =
-          await _fhirRepository.getPatientHistory();
-
-      final StringBuffer systemPromptBuffer = StringBuffer();
-      if (customPrompt != null) {
-        systemPromptBuffer.writeln(customPrompt);
-      }
-      // Base role, language, and acknowledgment structure are provided by
-      // LiteRtLmChannel.buildSystemPrompt() on the native side.
-      if (patientHistory.isNotEmpty) {
-        systemPromptBuffer.writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):');
-        for (final resource in patientHistory) {
-          systemPromptBuffer
-              .writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
-        }
-      }
+      final String systemPrompt = await _buildHistoryContext(customPrompt);
 
       final String? jsonResponse =
           await _channel.invokeMethod<String>('runInference', {
         'text': text,
-        'systemPrompt': systemPromptBuffer.toString(),
+        'systemPrompt': systemPrompt,
       });
 
       if (jsonResponse == null || jsonResponse.isEmpty) {

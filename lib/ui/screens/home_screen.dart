@@ -14,11 +14,10 @@ import '../widgets/language_toggle.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
+import '../../core/providers/ai_ready_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
-import '../../core/services/ai_engine_service.dart';
 import '../../core/services/audio_recording_service.dart';
 import '../../core/services/camera_service.dart';
-import '../../data/repositories/fhir_repository.dart';
 
 // ── Design tokens (Stitch palette) ───────────────────────────────────────────
 const Color _bg            = Color(0xFFF7F9FE); // surface-bright
@@ -38,18 +37,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isRecording = false;
-  bool _aiReady     = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkAiStatus();
-  }
-
-  Future<void> _checkAiStatus() async {
-    final ready = await AiEngineService(FhirRepository()).initializeModel();
-    if (mounted) setState(() => _aiReady = ready);
-  }
 
   // ── Camera ─────────────────────────────────────────────────────────────────
 
@@ -61,9 +48,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     if (!hasPermission) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Permisiunea pentru cameră este necesară.',
-              style: TextStyle(fontSize: 18)),
+        SnackBar(
+          content: Text(AppStrings.of(ref.read(languageProvider), 'home.cam_no_perm'),
+              style: const TextStyle(fontSize: 18)),
         ),
       );
       return;
@@ -91,9 +78,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       if (wavPath.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Eroare la oprirea înregistrării.',
-                style: TextStyle(fontSize: 18)),
+          SnackBar(
+            content: Text(AppStrings.of(ref.read(languageProvider), 'home.mic_stop_error'),
+                style: const TextStyle(fontSize: 18)),
           ),
         );
         return;
@@ -109,9 +96,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       if (!hasPermission) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Permisiunea pentru microfon este necesară.',
-                style: TextStyle(fontSize: 18)),
+          SnackBar(
+            content: Text(AppStrings.of(ref.read(languageProvider), 'home.mic_no_perm'),
+                style: const TextStyle(fontSize: 18)),
           ),
         );
         return;
@@ -125,7 +112,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Nu s-a putut porni înregistrarea: $e',
+            content: Text('${AppStrings.of(ref.read(languageProvider), 'home.mic_error')} $e',
                 style: const TextStyle(fontSize: 18)),
           ),
         );
@@ -192,9 +179,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sessionState = ref.watch(medicalSessionProvider);
+    final sessionState = ref.watch(medicalSessionProvider).sessionState;
     final patientName  = ref.watch(patientAuthProvider).patientFirstName;
     final lang         = ref.watch(languageProvider);
+    final bool _aiReady = ref.watch(aiReadyProvider).maybeWhen(
+      data: (v) => v,
+      orElse: () => false,
+    );
 
     return Scaffold(
       backgroundColor: _bg,

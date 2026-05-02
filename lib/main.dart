@@ -4,10 +4,8 @@
 // TeleMed_K: Offline-first telemedicine app for seniors
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/providers/app_navigation_provider.dart';
@@ -16,7 +14,6 @@ import 'data/repositories/fhir_repository.dart';
 import 'ui/theme/theme.dart';
 import 'ui/screens/dashboard_screen.dart';
 import 'ui/screens/home_screen.dart';
-import 'ui/screens/confirmation_screen.dart';
 import 'ui/screens/emergency_screen.dart';
 import 'ui/screens/history_screen.dart';
 import 'ui/screens/model_download_screen.dart';
@@ -35,8 +32,9 @@ Future<void> main() async {
   // Initialize the local FHIR engine (encrypted SQLite) and seed mock data
   // before the widget tree renders. Must run after ensureInitialized() because
   // it uses a MethodChannel to talk to the native Android FHIR SDK.
+  final fhirRepo = FhirRepository();
   try {
-    await FhirRepository().initialize();
+    await fhirRepo.initialize();
   } catch (_) {
     // Non-fatal during development when running on host without the native
     // Android FHIR SDK (e.g. flutter test on desktop).
@@ -45,9 +43,8 @@ Future<void> main() async {
   // If model is already on disk, start loading it in background while the
   // user completes login. Navigation to the download screen now happens
   // after successful OTP verification, not here.
-  final bool modelOnDisk = await _isModelFileOnDisk();
-  if (modelOnDisk) {
-    unawaited(AiEngineService(FhirRepository()).initializeModel());
+  if (await AiEngineService.isModelOnDisk()) {
+    unawaited(AiEngineService(fhirRepo).initializeModel());
   }
 
   runApp(
@@ -55,19 +52,6 @@ Future<void> main() async {
       child: TeleMedApp(),
     ),
   );
-}
-
-/// Calls getModelPath on the LiteRT-LM channel and checks whether the file
-/// exists on disk. Fast (local IO only) — safe to await before runApp.
-Future<bool> _isModelFileOnDisk() async {
-  try {
-    const channel = MethodChannel('com.telemed_k/litert_lm');
-    final String? path = await channel.invokeMethod<String>('getModelPath');
-    if (path == null) return false;
-    return File(path).existsSync();
-  } catch (_) {
-    return false;
-  }
 }
 
 class TeleMedApp extends ConsumerWidget {
@@ -88,16 +72,13 @@ class TeleMedApp extends ConsumerWidget {
       case AppRoute.emergency:
         screen = const EmergencyScreen();
         break;
-      case AppRoute.confirmation:
-        screen = const ConfirmationScreen();
-        break;
       case AppRoute.medicalResponse:
-        final notifier = ref.read(medicalSessionProvider.notifier);
+        final msState = ref.read(medicalSessionProvider);
         screen = MedicalResponseScreen(
           initialResponse:
-              notifier.lastAiResponse ?? 'Simptomele au fost înregistrate.',
-          isEmergency: notifier.lastIsEmergency,
-          initialMessages: notifier.lastResumeMessages,
+              msState.lastAiResponse ?? 'Simptomele au fost înregistrate.',
+          isEmergency: msState.lastIsEmergency,
+          initialMessages: msState.lastResumeMessages,
         );
         break;
       case AppRoute.home:
