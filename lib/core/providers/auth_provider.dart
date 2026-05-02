@@ -62,6 +62,11 @@ class PatientAuthNotifier extends Notifier<PatientAuthState> {
   }
 
   /// Creates a new FHIR Patient resource and stores the first name in state.
+  /// Clears auth state — called after account deletion before navigating to login.
+  void reset() {
+    state = const PatientAuthState();
+  }
+
   Future<void> registerNewPatient({
     required String cnp,
     required String firstName,

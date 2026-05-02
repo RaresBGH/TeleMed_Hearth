@@ -191,7 +191,7 @@ class _VideoConsultationScreenState
 
   @override
   Widget build(BuildContext context) {
-    final lang = ref.watch(languageProvider);
+    ref.watch(languageProvider); // register watcher so _lang getter rebuilds on change
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(

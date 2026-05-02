@@ -29,9 +29,7 @@ class LegalDocumentModal extends StatelessWidget {
   });
 
   static const Color _primary = Color(0xFF5BA4CF);
-  static const Color _bg      = Color(0xFFF9F9F9);
   static const Color _surface = Color(0xFFF3F3F3);
-  static const Color _surfaceHigh = Color(0xFFE8E8E8);
   static const Color _onSurface  = Color(0xFF1A1C1C);
   static const Color _onSurfaceVariant = Color(0xFF40493D);
 

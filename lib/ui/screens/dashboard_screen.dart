@@ -124,14 +124,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: const BoxDecoration(
-            color: Color(0xFFD0D3D8),
-            shape: BoxShape.circle,
+        Semantics(
+          button: true,
+          label: 'Profilul Meu',
+          child: GestureDetector(
+            onTap: () => ref.read(appNavigationProvider.notifier)
+                .navigateTo(AppRoute.patientProfile),
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: const BoxDecoration(
+                color: Color(0xFFD0D3D8),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.person, size: 26, color: Color(0xFF8A8E95)),
+            ),
           ),
-          child: const Icon(Icons.person, size: 26, color: Color(0xFF8A8E95)),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -347,9 +355,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         item['recordedDate'] as String? ?? '';
             final dateStr = iso.isNotEmpty ? DateFormatter.format(iso) : '';
             final status  = item['status'] as String?;
-            final code    = item['code'] as Map?;
-            final label   = code?['text'] as String? ??
-                            AppStrings.of(lang, 'dashboard.triage_dialog');
+            // label is always overridden by AppStrings in _ActivityItem below
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),

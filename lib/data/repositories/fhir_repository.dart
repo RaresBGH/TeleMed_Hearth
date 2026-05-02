@@ -49,6 +49,28 @@ class FhirRepository {
     }
   }
 
+  /// Updates an existing Patient FHIR resource.
+  /// [patientJson] must include the resource 'id' field so the FHIR engine
+  /// can locate the record to overwrite.
+  Future<void> updatePatient(Map<String, dynamic> patientJson) async {
+    try {
+      final String jsonString = jsonEncode(patientJson);
+      await _channel.invokeMethod<void>('updatePatient', {'resource': jsonString});
+    } on PlatformException catch (e) {
+      throw Exception('Secure local FHIR Patient Update failed: Error ${e.code}');
+    }
+  }
+
+  /// Deletes all FHIR resources belonging to the patient identified by [cnp].
+  /// Used during account deletion. Delegates filtering to the native layer.
+  Future<void> deleteAllForPatient(String cnp) async {
+    try {
+      await _channel.invokeMethod<void>('deletePatientData', {'cnp': cnp});
+    } on PlatformException catch (e) {
+      throw Exception('Secure local FHIR Patient Delete failed: Error ${e.code}');
+    }
+  }
+
   /// Creates a new Patient FHIR resource for a newly registered user.
   Future<void> savePatient(Map<String, dynamic> patientJson) async {
     try {
@@ -142,6 +164,31 @@ class FhirRepository {
       await _channel.invokeMethod<void>('updateEncounterConsent', {'callId': callId, 'consent': true});
     } on PlatformException catch (e) {
       throw Exception('Secure local FHIR Consent Write failed: Error ${e.code}');
+    }
+  }
+
+  /// Saves a new FHIR Appointment for the given patient booking.
+  /// [data] must contain: patientId, practitionerId, dateTimeIso,
+  /// durationMinutes, description, status.
+  Future<void> saveAppointment({required Map<String, dynamic> data}) async {
+    try {
+      await _channel.invokeMethod<void>('saveAppointment', data);
+    } on PlatformException catch (e) {
+      throw Exception('Secure local FHIR Appointment Write failed: Error ${e.code}');
+    }
+  }
+
+  /// Returns all FHIR Appointment resources for the patient identified by [cnp],
+  /// sorted by start date descending. Returns [] if no Appointments registered yet.
+  Future<List<Map<String, dynamic>>> getAppointments({required String cnp}) async {
+    try {
+      final String? result =
+          await _channel.invokeMethod<String>('getAppointments', {'cnp': cnp});
+      if (result == null) return [];
+      final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;
+      return parsed.cast<Map<String, dynamic>>();
+    } on PlatformException catch (e) {
+      throw Exception('Secure offline FHIR Appointment Read failed: Error ${e.code}');
     }
   }
 

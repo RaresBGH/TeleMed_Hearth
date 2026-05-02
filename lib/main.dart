@@ -7,6 +7,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'core/providers/app_navigation_provider.dart';
 import 'core/services/ai_engine_service.dart';
@@ -23,11 +24,17 @@ import 'ui/screens/video_consultation_screen.dart';
 import 'ui/screens/login_identity_screen.dart';
 import 'ui/screens/login_verification_screen.dart';
 import 'ui/screens/medical_response_screen.dart';
+import 'ui/screens/appointments_screen.dart';
+import 'ui/screens/patient_profile_screen.dart';
+import 'ui/screens/specialists_screen.dart';
 import 'ui/screens/profile_completion_screen.dart';
 import 'core/providers/medical_session_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Required for TableCalendar to render Romanian month/weekday names.
+  await initializeDateFormatting('ro_RO', null);
 
   // Initialize the local FHIR engine (encrypted SQLite) and seed mock data
   // before the widget tree renders. Must run after ensureInitialized() because
@@ -89,6 +96,15 @@ class TeleMedApp extends ConsumerWidget {
         break;
       case AppRoute.myDoctor:
         screen = const MyDoctorScreen();
+        break;
+      case AppRoute.patientProfile:
+        screen = const PatientProfileScreen();
+        break;
+      case AppRoute.appointments:
+        screen = const AppointmentsScreen();
+        break;
+      case AppRoute.specialists:
+        screen = const SpecialistsScreen();
         break;
       case AppRoute.waitingRoom:
         screen = const WaitingRoomScreen();

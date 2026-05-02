@@ -375,7 +375,7 @@ class _MedicalResponseScreenState
 
   @override
   Widget build(BuildContext context) {
-    final lang = ref.watch(languageProvider);
+    ref.watch(languageProvider); // register watcher so _lang getter rebuilds on change
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {

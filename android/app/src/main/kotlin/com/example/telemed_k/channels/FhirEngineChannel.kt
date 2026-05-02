@@ -71,6 +71,10 @@ class FhirEngineChannel(
             "updateObservation" -> handleUpdateObservation(call, result)
             "lookupPatientByCnp" -> handleLookupPatientByCnp(call, result)
             "savePatient" -> handleSavePatient(call, result)
+            "updatePatient" -> handleUpdatePatient(call, result)
+            "deletePatientData" -> handleDeletePatientData(call, result)
+            "saveAppointment" -> handleSaveAppointment(call, result)
+            "getAppointments" -> handleGetAppointments(call, result)
             "markAsSynced" -> handleMarkAsSynced(call, result)
             "seedMockData" -> handleSeedMockData(result)
             else -> result.notImplemented()
@@ -405,6 +409,211 @@ class FhirEngineChannel(
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to save Patient", e)
                 result.error("FHIR_WRITE_ERROR", "Patient write failed", null)
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // updatePatient — overwrites an existing Patient resource by logical ID
+    // ──────────────────────────────────────────────────────────────────────────
+    private fun handleUpdatePatient(call: MethodCall, result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                ensureInitialized()
+                val resourceJson = call.argument<String>("resource")
+                    ?: return@launch result.error("INVALID_ARG", "Missing 'resource' argument", null)
+
+                val parser = fhirContext.newJsonParser()
+                val patient = parser.parseResource(
+                    org.hl7.fhir.r4.model.Patient::class.java,
+                    resourceJson
+                )
+                fhirEngine!!.update(patient)
+
+                Log.i(TAG, "Patient updated: ${patient.idElement?.idPart}")
+                result.success(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update Patient", e)
+                result.error("FHIR_WRITE_ERROR", "Patient update failed", null)
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // deletePatientData — removes all FHIR resources for a given CNP
+    // ──────────────────────────────────────────────────────────────────────────
+    private fun handleDeletePatientData(call: MethodCall, result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                ensureInitialized()
+                val cnp = call.argument<String>("cnp")
+                    ?: return@launch result.error("INVALID_ARG", "Missing 'cnp' argument", null)
+
+                // Delete Observations belonging to this patient
+                fhirEngine!!.search<org.hl7.fhir.r4.model.Observation> {}.forEach { sr ->
+                    if (matchesPatientCnp(sr.resource.subject, cnp)) {
+                        runCatching {
+                            fhirEngine!!.delete(ResourceType.Observation, sr.resource.idElement?.idPart ?: "")
+                        }
+                    }
+                }
+
+                // Delete Conditions belonging to this patient
+                fhirEngine!!.search<org.hl7.fhir.r4.model.Condition> {}.forEach { sr ->
+                    if (matchesPatientCnp(sr.resource.subject, cnp)) {
+                        runCatching {
+                            fhirEngine!!.delete(ResourceType.Condition, sr.resource.idElement?.idPart ?: "")
+                        }
+                    }
+                }
+
+                // Delete Encounters (all — shared clinic resource, fine for single-patient app)
+                fhirEngine!!.search<org.hl7.fhir.r4.model.Encounter> {}.forEach { sr ->
+                    runCatching {
+                        fhirEngine!!.delete(ResourceType.Encounter, sr.resource.idElement?.idPart ?: "")
+                    }
+                }
+
+                // Delete Appointments — Appointment type may not be registered; guard entirely
+                runCatching {
+                    fhirEngine!!.search<org.hl7.fhir.r4.model.Appointment> {}.forEach { sr ->
+                        runCatching {
+                            fhirEngine!!.delete(ResourceType.Appointment, sr.resource.idElement?.idPart ?: "")
+                        }
+                    }
+                }
+
+                // Delete the Patient resource itself (last, to preserve FK references above)
+                val patients = fhirEngine!!.search<org.hl7.fhir.r4.model.Patient> {}
+                patients.firstOrNull { sr ->
+                    sr.resource.identifier.any { id ->
+                        id.system == "urn:oid:1.2.40.0.10.1.4.3.1" && id.value == cnp
+                    }
+                }?.let { sr ->
+                    runCatching {
+                        fhirEngine!!.delete(ResourceType.Patient, sr.resource.idElement?.idPart ?: "")
+                    }
+                }
+
+                Log.i(TAG, "Deleted all FHIR data for CNP=$cnp")
+                result.success(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to delete patient data", e)
+                result.error("FHIR_DELETE_ERROR", "Patient data deletion failed", null)
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // saveAppointment — creates a FHIR Appointment for a patient booking
+    // ──────────────────────────────────────────────────────────────────────────
+    private fun handleSaveAppointment(call: MethodCall, result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                ensureInitialized()
+                val patientCnp     = call.argument<String>("patientId")       ?: ""
+                val practitionerId = call.argument<String>("practitionerId")   ?: "family"
+                val dateTimeIso    = call.argument<String>("dateTimeIso")      ?: ""
+                val durationMin    = call.argument<Int>("durationMinutes")     ?: 30
+                val description    = call.argument<String>("description")      ?: ""
+                val status         = call.argument<String>("status")           ?: "booked"
+
+                // Parse ISO 8601 — handle both "...Z" and "...+00:00" formats
+                val startInstant = runCatching { java.time.Instant.parse(dateTimeIso) }
+                    .getOrElse { java.time.OffsetDateTime.parse(dateTimeIso).toInstant() }
+                val startDate = java.util.Date.from(startInstant)
+                val endDate   = java.util.Date.from(startInstant.plusSeconds(durationMin * 60L))
+
+                val appointment = org.hl7.fhir.r4.model.Appointment()
+
+                appointment.status = when (status.lowercase()) {
+                    "fulfilled" -> org.hl7.fhir.r4.model.Appointment.AppointmentStatus.FULFILLED
+                    "cancelled" -> org.hl7.fhir.r4.model.Appointment.AppointmentStatus.CANCELLED
+                    else        -> org.hl7.fhir.r4.model.Appointment.AppointmentStatus.BOOKED
+                }
+                appointment.description = description
+                appointment.start = startDate
+                appointment.end   = endDate
+
+                appointment.appointmentType = org.hl7.fhir.r4.model.CodeableConcept().apply {
+                    addCoding(
+                        org.hl7.fhir.r4.model.Coding()
+                            .setSystem("http://terminology.hl7.org/CodeSystem/v2-0276")
+                            .setCode("ROUTINE").setDisplay("Routine appointment")
+                    )
+                }
+
+                // Patient participant (identified by CNP)
+                appointment.addParticipant(
+                    org.hl7.fhir.r4.model.Appointment.AppointmentParticipantComponent().apply {
+                        actor = org.hl7.fhir.r4.model.Reference().apply {
+                            identifier = org.hl7.fhir.r4.model.Identifier().apply {
+                                system = "urn:oid:1.2.40.0.10.1.4.3.1"
+                                value  = patientCnp
+                            }
+                        }
+                        required = org.hl7.fhir.r4.model.Appointment.ParticipantRequired.REQUIRED
+                        status   = org.hl7.fhir.r4.model.Appointment.ParticipationStatus.ACCEPTED
+                    }
+                )
+
+                // Practitioner participant
+                appointment.addParticipant(
+                    org.hl7.fhir.r4.model.Appointment.AppointmentParticipantComponent().apply {
+                        actor  = org.hl7.fhir.r4.model.Reference("Practitioner/$practitionerId")
+                        status = org.hl7.fhir.r4.model.Appointment.ParticipationStatus.ACCEPTED
+                    }
+                )
+
+                fhirEngine!!.create(appointment)
+                Log.i(TAG, "Appointment saved: ${appointment.idElement?.idPart}")
+                result.success(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to save Appointment", e)
+                result.error("FHIR_WRITE_ERROR", "Appointment write failed", null)
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // getAppointments — returns Appointments filtered by patient CNP
+    // ──────────────────────────────────────────────────────────────────────────
+    private fun handleGetAppointments(call: MethodCall, result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                ensureInitialized()
+                val patientCnp = call.argument<String>("cnp") ?: ""
+
+                // Guard: Appointment type may not be in FHIR schema yet
+                val appointments = runCatching {
+                    fhirEngine!!.search<org.hl7.fhir.r4.model.Appointment> {}
+                }.getOrElse {
+                    Log.w(TAG, "Appointment resource type not available: ${it.message}")
+                    emptyList()
+                }
+
+                val parser    = fhirContext.newJsonParser()
+                val jsonArray = JSONArray()
+
+                appointments
+                    .filter { sr ->
+                        if (patientCnp.isEmpty()) return@filter true
+                        sr.resource.participant.any { p ->
+                            p.actor?.identifier?.system == "urn:oid:1.2.40.0.10.1.4.3.1" &&
+                            p.actor?.identifier?.value  == patientCnp
+                        }
+                    }
+                    .sortedByDescending { it.resource.start?.time ?: 0L }
+                    .take(50)
+                    .forEach { sr ->
+                        jsonArray.put(JSONObject(parser.encodeResourceToString(sr.resource)))
+                    }
+
+                Log.i(TAG, "getAppointments: returned ${jsonArray.length()} for CNP=$patientCnp")
+                result.success(jsonArray.toString())
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to get Appointments", e)
+                result.error("FHIR_READ_ERROR", "Appointment query failed", null)
             }
         }
     }

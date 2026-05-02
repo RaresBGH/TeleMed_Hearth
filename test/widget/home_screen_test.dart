@@ -23,7 +23,7 @@ class _FakeFhirRepository extends FhirRepository {
   @override
   Future<void> saveCondition(Map<String, dynamic> c) async {}
   @override
-  Future<List<Map<String, dynamic>>> getPatientHistory() async => [];
+  Future<List<Map<String, dynamic>>> getPatientHistory({String cnp = ''}) async => [];
 }
 
 class _FakeAiEngineService extends AiEngineService {

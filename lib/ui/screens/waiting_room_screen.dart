@@ -1,220 +1,739 @@
 // Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
 // You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
+//
+// TeleMed_K: Offline-first telemedicine app for seniors
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/language_provider.dart';
-import '../../core/providers/medical_session_provider.dart';
-import '../../core/services/telemedicine_service.dart';
-import '../theme/theme.dart';
 
-class WaitingRoomScreen extends ConsumerWidget {
-  final String callId;
+// ── Design tokens ─────────────────────────────────────────────────────────────
+const Color _bg       = Color(0xFFF9F9F9);
+const Color _cardBg   = Color(0xFFFFFFFF);
+const Color _surfLow  = Color(0xFFF3F3F3);
+const Color _brand    = Color(0xFF5BA4CF);
+const Color _onSurface = Color(0xFF191C1F);
+const Color _onSurfaceV = Color(0xFF40484E);
+const Color _errorRed = Color(0xFFAB1118);
 
-  const WaitingRoomScreen({super.key, this.callId = 'pending-encounter'});
+/// Compound consent + waiting room screen (A5).
+///
+/// STATE A (_consentGiven == false): patient reads and accepts consent terms.
+///   Source: stitch_telemed_k/sala_de_a_teptare_i_acord_waiting_room_and_consent/
+/// STATE B (_consentGiven == true): post-consent buffer zone, local camera preview.
+///   Source: stitch_telemed_k/waiting_room/
+///
+/// [appointmentId] — optional; passed from appointments_screen for future
+///   signaling integration.
+/// [doctorName] — doctor displayed in header and notified message.
+class WaitingRoomScreen extends ConsumerStatefulWidget {
+  final String? appointmentId;
+  final String  doctorName;
+
+  const WaitingRoomScreen({
+    super.key,
+    this.appointmentId,
+    this.doctorName = 'Mariana Andronescu',
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WaitingRoomScreen> createState() => _WaitingRoomScreenState();
+}
+
+class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
+    with SingleTickerProviderStateMixin {
+
+  bool _consentGiven           = false;
+  bool _micMuted               = false;
+  bool _videoOff               = false;
+  bool _privateSpaceConfirmed  = false;
+
+  // ── Pulsing connection dot animation ──────────────────────────────────────
+  late AnimationController _pulseController;
+
+  // ── Local camera (STATE B) ────────────────────────────────────────────────
+  final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
+  bool          _rendererReady = false;
+  MediaStream?  _localStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _localStream?.dispose();
+    _localRenderer.dispose();
+    super.dispose();
+  }
+
+  // ── Local camera init (called on consent) ─────────────────────────────────
+  Future<void> _initLocalCamera() async {
+    try {
+      await _localRenderer.initialize();
+      final stream = await navigator.mediaDevices.getUserMedia(
+          {'video': true, 'audio': true});
+      _localRenderer.srcObject = stream;
+      _localStream = stream;
+      if (mounted) setState(() => _rendererReady = true);
+    } catch (_) {
+      // Camera unavailable — video area stays black placeholder
+    }
+  }
+
+  void _onConsentGiven() {
+    setState(() => _consentGiven = true);
+    _initLocalCamera();
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
     final lang = ref.watch(languageProvider);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F5),
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE2E2E2), 
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.person, color: Colors.grey),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(AppStrings.of(lang, 'waiting.clinic'), style: const TextStyle(fontSize: 16, color: Colors.black54)),
-                Text(AppStrings.of(lang, 'doctor.name'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
-              ],
-            )
-          ],
-        ),
+      backgroundColor: _bg,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 350),
+        transitionBuilder: (child, anim) =>
+            FadeTransition(opacity: anim, child: child),
+        child: _consentGiven
+            ? _buildWaitingState(context, lang)
+            : _buildConsentState(context, lang),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 32),
-              // Status Message Section
-              Text(
-                AppStrings.of(lang, 'waiting.connecting'),
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.black, height: 1.2),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE A — Consent
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildConsentState(BuildContext context, String lang) {
+    return SafeArea(
+      key: const ValueKey('consent'),
+      child: Column(
+        children: [
+          _buildConsentHeader(lang),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: Column(
                 children: [
-                   Container(width: 12, height: 12, decoration: BoxDecoration(color: const Color(0xFF5BA4CF).withValues(alpha: 0.4), shape: BoxShape.circle)),
-                   const SizedBox(width: 8),
-                   Container(width: 12, height: 12, decoration: BoxDecoration(color: const Color(0xFF5BA4CF).withValues(alpha: 0.7), shape: BoxShape.circle)),
-                   const SizedBox(width: 8),
-                   Container(width: 12, height: 12, decoration: const BoxDecoration(color: Color(0xFF5BA4CF), shape: BoxShape.circle)),
+                  const SizedBox(height: 24),
+                  Text(
+                    AppStrings.of(lang, 'waiting.connecting'),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: _onSurface,
+                      height: 1.2,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  _build3DotLoader(),
+                  const SizedBox(height: 32),
+                  _buildConsentCard(lang),
+                  const SizedBox(height: 20),
+                  _buildAmbientInstruction(lang),
+                  const SizedBox(height: 8),
                 ],
               ),
-              const SizedBox(height: 48),
+            ),
+          ),
+          _buildConsentCTAs(context, lang),
+        ],
+      ),
+    );
+  }
 
-              // Digital Consent Card
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: const Border(left: BorderSide(color: Color(0xFF5BA4CF), width: 8)),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 32, offset: const Offset(0, 4)),
-                  ],
+  // Custom header for consent state
+  Widget _buildConsentHeader(String lang) {
+    return Container(
+      color: _surfLow,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      child: Row(
+        children: [
+          // Doctor avatar
+          Container(
+            width: 64,
+            height: 64,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE2E2E2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.person, color: Colors.grey, size: 36),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppStrings.of(lang, 'waiting.clinic'),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: _onSurfaceV,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.gavel, color: Color(0xFF5BA4CF), size: 36),
-                        const SizedBox(width: 16),
-                        Expanded(child: Text(AppStrings.of(lang, 'waiting.consent_title'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black))),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Prin acest serviciu, sunteți de acord cu partajarea datelor medicale cu Dr. Bogheanu pentru consultanță de la distanță.',
-                      style: TextStyle(fontSize: 18, color: Colors.black),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildListItem('Acces securizat la istoricul dumneavoastră medical.'),
-                    const SizedBox(height: 12),
-                    _buildListItem('Înregistrarea sesiunii pentru acuratețe clinică.'),
-                    const SizedBox(height: 12),
-                    _buildListItem('Confidențialitate garantată prin protocol medical.'),
-                  ],
+                Text(
+                  widget.doctorName,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _onSurface,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
+              ],
+            ),
+          ),
+          // Pulsing green connection dot — STAYS GREEN (connection/availability status)
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                AnimatedBuilder(
+                  animation: _pulseController,
+                  builder: (_, __) => Container(
+                    width: 10 + 18 * _pulseController.value,
+                    height: 10 + 18 * _pulseController.value,
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade500.withValues(
+                        alpha: 0.65 * (1 - _pulseController.value),
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade500,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-              // Ambient Instruction
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: const Color(0xFFE8E8E8), borderRadius: BorderRadius.circular(12)),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.info, color: Colors.black),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(AppStrings.of(lang, 'waiting.info'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black))),
-                  ],
+  // 3-dot loading indicator (#5BA4CF — replaces Stitch green)
+  Widget _build3DotLoader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(width: 12, height: 12,
+            decoration: BoxDecoration(
+                color: _brand.withValues(alpha: 0.4), shape: BoxShape.circle)),
+        const SizedBox(width: 8),
+        Container(width: 12, height: 12,
+            decoration: BoxDecoration(
+                color: _brand.withValues(alpha: 0.7), shape: BoxShape.circle)),
+        const SizedBox(width: 8),
+        Container(width: 12, height: 12,
+            decoration: const BoxDecoration(color: _brand, shape: BoxShape.circle)),
+      ],
+    );
+  }
+
+  // Consent card (white, no 1px border, left accent via shadow+bg)
+  Widget _buildConsentCard(String lang) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(12),
+        // Ghost shadow per DESIGN.md — no 1px border
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F1A1C1C),
+            blurRadius: 40,
+            spreadRadius: -4,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.gavel, color: _brand, size: 32),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  AppStrings.of(lang, 'waiting.consent_title'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _onSurface,
+                  ),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 20),
+          Text(
+            // TODO(MVP): update consent_text key to use [name] placeholder.
+            AppStrings.of(lang, 'waiting.consent_text')
+                .replaceAll('Dr. Bogheanu', widget.doctorName),
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w500,
+              color: _onSurface,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildConsentBullet(AppStrings.of(lang, 'waiting.consent_1')),
+          const SizedBox(height: 12),
+          _buildConsentBullet(AppStrings.of(lang, 'waiting.consent_2')),
+          const SizedBox(height: 12),
+          _buildConsentBullet(AppStrings.of(lang, 'waiting.consent_3')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConsentBullet(String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // check_circle in #5BA4CF — replaces Stitch green
+        const Icon(Icons.check_circle, color: _brand, size: 22),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 16, color: _onSurfaceV, height: 1.4),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Ambient instruction
+  Widget _buildAmbientInstruction(String lang) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _surfLow,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: _onSurfaceV, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              AppStrings.of(lang, 'waiting.info'),
+              style: const TextStyle(
+                fontSize: 15,
+                fontStyle: FontStyle.italic,
+                color: _onSurfaceV,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // CTA footer for STATE A
+  Widget _buildConsentCTAs(BuildContext context, String lang) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // "Sunt de acord" — min 80dp, #5BA4CF, arrow icon
+            Semantics(
+              button: true,
+              label: AppStrings.of(lang, 'waiting.agree_sem'),
+              child: SizedBox(
+                width: double.infinity,
+                height: 80,
+                child: ElevatedButton.icon(
+                  onPressed: _onConsentGiven,
+                  icon: const Icon(Icons.arrow_forward, size: 26),
+                  label: Text(
+                    AppStrings.of(lang, 'waiting.agree_btn'),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _brand,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    // Ghost shadow per DESIGN.md
+                    shadowColor: const Color(0x0F1A1C1C),
+                    elevation: 4,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // "Anulează" — min 72dp, outlined, #ab1118
+            Semantics(
+              button: true,
+              label: AppStrings.of(lang, 'waiting.cancel_sem'),
+              child: SizedBox(
+                width: double.infinity,
+                height: 72,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    } else {
+                      ref.read(appNavigationProvider.notifier)
+                          .navigateTo(AppRoute.dashboard);
+                    }
+                  },
+                  icon: const Icon(Icons.close, color: _errorRed, size: 22),
+                  label: Text(
+                    AppStrings.of(lang, 'waiting.cancel_btn'),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _errorRed,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: _errorRed, width: 2),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              AppStrings.of(lang, 'waiting.note'),
+              style: const TextStyle(fontSize: 13, color: _onSurfaceV),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AccessibleTouchTarget(
-                semanticLabel: 'Sunt de acord cu consultanța',
-                onTap: () async {
-                  try {
-                    final fhirRepo = ref.read(fhirRepositoryProvider);
-                    await fhirRepo.updateEncounterConsent(callId);
-                    
-                    await ref.read(telemedicineServiceProvider).answerCall(callId);
-                    
-                    if (!context.mounted) return;
-                    ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.videoConsultation);
-                  } catch (e) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${AppStrings.of(lang, 'waiting.conn_error')} $e', style: const TextStyle(fontSize: 18))),
-                    );
-                  }
-                },
-                child: Container(
-                  width: double.infinity,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF5BA4CF),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4)),
-                    ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE B — Waiting Room buffer
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildWaitingState(BuildContext context, String lang) {
+    return SafeArea(
+      key: const ValueKey('waiting'),
+      child: Column(
+        children: [
+          _buildWaitingAppBar(context, lang),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              child: Column(
+                children: [
+                  _buildVideoPreview(lang),
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      AppStrings.of(lang, 'waiting.doctor_notified')
+                          .replaceAll('[name]', widget.doctorName),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: _onSurfaceV,
+                        height: 1.4,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(AppStrings.of(lang, 'waiting.agree_btn'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-                      const SizedBox(width: 16),
-                      const Icon(Icons.arrow_forward, color: Colors.white, size: 32),
-                    ],
-                  ),
-                ),
+                  const SizedBox(height: 20),
+                  _buildPrivateSpaceCheckbox(lang),
+                  const SizedBox(height: 24),
+                  _buildControlRow(lang),
+                  const SizedBox(height: 20),
+                  _buildEnterCallButton(lang),
+                  const SizedBox(height: 12),
+                  _buildWaitingCancelButton(context, lang),
+                ],
               ),
-              const SizedBox(height: 16),
-              AccessibleTouchTarget(
-                semanticLabel: 'Anulează apelul',
-                onTap: () {
-                  ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home);
-                },
-                child: Container(
-                  width: double.infinity,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black, width: 2),
-                    borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Waiting state app bar
+  PreferredSizeWidget _buildWaitingAppBar(BuildContext context, String lang) {
+    return AppBar(
+      backgroundColor: _cardBg,
+      elevation: 0,
+      toolbarHeight: 64,
+      automaticallyImplyLeading: false,
+      leadingWidth: 64,
+      leading: InkWell(
+        onTap: () {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          } else {
+            ref.read(appNavigationProvider.notifier)
+                .navigateTo(AppRoute.dashboard);
+          }
+        },
+        child: const SizedBox(
+          width: 64,
+          height: 64,
+          child: Icon(Icons.arrow_back, color: _onSurface, size: 26),
+        ),
+      ),
+      title: Text(
+        AppStrings.of(lang, 'waiting.room_title'),
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: _onSurface,
+        ),
+      ),
+      centerTitle: true,
+    );
+  }
+
+  // 4:3 video container with status chips overlay
+  Widget _buildVideoPreview(String lang) {
+    return AspectRatio(
+      aspectRatio: 4 / 3,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1A000000),
+              blurRadius: 24,
+              spreadRadius: -4,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            // Local camera preview or black placeholder
+            if (_rendererReady)
+              RTCVideoView(_localRenderer, mirror: true)
+            else
+              Container(color: Colors.black),
+            // Status chips overlay — emerald green STAYS (active/ok status)
+            Positioned(
+              top: 12,
+              left: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildStatusChip(
+                    Icons.mic,
+                    AppStrings.of(lang, 'waiting.mic_active'),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.close, color: Color(0xFFAB1118), size: 28),
-                      const SizedBox(width: 16),
-                      Text(AppStrings.of(lang, 'waiting.cancel_btn'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFAB1118), letterSpacing: 1.5)),
-                    ],
+                  const SizedBox(height: 6),
+                  _buildStatusChip(
+                    Icons.wifi,
+                    AppStrings.of(lang, 'waiting.internet_stable'),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                AppStrings.of(lang, 'waiting.note'),
-                style: TextStyle(fontSize: 14, color: Colors.black54),
-                textAlign: TextAlign.center,
-              )
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        // Emerald green status chips STAY GREEN (active/ok indicators)
+        color: Colors.green.shade600.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 14),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Private space checkbox (amber-tinted, NO Border object per DESIGN.md)
+  Widget _buildPrivateSpaceCheckbox(String lang) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB), // amber-50
+        borderRadius: BorderRadius.circular(12),
+        // No Border — tonal color only per DESIGN.md "No-Line" rule
+      ),
+      child: CheckboxListTile(
+        value: _privateSpaceConfirmed,
+        onChanged: (v) => setState(() => _privateSpaceConfirmed = v ?? false),
+        title: Text(
+          AppStrings.of(lang, 'waiting.private_space'),
+          style: const TextStyle(fontSize: 14, color: _onSurface, height: 1.4),
+        ),
+        activeColor: _brand,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        controlAffinity: ListTileControlAffinity.leading,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  // Two 64dp circular control buttons
+  Widget _buildControlRow(String lang) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildControlButton(
+          icon: _micMuted ? Icons.mic_off : Icons.mic,
+          label: AppStrings.of(lang, 'waiting.mute_btn'),
+          onTap: () => setState(() => _micMuted = !_micMuted),
+        ),
+        const SizedBox(width: 40),
+        _buildControlButton(
+          icon: _videoOff ? Icons.videocam_off : Icons.videocam,
+          label: AppStrings.of(lang, 'waiting.video_off_btn'),
+          onTap: () => setState(() => _videoOff = !_videoOff),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildControlButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            width: 64,
+            height: 64,
+            // Tonal background — NO border per DESIGN.md
+            decoration: BoxDecoration(
+              color: _surfLow,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: _onSurface, size: 28),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: _onSurfaceV),
+        ),
+      ],
+    );
+  }
+
+  // "Intră în apel" — enabled only when _privateSpaceConfirmed
+  Widget _buildEnterCallButton(String lang) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 0),
+      child: SizedBox(
+        width: double.infinity,
+        height: 64,
+        child: ElevatedButton(
+          onPressed: _privateSpaceConfirmed
+              ? () {
+                  // TODO(signaling): pass appointmentId to establish WebRTC session.
+                  ref.read(appNavigationProvider.notifier)
+                      .navigateTo(AppRoute.videoConsultation);
+                }
+              : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _brand,
+            disabledBackgroundColor: const Color(0xFFBFC7CF),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            elevation: 0,
+          ),
+          child: Text(
+            AppStrings.of(lang, 'waiting.enter_call_btn'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildListItem(String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Icon(Icons.check_circle, color: Color(0xFF4A93BE), size: 24),
-        const SizedBox(width: 12),
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 18, color: Colors.black))),
-      ],
+  // "Anulează" — NOT pill-shaped per DESIGN.md
+  Widget _buildWaitingCancelButton(BuildContext context, String lang) {
+    return SizedBox(
+      width: double.infinity,
+      height: 64,
+      child: TextButton(
+        onPressed: () {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          } else {
+            ref.read(appNavigationProvider.notifier)
+                .navigateTo(AppRoute.dashboard);
+          }
+        },
+        style: TextButton.styleFrom(
+          foregroundColor: _errorRed,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+        child: Text(
+          AppStrings.of(lang, 'waiting.cancel_btn'),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: _errorRed,
+          ),
+        ),
+      ),
     );
   }
 }

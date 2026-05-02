@@ -110,8 +110,7 @@ class CnpService {
       final month = int.parse(cnp.substring(3, 5));
       final day   = int.parse(cnp.substring(5, 7));
 
-      final birthDate = DateTime(year, month, day);
-      final age18     = DateTime(year + 18, month, day);
+      final age18 = DateTime(year + 18, month, day);
       return !DateTime.now().isBefore(age18);
     } catch (_) {
       return false;

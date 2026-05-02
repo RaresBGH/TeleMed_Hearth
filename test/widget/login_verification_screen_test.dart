@@ -9,18 +9,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:telemed_k/core/providers/auth_provider.dart';
-import 'package:telemed_k/core/services/medplum_auth_service.dart';
 import 'package:telemed_k/ui/screens/login_verification_screen.dart';
 
 // ---------------------------------------------------------------------------
 // Fakes – prevent real network calls and native platform channel invocations
 // ---------------------------------------------------------------------------
 
-/// Fake that always returns false for authentication (no network hit).
-class _FakeMedplumAuthService extends MedplumAuthService {
-  @override
-  Future<bool> authenticateWithOTP(String cnp, String otp) async => false;
-}
+// TODO: re-enable when Medplum auth is implemented (B0 phase)
+// _FakeMedplumAuthService was removed when medplum_auth_service.dart was
+// deleted as dead code. Re-add once Medplum is wired.
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -35,7 +32,6 @@ Future<void> _pumpLoginVerificationScreen(WidgetTester tester) async {
     ProviderScope(
       overrides: [
         loginCnpProvider.overrideWith(() => LoginCnpNotifier()),
-        medplumAuthServiceProvider.overrideWithValue(_FakeMedplumAuthService()),
       ],
       child: const MaterialApp(
         home: LoginVerificationScreen(),

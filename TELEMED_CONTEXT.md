@@ -92,6 +92,17 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **DateFormatter utility** — `lib/core/utils/date_formatter.dart`; `format(iso, {includeTime})` replaces `_formatDate` in dashboard and `_formatDateTime` in history; single source of truth
 - **DialogDetailSheet shared widget** — `lib/ui/widgets/dialog_detail_sheet.dart`; static `show()` method replaces duplicated ~130-line bottom sheet in history and dashboard; handles replay, "Continuă conversația", status badge
 - **aiReadyProvider** — `FutureProvider<bool>` in `lib/core/providers/ai_ready_provider.dart`; shared between home and dashboard screens; eliminates redundant `AiEngineService(FhirRepository()).initializeModel()` calls in both `initState()` methods
+- **Medic tab redesign** — family doctor card with "Trimite mesaj" and "Programare" action buttons; specialty navigation row; FHIR data rows (last consultation, active prescription); Stitch assets ready
+- **Specialiști screen** — 2-column specialty grid with search bar; 8 specialties (Cardiologie, Diabet, Reumatologie, Pneumologie, Neurologie, Oftalmologie, Dermatologie, Medicină de familie); Stitch assets ready
+- **Programări screen** — `table_calendar` month view; appointment cards with status chips; "Intră în consultație" and "Solicită programare nouă" action buttons; Stitch assets ready
+- **Profil Pacient screen** — editable personal fields (name, phone, DOB); medical info section; delete account option; accessible from Dashboard
+
+### PENDING IMPLEMENTATION
+
+- **Consent + Waiting Room compound screen** — Stitch assets in `stitch_telemed_k/sala_de_a_teptare_i_acord/` folder; replaces existing `WaitingRoomScreen` stub; combines consent agreement with live waiting state
+- **Async messaging thread (Trimite mesaj flow)** — patient ↔ doctor text thread initiated from Medic tab; threaded UI with timestamps; push notification delivery via FCM when online
+- **AI assistant as persistent channel monitor** — Gemma 4 monitors all voice/text/photo triage, messaging, and consultation history; routes urgent cases toward 112; surfaces clinical insights across sessions
+- **`table_calendar` package integration** — add `table_calendar: ^3.1.0` to pubspec.yaml before building Programări screen
 
 ### STILL BROKEN / SKIPPED FOR HACKATHON
 
@@ -178,6 +189,18 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 
 ---
 
+## Key Architecture Decisions
+
+- Model downloads post-auth to `filesDir` via OkHttp foreground service; all inference isolated per session (fresh Conversation per call)
+- Single FHIR Observation per dialog, saved only on explicit "Finalizează Dialogul"; CNP-filtered history so each patient sees only their own records
+- Language switching via AppStrings (~130 keys, reactive, no restart); `LanguageToggle` pill widget shared across all tab AppBars
+- **Video call initiated ONLY from a confirmed appointment on Programări screen** — NOT from Medic tab directly; Medic tab routes to Programări for scheduling
+- **AI assistant monitors all communication channels** (voice triage, messaging, consultation history) and routes urgent cases toward 112 emergency call
+- **Profil Pacient accessible from Dashboard screen** via profile avatar; editable fields update FHIR Patient resource in local encrypted DB
+- New AppRoutes planned: `AppRoute.specialists` → Specialiști screen; `AppRoute.appointments` → Programări screen; `AppRoute.patientProfile` → Profil Pacient screen
+
+---
+
 ## Code Quality
 
 Two full audit cycles completed 2026-05-02. Codebase is clean: **0 critical, 0 high, 0 medium, 0 low** issues remaining.
@@ -230,13 +253,19 @@ Refactoring completed during audit:
 - [x] Two full audit cycles — codebase clean: 0 critical, 0 high, 0 medium, 0 low
 
 ### P1 — NEXT
+- [ ] **Make GitHub repo public before May 18 deadline** — currently PRIVATE; required for hackathon submission
+- [ ] **Record competition demo video** — patient story: Maria, 72, chest pain, no car → voice triage → 112 or teleconsult
+- [ ] Implement Medic tab redesign — Stitch assets in `stitch_telemed_k/medic/`
+- [ ] Implement Specialiști screen (`AppRoute.specialists`) — Stitch assets ready
+- [ ] Implement Programări screen (`AppRoute.appointments`) — Stitch assets ready
+- [ ] Implement Profil Pacient screen (`AppRoute.patientProfile`) — Stitch assets ready; link from Dashboard
+- [ ] Add `table_calendar: ^3.1.0` to pubspec.yaml before building Programări
+- [ ] Implement Consent + Waiting Room compound screen (Stitch assets in `sala_de_a_teptare_i_acord/`)
 - [ ] End-to-end text card inference device test (handleRunInference → model output)
 - [ ] WebRTC signaling server on GX10 for real doctor↔patient video
 
 ### P2 — NEXT
 - [ ] Real camera OCR in login (replace `File('dummy_id.jpg')` in `_extractViaCamera()`)
-- [ ] Make GitHub repo public before May 18 deadline
-- [ ] Record competition demo video
 
 ### P3 — NEXT
 - [ ] DeviceConflictModal trigger from auth flow

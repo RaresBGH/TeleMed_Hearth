@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/providers/language_provider.dart';
-import '../../core/services/ai_engine_service.dart';
 import '../../core/providers/medical_session_provider.dart';
 
 const Color _brand = Color(0xFF5BA4CF);

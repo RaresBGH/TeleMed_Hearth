@@ -178,6 +178,24 @@ class AiEngineService {
   /// sdcard path). Safe to call from any context; never throws.
   static Future<bool> isModelOnDisk() async => (await _getModelPath()) != null;
 
+  /// Deletes the on-device model file and resets the initialized flag.
+  /// Called as part of the account-deletion flow. Never throws.
+  static Future<void> deleteModelFile() async {
+    try {
+      final String? path = await _getModelPath();
+      if (path != null) {
+        final f = File(path);
+        if (f.existsSync()) {
+          f.deleteSync();
+          _isInitialized = false;
+          debugPrint('AiEngineService: model file deleted at $path');
+        }
+      }
+    } catch (e) {
+      debugPrint('AiEngineService.deleteModelFile error: $e');
+    }
+  }
+
   /// Initializes the LiteRT-LM engine with the locally stored model file.
   ///
   /// Returns true if the engine loaded successfully.

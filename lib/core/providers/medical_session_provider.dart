@@ -153,6 +153,24 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   /// [existingObservationId] is the FHIR resource ID of the saved dialog being
   /// resumed. When provided, finalizeConsultation() will update that resource
   /// instead of creating a duplicate entry.
+  /// Initialises a fresh chat session pre-seeded with a patient message.
+  /// Used by "Trimite mesaj" on the doctor profile screen — the preseed
+  /// text appears as the patient's first bubble in MedicalResponseScreen.
+  ///
+  /// TODO(medplum): scope message thread to [practitionerRef] when Medplum wired.
+  void startWithPreseed(String message) {
+    state = MedicalSessionState(
+      sessionState: SessionState.idle,
+      lastResumeMessages: [
+        ChatMessage(
+          role: 'patient',
+          text: message,
+          timestamp: DateTime.now(),
+        ),
+      ],
+    );
+  }
+
   void prepareResume({
     required String aiResponse,
     required List<ChatMessage> messages,

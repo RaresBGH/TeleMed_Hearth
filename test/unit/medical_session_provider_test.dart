@@ -55,7 +55,7 @@ class FakeFhirRepository extends FhirRepository {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getPatientHistory() async => [];
+  Future<List<Map<String, dynamic>>> getPatientHistory({String cnp = ''}) async => [];
 }
 
 // ---------------------------------------------------------------------------
@@ -146,7 +146,7 @@ void main() {
 
       expect(env.container.read(medicalSessionProvider), SessionState.error);
       expect(
-        env.container.read(medicalSessionProvider.notifier).errorMessage,
+        env.container.read(medicalSessionProvider).errorMessage,
         contains('Network timeout'),
       );
     });
@@ -197,7 +197,7 @@ void main() {
 
       env.container.read(medicalSessionProvider.notifier).reset();
       expect(env.container.read(medicalSessionProvider), SessionState.idle);
-      expect(env.container.read(medicalSessionProvider.notifier).errorMessage, isNull);
+      expect(env.container.read(medicalSessionProvider).errorMessage, isNull);
     });
   });
 
@@ -229,7 +229,7 @@ void main() {
       expect(env.container.read(appNavigationProvider), AppRoute.emergency);
     });
 
-    test('success routing: session success triggers AppRoute.confirmation', () async {
+    test('success routing: session success triggers AppRoute.medicalResponse', () async {
       final env = _createTestContainer();
       addTearDown(env.container.dispose);
 
@@ -246,7 +246,7 @@ void main() {
           .read(medicalSessionProvider.notifier)
           .processAudio(File('heartbeat.wav'));
 
-      expect(env.container.read(appNavigationProvider), AppRoute.confirmation);
+      expect(env.container.read(appNavigationProvider), AppRoute.medicalResponse);
     });
 
     test('reset routing: session idle triggers AppRoute.home', () async {
@@ -260,7 +260,7 @@ void main() {
       await env.container
           .read(medicalSessionProvider.notifier)
           .processAudio(File('x.wav'));
-      expect(env.container.read(appNavigationProvider), AppRoute.confirmation);
+      expect(env.container.read(appNavigationProvider), AppRoute.medicalResponse);
 
       // Then reset
       env.container.read(medicalSessionProvider.notifier).reset();
