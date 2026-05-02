@@ -8,6 +8,7 @@ import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../widgets/app_bottom_nav_bar.dart';
+import '../widgets/language_toggle.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/my_doctor_provider.dart';
 import '../../core/services/telemedicine_service.dart';
@@ -81,38 +82,9 @@ class _MyDoctorScreenState extends ConsumerState<MyDoctorScreen> {
         ),
         backgroundColor: const Color(0xFFF5F5F5),
         elevation: 0,
-        actions: [
-          AccessibleTouchTarget(
-            semanticLabel: 'Schimbă Limba / Change Language',
-            onTap: () {
-              final newLang = lang == 'ro' ? 'en' : 'ro';
-              ref.read(languageProvider.notifier).setLanguage(newLang);
-              ref.read(aiEngineServiceProvider).setLanguage(newLang);
-            },
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'RO',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: lang == 'ro' ? const Color(0xFF5BA4CF) : Colors.black38,
-                    fontSize: 18,
-                  ),
-                ),
-                const Text(' / ', style: TextStyle(color: Colors.black38, fontSize: 18)),
-                Text(
-                  'EN',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: lang == 'en' ? const Color(0xFF5BA4CF) : Colors.black38,
-                    fontSize: 18,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
+        actions: const [
+          LanguageToggle(),
+          SizedBox(width: 16),
         ],
       ),
       body: Column(

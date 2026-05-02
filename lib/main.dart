@@ -125,6 +125,8 @@ class TeleMedApp extends ConsumerWidget {
     return MaterialApp(
       title: 'TeleMed_K',
       theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
       home: screen,
       debugShowCheckedModeBanner: false,
     );

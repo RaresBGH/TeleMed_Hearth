@@ -10,6 +10,12 @@ class AppTheme {
   static const Color backgroundLight = Color(0xFFF5F5F5);
   static const Color textPrimary = Color(0xFF000000);
 
+  static const Color backgroundDark = Color(0xFF1A1C1E);
+  static const Color surfaceDark = Color(0xFF2C2F33);
+  static const Color onSurfaceDark = Color(0xFFF5F7FA);
+  static const Color primaryBlue = Color(0xFF5BA4CF);
+  static const Color errorRed = Color(0xFFAB1118);
+
   static ThemeData get lightTheme {
     return ThemeData(
       scaffoldBackgroundColor: backgroundLight,
@@ -37,6 +43,38 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         backgroundColor: backgroundLight,
         foregroundColor: textPrimary,
+        elevation: 0,
+        centerTitle: true,
+      ),
+    );
+  }
+
+  static ThemeData get darkTheme {
+    return ThemeData(
+      scaffoldBackgroundColor: backgroundDark,
+      colorScheme: const ColorScheme.dark(
+        primary: primaryBlue,
+        surface: surfaceDark,
+        onSurface: onSurfaceDark,
+        error: errorRed,
+      ),
+      textTheme: GoogleFonts.lexendTextTheme().copyWith(
+        bodyMedium: GoogleFonts.lexend(fontSize: 18.0, color: onSurfaceDark),
+        bodyLarge: GoogleFonts.lexend(fontSize: 20.0, color: onSurfaceDark),
+        labelLarge: GoogleFonts.lexend(
+          fontSize: 20.0,
+          fontWeight: FontWeight.bold,
+          color: onSurfaceDark,
+        ),
+        displaySmall: GoogleFonts.lexend(
+          fontSize: 28.0,
+          fontWeight: FontWeight.bold,
+          color: onSurfaceDark,
+        ),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: backgroundDark,
+        foregroundColor: onSurfaceDark,
         elevation: 0,
         centerTitle: true,
       ),

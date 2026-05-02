@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/app_bottom_nav_bar.dart';
+import '../widgets/language_toggle.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
@@ -209,25 +210,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             color: Color(0xFF191C1F),
           ),
         ),
-        actions: [
-          GestureDetector(
-            onTap: () {
-              final newLang = lang == 'ro' ? 'en' : 'ro';
-              ref.read(languageProvider.notifier).setLanguage(newLang);
-              ref.read(aiEngineServiceProvider).setLanguage(newLang);
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('RO', style: TextStyle(fontWeight: FontWeight.bold, color: lang == 'ro' ? _iconColor : const Color(0xFF6B7280), fontSize: 16)),
-                  const Text(' / ', style: TextStyle(color: Color(0xFF6B7280), fontSize: 16)),
-                  Text('EN', style: TextStyle(fontWeight: FontWeight.bold, color: lang == 'en' ? _iconColor : const Color(0xFF6B7280), fontSize: 16)),
-                ],
-              ),
-            ),
-          ),
+        actions: const [
+          LanguageToggle(),
+          SizedBox(width: 16),
         ],
       ),
       body: SafeArea(
