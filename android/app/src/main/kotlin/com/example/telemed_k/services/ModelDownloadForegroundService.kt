@@ -83,7 +83,9 @@ class ModelDownloadForegroundService : Service() {
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
+        .readTimeout(300, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
         .build()
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -191,6 +193,8 @@ class ModelDownloadForegroundService : Service() {
 
         val request = Request.Builder()
             .url(MODEL_URL)
+            .addHeader("Accept", "*/*")
+            .addHeader("User-Agent", "TeleMed-K/1.0 OkHttp")
             .apply { if (resumeFrom > 0L) header("Range", "bytes=$resumeFrom-") }
             .build()
 
@@ -198,6 +202,11 @@ class ModelDownloadForegroundService : Service() {
 
         try {
             client.newCall(request).execute().use { response ->
+                Log.i(TAG, "HTTP response code: ${response.code}")
+                Log.i(TAG, "Content-Length: ${response.header("Content-Length") ?: "not set"}")
+                Log.i(TAG, "Content-Type: ${response.header("Content-Type") ?: "not set"}")
+                Log.i(TAG, "Location: ${response.header("Location") ?: "not set"}")
+
                 when {
                     response.code == 416 -> {
                         Log.i(TAG, "HTTP 416 — already complete at $resumeFrom bytes")
