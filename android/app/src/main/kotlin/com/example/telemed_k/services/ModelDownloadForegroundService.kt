@@ -168,15 +168,18 @@ class ModelDownloadForegroundService : Service() {
             .build()
 
     private fun updateNotification(percent: Int) {
-        val text = if (totalBytes > 0L) {
-            val dl = bytesDownloaded / (1024 * 1024)
-            val tt = totalBytes      / (1024 * 1024)
-            "Se descarcă modelul AI — $percent% ($dl MB / $tt MB)"
-        } else {
-            "Se descarcă modelul AI — $percent%"
-        }
+        val dl   = bytesDownloaded / (1024 * 1024)
+        val tt   = totalBytes      / (1024 * 1024)
+        val text = "Se descarcă modelul AI — $percent% ($dl MB / $tt MB)"
         (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
             .notify(NOTIFICATION_ID, buildNotification(text, 100, percent))
+    }
+
+    // Used when the server omits Content-Length — shows MB written, no percentage.
+    private fun updateNotificationBytesOnly(mb: Long) {
+        val text = "Se descarcă modelul AI — $mb MB..."
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify(NOTIFICATION_ID, buildNotification(text, 0, -1))
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -238,11 +241,18 @@ class ModelDownloadForegroundService : Service() {
                 // Append only when server acknowledged the Range request (206).
                 val appendMode = isPartial && resumeFrom > 0L
 
+                // Track bytes written in this session (distinct from cumulative bytesDownloaded).
+                var bytesWritten = 0L
+
+                val body = response.body
+                    ?: throw IOException("Response body is null (Content-Length=${response.header("Content-Length")})")
+
                 FileOutputStream(destFile, appendMode).use { fos ->
                     val buffer      = ByteArray(CHUNK_BYTES)
-                    val inputStream = response.body!!.byteStream()
+                    val inputStream = body.byteStream()
                     var n: Int
                     var lastPct     = -1
+                    var lastMb      = -1L
 
                     while (inputStream.read(buffer).also { n = it } != -1) {
                         if (cancelRequested) {
@@ -253,19 +263,32 @@ class ModelDownloadForegroundService : Service() {
                         }
                         fos.write(buffer, 0, n)
                         bytesDownloaded += n
+                        bytesWritten    += n
 
                         if (totalBytes > 0L) {
+                            // Content-Length known — report percentage.
                             val pct = ((bytesDownloaded.toFloat() / totalBytes) * 100).toInt()
                             if (pct != lastPct) {
                                 lastPct = pct
                                 withContext(Dispatchers.Main) { updateNotification(pct) }
                             }
+                        } else {
+                            // No Content-Length — report bytes written, no percentage.
+                            val mb = bytesDownloaded / (1024 * 1024)
+                            if (mb != lastMb) {
+                                lastMb = mb
+                                withContext(Dispatchers.Main) { updateNotificationBytesOnly(mb) }
+                            }
                         }
                     }
-                }
-            }
 
-            if (!isModelDownloaded(this)) throw IOException("File empty after download completed")
+                    fos.flush()
+                }
+
+                Log.i(TAG, "Stream ended — bytesWritten=$bytesWritten, file=${destFile.length()} bytes")
+
+                if (bytesWritten == 0L) throw IOException("No data received from server")
+            }
 
             Log.i(TAG, "Download complete — ${destFile.length()} bytes")
             consecutiveFailures = 0
