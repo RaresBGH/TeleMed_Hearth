@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants/practitioner_constants.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/models/chat_message.dart';
 import '../../core/providers/app_navigation_provider.dart';
@@ -47,7 +48,7 @@ class DoctorProfileScreen extends ConsumerWidget {
     super.key,
     this.showBackButton      = false,
     this.showSpecialtyPicker = true,
-    this.doctorName          = 'Mariana Andronescu',
+    this.doctorName          = Practitioners.familyDoctorName,
     this.doctorSpecialty,
     this.practitionerRef,
   });

@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants/practitioner_constants.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/models/specialty.dart';
 import '../../core/providers/language_provider.dart';
@@ -58,10 +59,8 @@ class _SpecialistsScreenState extends ConsumerState<SpecialistsScreen> {
 
   String _doctorNameFor(Specialty s, String lang) {
     if (s.appStringKey == 'specialist.pediatrie') {
-      // TODO(medplum): load Practitioner name from FHIR by practitionerRef
-      return 'Dr. Adriana Bogheanu';
+      return Practitioners.bogheanuName;
     }
-    // TODO(medplum): load Practitioner name from FHIR by practitionerRef
     return 'Specialist ${AppStrings.of(lang, s.appStringKey)}';
   }
 

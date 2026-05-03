@@ -1,5 +1,5 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-05-02
+Last updated: 2026-05-03
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
@@ -98,6 +98,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **AppointmentsScreen (Programări)** — table_calendar 3.2.0, ro_RO locale; FHIR Appointment CRUD (saveAppointment / getAppointments scoped by Patient CNP); inline booking panel (hardcoded slots MVP); appointment cards with status chips (Confirmată/Finalizată/Anulată); "Intră în consultație" → WaitingRoomScreen with appointmentId; "Solicită programare nouă" → inline panel; Practitioner scoping (MVP: "family" ref, TODO for real Practitioner ID)
 - **SpecialistsScreen (Specialiști)** — 8 specialties (Cardiologie, Neurologie, Dermatologie, Ortopedie, Oftalmologie, Pediatrie, Psihiatrie, Ginecologie); diacritic-insensitive search filter; 2-column grid; taps → DoctorProfileScreen(specialist variant); Dr. Adriana Bogheanu hardcoded for Pediatrie; other specialties use placeholder name pending Medplum Practitioner data
 - **WaitingRoomScreen (compound — A5)** — replaces stub; two-state AnimatedSwitcher (consent → buffer); STATE A: consent card, "Sunt de acord" → STATE B; STATE B: video preview (local only, no signaling), mic/video toggle, private-space checkbox, "Intră în apel" → VideoConsultationScreen; "Anulează" exits; doctorName param replaces hardcoded name; appointmentId param wired from AppointmentsScreen
+- **Device bug fixes (F1–F6, G1–G5)** — i18n badges translated (RO/EN); navigation routing fixed (specialists, specialist doctor sub-screens, footer link); Dosar Medical refreshes post-finalize without login; appointments scoped per Practitioner; doctor name + specialty on appointment cards; calendar starts Monday; language toggle on profile completion screen; message categorization by doctor + AI category chip (medical/document/other); WaitingRoom button swap fixed; in-call chat local state wired
 
 ### PENDING IMPLEMENTATION
 
@@ -181,17 +182,74 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 
 ## Infrastructure
 
-| Item | Value |
-|---|---|
-| GX10 LAN IP (WiFi) | 192.168.0.101 |
-| GX10 LAN IP (Ethernet) | 192.168.0.144 — interface `enP7s7`; no `tc` rate limiting applied |
-| Caddy version | 2.11.2 (ARM64 binary) |
-| Caddy systemd service | `caddy-telemed` — running on GX10, managed by systemd |
-| Public HTTPS endpoint | `https://telemed-b.duckdns.org` — serves `gemma-4-E2B-it.litertlm` |
-| TLS certificate | Let's Encrypt, issued via DuckDNS DNS-01 challenge; auto-renews |
-| Router port forward | TCP 443 → 192.168.0.101:443 on TP-Link AX5400 |
-| Old local endpoint | `http://192.168.0.37:8080` — still referenced in app source; superseded by HTTPS above |
-| Required app change | Update model URL in `model_download_screen.dart` to `https://telemed-b.duckdns.org/gemma-4-E2B-it.litertlm`; `usesCleartextTraffic` can remain for local dev fallback |
+### GCP Reverse Proxy VM
+- **VM:** telemed-proxy, e2-micro, Frankfurt (34.185.191.34)
+- **Services:** caddy.service + wg-quick@wg0.service
+- **Caddy config** (routes all three domains through WireGuard tunnel):
+    telemed-b.duckdns.org → reverse_proxy https://10.0.0.2:443
+      (tls_server_name: telemed-b.duckdns.org)
+    telemed-medplum.duckdns.org → reverse_proxy 10.0.0.2:8103
+    telemed-medplum-ui.duckdns.org → reverse_proxy 10.0.0.2:8104
+- **WireGuard:** VPS peer 10.0.0.1 ↔ GX10 peer 10.0.0.2
+  wg-quick@wg0.service on both ends
+
+### GX10 Services
+- **GX10 LAN IP (WiFi):** 192.168.0.101
+- **GX10 LAN IP (Ethernet):** 192.168.0.144 — interface `enP7s7`; no `tc` rate limiting
+- **caddy-telemed.service** — serves telemed-b.duckdns.org on port 443
+  (AI model file server, gemma-4-E2B-it.litertlm); Caddy 2.11.2 ARM64; TLS via DuckDNS DNS-01
+- **wg-quick@wg0.service** — WireGuard tunnel to GCP VM
+- **medplum systemd service** — Docker Compose via sovereign-factory/ directory
+- **Router port forward:** TCP 443 → 192.168.0.101:443 on TP-Link AX5400
+
+### Medplum (Self-Hosted FHIR Server)
+- **Version:** 5.1.10
+- **Compose services:**
+  | Container | Image | Port |
+  |---|---|---|
+  | medplum-server | medplum/medplum-server:latest | 0.0.0.0:8103→8103 |
+  | medplum-app | medplum/medplum-app:latest | 0.0.0.0:8104→3000 |
+  | medplum-redis | redis:7-alpine | internal |
+  | medplum-postgres | postgres:16-alpine | internal |
+- **Storage:** Docker named volumes (medplum-pgdata, medplum-storage)
+- **Endpoints:**
+  FHIR Base: https://telemed-medplum.duckdns.org/fhir/R4
+  Auth Token: https://telemed-medplum.duckdns.org/oauth2/token
+  Admin UI:   https://telemed-medplum-ui.duckdns.org
+  Metadata:   https://telemed-medplum.duckdns.org/fhir/R4/metadata
+- **Project:** TeleMed Bogheanu (ID: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8)
+- **Admin:** admin@telemed-bogheanu.ro / TeleMed_Sovereign_2026!
+
+### Medplum Flutter Client
+- **Client ID:** d5d39070-c8a4-43a6-92e5-1a78b695ca72
+- **Client Secret:** TeleMed_K_Client_Secret_2026!
+- **Grant type:** client_credentials (hackathon); PKCE auth_code (future)
+- **Redirect URI:** com.example.telemed_k://callback
+
+### Medplum Seeded Data
+Patients (CNP → FHIR ID):
+  Maria Ionescu     2540203152485 → Patient/a0e44abc-acc5-442e-a316-be70192fc72b
+  Ion Popescu       1490815054321 → Patient/118149bf-26e0-46e1-87de-7149e8066284
+  Elena Dumitrescu  2621105287654 → Patient/510b8c93-ef4a-43bc-b265-197fcfc03c2b
+  Gheorghe Stan     1551220187432 → Patient/6955bb14-46d7-4a9b-b7a4-d98e95051f3f
+  Ana Constantin    2480430098765 → Patient/40d2b51f-5a36-4e13-9755-5e7b6bb9ba85
+
+Conditions:
+  Hipertensiune arterială     → Condition/36d3b343 → Maria Ionescu
+  Diabet zaharat tip 2        → Condition/1b02b21e → Ion Popescu
+  Artrită reumatoidă          → Condition/59f9db2b → Elena Dumitrescu
+  Insuficiență cardiacă       → Condition/9feb7821 → Gheorghe Stan
+  Boală pulmonară obstructivă → Condition/e7161115 → Ana Constantin
+
+Practitioners:
+  Dr. Mariana Andronescu  Family Doctor  Practitioner/733e1972-b42d-4bd0-82c7-66db72b2d311
+  Dr. Adriana Bogheanu    Pediatrician   Practitioner/474f526b-7919-48dd-9528-3c0eaff80cb6
+
+FHIR search patterns:
+  Patient by CNP: GET /fhir/R4/Patient?identifier=urn:oid:1.2.40.0.10.1.4.3.1|{CNP}
+  Condition by patient: GET /fhir/R4/Condition?subject=Patient/{id}
+  Appointments by doctor: GET /fhir/R4/Appointment?actor=Practitioner/{id}
+  CNP identifier system: urn:oid:1.2.40.0.10.1.4.3.1
 
 ---
 
@@ -206,7 +264,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - AppRoute enum has **15 values**. Added in A1–A5: `AppRoute.specialists` → SpecialistsScreen; `AppRoute.appointments` → AppointmentsScreen; `AppRoute.patientProfile` → PatientProfileScreen
 - **DoctorProfileScreen is a reusable parametrized template** — used by MyDoctorScreen (family doctor tab) and SpecialistsScreen (specialist sub-screens). Parameters: showBackButton, showSpecialtyPicker, doctorName, practitionerRef.
 - **"Trimite mesaj" routes to MedicalResponseScreen with AI preseed** — interim until Medplum async messaging is implemented. Preseed: "Bună ziua, am o întrebare pentru Dr. [name]."
-- **Per-doctor appointment scoping** — FHIR Appointment stores practitionerRef per resource. Patient sees all their appointments; each doctor (Medplum) sees only their own. MVP uses "family" as default practitionerRef.
+- **Per-doctor appointment scoping** — FHIR Appointment stores practitionerRef per resource. Patient sees all their appointments; each doctor (Medplum) sees only their own. Real Practitioner IDs from Medplum: family doctor = Practitioner/733e1972-b42d-4bd0-82c7-66db72b2d311; Dr. Bogheanu (Pediatrie) = Practitioner/474f526b-7919-48dd-9528-3c0eaff80cb6.
 - **WaitingRoomScreen is compound** — consent state + buffer state in one screen, switched by AnimatedSwitcher. Entry: AppointmentsScreen "Intră în consultație". Exit chain: → VideoConsultationScreen.
 - **Phone change blocked pending B0** — PatientProfileScreen allows typing a new phone number but blocks save with a dialog. Full device-transfer flow requires new Stitch screens and is tracked as B0.
 
@@ -268,11 +326,18 @@ Refactoring completed during audit:
 - [x] SpecialistsScreen (A4) — 8 specialties; diacritic search; → DoctorProfileScreen specialist variant
 - [x] WaitingRoomScreen (A5) — compound consent+buffer; AnimatedSwitcher; → VideoConsultationScreen chain
 - [x] All lib/ warnings + test/ errors resolved — 0 errors, 0 warnings, commit 4fbea03
+- [x] GCP e2-micro reverse proxy + WireGuard tunnel (telemed-proxy, Frankfurt) — routes telemed-b, telemed-medplum, telemed-medplum-ui through WireGuard to GX10
+- [x] Medplum 5.1.10 self-hosted on GX10 — FHIR R4 live at https://telemed-medplum.duckdns.org/fhir/R4/metadata
+- [x] Medplum seeded — 5 patients, 5 conditions, 2 practitioners
+- [x] Device bugs F1–F6 + G1–G5 fixed
 
 ### P1 — NEXT
 - [ ] **Make GitHub repo public before May 18 deadline** — currently PRIVATE; required for hackathon submission
 - [ ] **Record competition demo video** — patient story: Maria, 72, chest pain, no car → voice triage → 112 or teleconsult
 - [ ] **Device test all A1–A5 screens** — install latest APK (commit 4fbea03) on Pixel 9 Pro; verify PatientProfile, DoctorProfile, Appointments, Specialists, WaitingRoom (compound)
+- [ ] Wire Medplum client_credentials auth in Flutter app (replace fictional client_id; implement token fetch using Client ID d5d39070)
+- [ ] Replace local FHIR SDK calls with Medplum REST (keep local as offline cache, sync when online)
+- [ ] Replace hardcoded "family" practitionerRef with Practitioner/733e1972-b42d-4bd0-82c7-66db72b2d311
 - [ ] End-to-end text card inference device test (handleRunInference → model output)
 - [ ] WebRTC signaling server on GX10 for real doctor↔patient video
 
@@ -287,11 +352,12 @@ Refactoring completed during audit:
 
 ## Hackathon
 
-- **Deadline:** May 18, 2026 — **16 days remaining**
+- **Deadline:** May 18, 2026 — **15 days remaining**
 - **Public repo required:** currently PRIVATE — **must make public before deadline**
 - **Demo video:** not yet recorded
 - **Gemma 4 on-device status:** model file present on test device; `initializeModel()` wired; end-to-end inference **not yet confirmed**
-- **Latest commit:** 4fbea03 — A1–A5 screens complete, 0 errors, 0 warnings
+- **Latest commit:** 24ca0cc — Kotlin FHIR Appointment type fix; G1–G5 bug fixes pending commit
+- **Medplum status:** server live at https://telemed-medplum.duckdns.org — Flutter auth not yet wired
 
 ## Patient Demo Story (for competition video)
 Maria, 72, Brănești, chest pain, no car, hospital 40km away.

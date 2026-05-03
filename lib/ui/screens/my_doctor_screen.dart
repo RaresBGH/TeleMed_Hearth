@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants/practitioner_constants.dart';
 import 'doctor_profile_screen.dart';
 
 /// Thin wrapper that renders the family-doctor variant of DoctorProfileScreen
@@ -19,7 +20,8 @@ class MyDoctorScreen extends ConsumerWidget {
     return const DoctorProfileScreen(
       showBackButton: false,
       showSpecialtyPicker: true,
-      doctorName: 'Mariana Andronescu',
+      doctorName: Practitioners.familyDoctorName,
+      practitionerRef: Practitioners.familyDoctorId,
     );
   }
 }

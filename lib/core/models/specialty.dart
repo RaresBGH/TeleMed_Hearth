@@ -5,6 +5,8 @@
 
 import 'package:flutter/material.dart';
 
+import '../constants/practitioner_constants.dart';
+
 /// Represents a medical specialty available in the Specialiști screen.
 ///
 /// [appStringKey]    — AppStrings key for the localized specialty name.
@@ -51,7 +53,7 @@ class Specialty {
     Specialty(
       appStringKey:    'specialist.pediatrie',
       icon:            Icons.child_care,
-      practitionerRef: 'specialist_pedia',
+      practitionerRef: Practitioners.bogheanuId,
     ),
     Specialty(
       appStringKey:    'specialist.psihiatrie',

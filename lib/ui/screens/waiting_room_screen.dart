@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
+import '../../core/constants/practitioner_constants.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/language_provider.dart';
@@ -38,7 +39,7 @@ class WaitingRoomScreen extends ConsumerStatefulWidget {
   const WaitingRoomScreen({
     super.key,
     this.appointmentId,
-    this.doctorName = 'Mariana Andronescu',
+    this.doctorName = Practitioners.familyDoctorName,
   });
 
   @override

@@ -4,185 +4,225 @@
 // TeleMed_K: Offline-first telemedicine app for seniors
 
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-/// Repository responsible for interfacing with the Google Android FHIR SDK.
-/// Uses a MethodChannel to handle offline SQLite storage of Observation and Condition resources.
-class FhirRepository {
-  static const MethodChannel _channel = MethodChannel('com.telemed_k/fhir_engine');
+import '../../core/constants/practitioner_constants.dart';
+import '../../core/services/medplum_repository.dart';
 
-  /// Initializes the local FHIR SDK engine and encrypted SQLite database.
+/// Repository for FHIR data access.
+///
+/// Online-first: when [_medplum] is provided and the device is online, reads
+/// are served from the self-hosted Medplum FHIR server. Writes go to BOTH
+/// Medplum (best-effort sync) AND the local FHIR SDK (guaranteed cache).
+/// If Medplum is unavailable the local SDK is the sole source of truth.
+class FhirRepository {
+  static const MethodChannel _channel =
+      MethodChannel('com.telemed_k/fhir_engine');
+
+  /// Optional Medplum sync layer. Null = local-only mode.
+  final MedplumRepository? _medplum;
+
+  FhirRepository({MedplumRepository? medplum}) : _medplum = medplum;
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+
   Future<void> initialize() async {
     try {
       await _channel.invokeMethod<void>('initializeDatabase', {
-        'enableEncryption': true, // EXPLICIT SECURITY FIX: Enforce Android SQLCipher encryption-at-rest
+        'enableEncryption': true,
       });
-      
-      // Seed mock data upon first launch (Phase 7.7)
       await _channel.invokeMethod<void>('seedMockData');
     } on PlatformException catch (e) {
-      // SECURITY FIX: Prevent FHIR PII leakage by strictly logging generic Native Exception Codes, wiping exact inner message contents 
-      throw Exception('Failed to initialize local FHIR Database securely: Error ${e.code}');
+      throw Exception(
+          'Failed to initialize local FHIR Database securely: Error ${e.code}');
     }
   }
 
-  /// Saves a parsed FHIR Observation resource from the local AI session.
-  Future<void> saveObservation(Map<String, dynamic> observationJson) async {
-    try {
-      final String jsonString = jsonEncode(observationJson);
-      await _channel.invokeMethod<void>('saveObservation', {'resource': jsonString});
-    } on PlatformException catch (e) {
-      throw Exception('Secure local FHIR Observation Write failed: Error ${e.code}');
-    }
-  }
+  // ── Patient ────────────────────────────────────────────────────────────────
 
-  /// Looks up a Patient by their 13-digit Romanian CNP identifier.
-  /// Returns the decoded patient JSON map, or null if not found.
+  /// Looks up a Patient by their 13-digit Romanian CNP.
+  /// Online-first: tries Medplum, falls back to local SDK.
   Future<Map<String, dynamic>?> getPatientByCnp(String cnp) async {
+    if (_medplum != null) {
+      final remote = await _medplum.getPatientByCnp(cnp);
+      if (remote != null) return remote;
+    }
     try {
-      final String? result =
-          await _channel.invokeMethod<String>('lookupPatientByCnp', {'cnp': cnp});
+      final String? result = await _channel
+          .invokeMethod<String>('lookupPatientByCnp', {'cnp': cnp});
       if (result == null) return null;
       return jsonDecode(result) as Map<String, dynamic>;
     } on PlatformException catch (e) {
-      throw Exception('Secure local FHIR Patient Lookup failed: Error ${e.code}');
+      throw Exception(
+          'Secure local FHIR Patient Lookup failed: Error ${e.code}');
     }
   }
 
-  /// Updates an existing Patient FHIR resource.
-  /// [patientJson] must include the resource 'id' field so the FHIR engine
-  /// can locate the record to overwrite.
-  Future<void> updatePatient(Map<String, dynamic> patientJson) async {
+  /// Creates a new Patient resource.
+  /// Dual-write: Medplum best-effort + local guaranteed.
+  Future<void> savePatient(Map<String, dynamic> patientJson) async {
+    if (_medplum != null) {
+      final result = await _medplum.savePatient(patientJson);
+      if (result == null) {
+        debugPrint(
+            'FhirRepository.savePatient: Medplum sync failed — local only');
+      }
+    }
     try {
       final String jsonString = jsonEncode(patientJson);
-      await _channel.invokeMethod<void>('updatePatient', {'resource': jsonString});
+      await _channel
+          .invokeMethod<void>('savePatient', {'resource': jsonString});
     } on PlatformException catch (e) {
-      throw Exception('Secure local FHIR Patient Update failed: Error ${e.code}');
+      throw Exception(
+          'Secure local FHIR Patient Write failed: Error ${e.code}');
     }
   }
 
-  /// Deletes all FHIR resources belonging to the patient identified by [cnp].
-  /// Used during account deletion. Delegates filtering to the native layer.
+  /// Updates an existing Patient resource.
+  /// Dual-write: Medplum best-effort + local guaranteed.
+  Future<void> updatePatient(Map<String, dynamic> patientJson) async {
+    if (_medplum != null) {
+      final id = patientJson['id'] as String?;
+      if (id != null) {
+        final result = await _medplum.updatePatient(id, patientJson);
+        if (result == null) {
+          debugPrint(
+              'FhirRepository.updatePatient: Medplum sync failed — local only');
+        }
+      }
+    }
+    try {
+      final String jsonString = jsonEncode(patientJson);
+      await _channel
+          .invokeMethod<void>('updatePatient', {'resource': jsonString});
+    } on PlatformException catch (e) {
+      throw Exception(
+          'Secure local FHIR Patient Update failed: Error ${e.code}');
+    }
+  }
+
+  /// Deletes all FHIR resources for [cnp]. Used during account deletion.
   Future<void> deleteAllForPatient(String cnp) async {
     try {
       await _channel.invokeMethod<void>('deletePatientData', {'cnp': cnp});
     } on PlatformException catch (e) {
-      throw Exception('Secure local FHIR Patient Delete failed: Error ${e.code}');
+      throw Exception(
+          'Secure local FHIR Patient Delete failed: Error ${e.code}');
     }
   }
 
-  /// Creates a new Patient FHIR resource for a newly registered user.
-  Future<void> savePatient(Map<String, dynamic> patientJson) async {
+  // ── Observation ────────────────────────────────────────────────────────────
+
+  /// Saves an Observation from a triage session.
+  /// Dual-write: Medplum best-effort + local guaranteed.
+  Future<void> saveObservation(
+      Map<String, dynamic> observationJson) async {
+    if (_medplum != null) {
+      final result = await _medplum.saveObservation(observationJson);
+      if (result == null) {
+        debugPrint(
+            'FhirRepository.saveObservation: Medplum sync failed — local only');
+      }
+    }
     try {
-      final String jsonString = jsonEncode(patientJson);
-      await _channel.invokeMethod<void>('savePatient', {'resource': jsonString});
+      final String jsonString = jsonEncode(observationJson);
+      await _channel.invokeMethod<void>(
+          'saveObservation', {'resource': jsonString});
     } on PlatformException catch (e) {
-      throw Exception('Secure local FHIR Patient Write failed: Error ${e.code}');
+      throw Exception(
+          'Secure local FHIR Observation Write failed: Error ${e.code}');
     }
   }
 
-  /// Updates an existing FHIR Observation by [id] with the new [observationJson].
-  /// The [id] is injected into the payload so the native FHIR engine locates the
-  /// correct resource to overwrite.
+  /// Updates an existing Observation (resume-conversation flow).
+  /// Dual-write: Medplum best-effort + local guaranteed.
   Future<void> updateObservation(
       String id, Map<String, dynamic> observationJson) async {
+    final payload = Map<String, dynamic>.from(observationJson);
+    payload['id'] = id;
+
+    if (_medplum != null) {
+      final result = await _medplum.updateObservation(id, payload);
+      if (result == null) {
+        debugPrint(
+            'FhirRepository.updateObservation: Medplum sync failed — local only');
+      }
+    }
     try {
-      final payload = Map<String, dynamic>.from(observationJson);
-      payload['id'] = id;
       final String jsonString = jsonEncode(payload);
-      await _channel.invokeMethod<void>('updateObservation', {'resource': jsonString});
+      await _channel.invokeMethod<void>(
+          'updateObservation', {'resource': jsonString});
     } on PlatformException catch (e) {
-      throw Exception('Secure local FHIR Observation Update failed: Error ${e.code}');
+      throw Exception(
+          'Secure local FHIR Observation Update failed: Error ${e.code}');
     }
   }
 
-  /// Saves a parsed FHIR Condition resource (e.g. inferred from audio).
+  // ── Condition ──────────────────────────────────────────────────────────────
+
   Future<void> saveCondition(Map<String, dynamic> conditionJson) async {
     try {
       final String jsonString = jsonEncode(conditionJson);
-      await _channel.invokeMethod<void>('saveCondition', {'resource': jsonString});
+      await _channel
+          .invokeMethod<void>('saveCondition', {'resource': jsonString});
     } on PlatformException catch (e) {
-      throw Exception('Secure local FHIR Condition Write failed: Error ${e.code}');
+      throw Exception(
+          'Secure local FHIR Condition Write failed: Error ${e.code}');
     }
   }
 
-  /// Returns resources buffered for cloud sync once connection is restored.
-  Future<List<Map<String, dynamic>>> getUnsyncedResources() async {
-    try {
-      final String? result = await _channel.invokeMethod<String>('getUnsyncedResources');
-      if (result == null) return [];
-      
-      final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;
-      return parsed.cast<Map<String, dynamic>>();
-    } on PlatformException catch (e) {
-      throw Exception('Secure FHIR Sync Read failed: Error ${e.code}');
-    }
-  }
+  // ── History ────────────────────────────────────────────────────────────────
 
-  /// Returns Observation and Condition resources for the patient identified by [cnp].
-  /// Passing an empty [cnp] returns all resources (fallback for unauthenticated contexts).
-  Future<List<Map<String, dynamic>>> getPatientHistory({String cnp = ''}) async {
+  /// Returns Observations (and Conditions) for [cnp].
+  /// Online-first: tries Medplum observations, falls back to local SDK.
+  Future<List<Map<String, dynamic>>> getPatientHistory(
+      {String cnp = ''}) async {
+    if (_medplum != null && cnp.isNotEmpty) {
+      final patient = await _medplum.getPatientByCnp(cnp);
+      final patientId = patient?['id'] as String?;
+      if (patientId != null) {
+        final observations =
+            await _medplum.getObservationsForPatient(patientId);
+        if (observations.isNotEmpty) return observations;
+      }
+    }
     try {
       final String? result = await _channel.invokeMethod<String>(
         'getPatientHistory',
         {'cnp': cnp},
       );
       if (result == null) return [];
-
       final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;
       return parsed.cast<Map<String, dynamic>>();
     } on PlatformException catch (e) {
-      throw Exception('Secure offline FHIR History Read failed: Error ${e.code}');
+      throw Exception(
+          'Secure offline FHIR History Read failed: Error ${e.code}');
     }
   }
 
-  /// Returns the most recent Encounter resource for the patient.
-  Future<Map<String, dynamic>?> getMostRecentEncounter() async {
-    try {
-      final String? result = await _channel.invokeMethod<String>('getMostRecentEncounter');
-      if (result == null) return null;
-      return jsonDecode(result) as Map<String, dynamic>;
-    } on PlatformException catch (e) {
-      throw Exception('Secure offline FHIR Encounter Read failed: Error ${e.code}');
-    }
-  }
+  // ── Appointments ───────────────────────────────────────────────────────────
 
-  /// Returns the most recent MedicationRequest resource for the patient.
-  Future<Map<String, dynamic>?> getMostRecentMedicationRequest() async {
-    try {
-      final String? result = await _channel.invokeMethod<String>('getMostRecentMedicationRequest');
-      if (result == null) return null;
-      return jsonDecode(result) as Map<String, dynamic>;
-    } on PlatformException catch (e) {
-      throw Exception('Secure offline FHIR Medication Read failed: Error ${e.code}');
-    }
-  }
-
-  /// Logs digital consent by securely updating the local FHIR Encounter.
-  Future<void> updateEncounterConsent(String callId) async {
-    try {
-      await _channel.invokeMethod<void>('updateEncounterConsent', {'callId': callId, 'consent': true});
-    } on PlatformException catch (e) {
-      throw Exception('Secure local FHIR Consent Write failed: Error ${e.code}');
-    }
-  }
-
-  /// Saves a new FHIR Appointment for the given patient booking.
-  /// [data] must contain: patientId, practitionerId, dateTimeIso,
-  /// durationMinutes, description, status.
-  Future<void> saveAppointment({required Map<String, dynamic> data}) async {
-    try {
-      await _channel.invokeMethod<void>('saveAppointment', data);
-    } on PlatformException catch (e) {
-      throw Exception('Secure local FHIR Appointment Write failed: Error ${e.code}');
-    }
-  }
-
-  /// Returns FHIR Appointment resources for [cnp], optionally scoped to a
-  /// specific [practitionerRef] so each doctor's calendar shows only their own
-  /// appointments. If [practitionerRef] is null all patient appointments return.
+  /// Returns Appointments for [cnp], optionally scoped to [practitionerRef].
+  /// Online-first: tries Medplum, falls back to local SDK.
   Future<List<Map<String, dynamic>>> getAppointments(
       {required String cnp, String? practitionerRef}) async {
+    if (_medplum != null) {
+      final patient = await _medplum.getPatientByCnp(cnp);
+      final patientId = patient?['id'] as String?;
+      if (patientId != null) {
+        // Strip "Practitioner/" prefix if present before passing to Medplum.
+        final practId = practitionerRef?.replaceFirst('Practitioner/', '');
+        final appointments = await _medplum.getAppointments(
+          patientId: patientId,
+          practitionerId: (practId == 'family' || practId == null)
+              ? null
+              : practId,
+        );
+        if (appointments.isNotEmpty) return appointments;
+      }
+    }
     try {
       final String? result = await _channel.invokeMethod<String>(
           'getAppointments', {
@@ -193,16 +233,149 @@ class FhirRepository {
       final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;
       return parsed.cast<Map<String, dynamic>>();
     } on PlatformException catch (e) {
-      throw Exception('Secure offline FHIR Appointment Read failed: Error ${e.code}');
+      throw Exception(
+          'Secure offline FHIR Appointment Read failed: Error ${e.code}');
     }
   }
 
-  /// Marks a list of resource IDs as successfully synced to the remote server.
+  /// Saves a new Appointment booking.
+  /// Dual-write: Medplum best-effort + local guaranteed.
+  ///
+  /// [data] keys: patientId (CNP), practitionerId, dateTimeIso,
+  /// durationMinutes, description, status.
+  Future<void> saveAppointment({required Map<String, dynamic> data}) async {
+    if (_medplum != null) {
+      final fhirPayload = _buildFhirAppointmentPayload(data);
+      final result = await _medplum.saveAppointment(fhirPayload);
+      if (result == null) {
+        debugPrint(
+            'FhirRepository.saveAppointment: Medplum sync failed — local only');
+      }
+    }
+    try {
+      await _channel.invokeMethod<void>('saveAppointment', data);
+    } on PlatformException catch (e) {
+      throw Exception(
+          'Secure local FHIR Appointment Write failed: Error ${e.code}');
+    }
+  }
+
+  // ── Encounter / Medication (local-only — no Medplum equivalent yet) ────────
+
+  Future<Map<String, dynamic>?> getMostRecentEncounter() async {
+    try {
+      final String? result =
+          await _channel.invokeMethod<String>('getMostRecentEncounter');
+      if (result == null) return null;
+      return jsonDecode(result) as Map<String, dynamic>;
+    } on PlatformException catch (e) {
+      throw Exception(
+          'Secure offline FHIR Encounter Read failed: Error ${e.code}');
+    }
+  }
+
+  Future<Map<String, dynamic>?> getMostRecentMedicationRequest() async {
+    try {
+      final String? result = await _channel
+          .invokeMethod<String>('getMostRecentMedicationRequest');
+      if (result == null) return null;
+      return jsonDecode(result) as Map<String, dynamic>;
+    } on PlatformException catch (e) {
+      throw Exception(
+          'Secure offline FHIR Medication Read failed: Error ${e.code}');
+    }
+  }
+
+  Future<void> updateEncounterConsent(String callId) async {
+    try {
+      await _channel.invokeMethod<void>(
+          'updateEncounterConsent', {'callId': callId, 'consent': true});
+    } on PlatformException catch (e) {
+      throw Exception(
+          'Secure local FHIR Consent Write failed: Error ${e.code}');
+    }
+  }
+
+  // ── Sync utilities ─────────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getUnsyncedResources() async {
+    try {
+      final String? result =
+          await _channel.invokeMethod<String>('getUnsyncedResources');
+      if (result == null) return [];
+      final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;
+      return parsed.cast<Map<String, dynamic>>();
+    } on PlatformException catch (e) {
+      throw Exception(
+          'Secure FHIR Sync Read failed: Error ${e.code}');
+    }
+  }
+
   Future<void> markAsSynced(List<String> resourceIds) async {
     try {
-      await _channel.invokeMethod<void>('markAsSynced', {'resourceIds': resourceIds});
+      await _channel
+          .invokeMethod<void>('markAsSynced', {'resourceIds': resourceIds});
     } on PlatformException catch (e) {
-      throw Exception('Secure local FHIR Mark Synced failed: Error ${e.code}');
+      throw Exception(
+          'Secure local FHIR Mark Synced failed: Error ${e.code}');
     }
+  }
+
+  // ── Private helpers ────────────────────────────────────────────────────────
+
+  /// Converts the raw appointment data map (local format) into a FHIR
+  /// Appointment JSON payload suitable for posting to Medplum.
+  /// Patient is referenced by CNP identifier (Medplum resolves via chaining).
+  static Map<String, dynamic> _buildFhirAppointmentPayload(
+      Map<String, dynamic> data) {
+    final cnp = data['patientId'] as String? ?? '';
+    final practRef = data['practitionerId'] as String? ?? '';
+    final dateTimeIso = data['dateTimeIso'] as String? ?? '';
+    final durationMinutes =
+        (data['durationMinutes'] as num?)?.toInt() ?? 30;
+    final description = data['description'] as String? ?? '';
+    final status = data['status'] as String? ?? 'booked';
+
+    DateTime? start;
+    DateTime? end;
+    if (dateTimeIso.isNotEmpty) {
+      try {
+        start = DateTime.parse(dateTimeIso);
+        end = start.add(Duration(minutes: durationMinutes));
+      } catch (_) {}
+    }
+
+    // Resolve practitioner reference: "family" or empty falls back to family doctor.
+    final resolvedPractRef =
+        (practRef == 'family' || practRef.isEmpty)
+            ? Practitioners.familyDoctorId
+            : (practRef.startsWith('Practitioner/')
+                ? practRef
+                : 'Practitioner/$practRef');
+
+    return {
+      'resourceType': 'Appointment',
+      'status': status,
+      'description': description,
+      if (start != null) 'start': start.toUtc().toIso8601String(),
+      if (end != null) 'end': end.toUtc().toIso8601String(),
+      'participant': [
+        // Patient referenced by CNP identifier — Medplum resolves via chained search.
+        {
+          'actor': {
+            'type': 'Patient',
+            'identifier': {
+              'system': 'urn:oid:1.2.40.0.10.1.4.3.1',
+              'value': cnp,
+            },
+          },
+          'status': 'accepted',
+        },
+        {
+          'actor': {'reference': resolvedPractRef},
+          'status': 'accepted',
+        },
+      ],
+    };
   }
 }

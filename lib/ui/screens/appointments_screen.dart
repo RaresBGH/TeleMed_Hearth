@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../core/constants/practitioner_constants.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/auth_provider.dart';
@@ -56,7 +57,7 @@ class AppointmentsScreen extends ConsumerStatefulWidget {
   const AppointmentsScreen({
     super.key,
     this.practitionerRef,
-    this.doctorName    = 'Mariana Andronescu',
+    this.doctorName    = Practitioners.familyDoctorName,
     this.doctorSpecialty,
   });
 
@@ -486,11 +487,11 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                               actorRef =
                                   actor?['reference'] as String?;
                             }
-                            // TODO(medplum): resolve doctorName from FHIR Practitioner resource.
                             final doctorName =
-                                actorRef == 'Practitioner/family'
-                                    ? 'Mariana Andronescu'
-                                    : 'Dr. Adriana Bogheanu';
+                                (actorRef == Practitioners.familyDoctorId ||
+                                        actorRef == 'Practitioner/family')
+                                    ? Practitioners.familyDoctorName
+                                    : Practitioners.bogheanuName;
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -742,7 +743,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
 
       await ref.read(fhirRepositoryProvider).saveAppointment(data: {
         'patientId':       cnp,
-        'practitionerId':  widget.practitionerRef ?? 'family',
+        'practitionerId':  widget.practitionerRef ?? Practitioners.familyDoctorId,
         'dateTimeIso':     isoString,
         'durationMinutes': 30,
         'description':     desc,

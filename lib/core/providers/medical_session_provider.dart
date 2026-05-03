@@ -11,6 +11,7 @@ import '../services/ai_engine_service.dart';
 import '../services/audio_recording_service.dart';
 import '../../data/repositories/fhir_repository.dart';
 import 'auth_provider.dart';
+import 'medplum_auth_provider.dart';
 import 'patient_history_provider.dart';
 
 enum SessionState { idle, recording, processing, success, emergency, error }
@@ -268,7 +269,9 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
-final fhirRepositoryProvider = Provider<FhirRepository>((ref) => FhirRepository());
+final fhirRepositoryProvider = Provider<FhirRepository>((ref) {
+  return FhirRepository(medplum: ref.watch(medplumRepositoryProvider));
+});
 
 final aiEngineServiceProvider = Provider<AiEngineService>((ref) {
   final fhirRepo = ref.read(fhirRepositoryProvider);
