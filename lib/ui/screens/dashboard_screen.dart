@@ -79,8 +79,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           }
         }
         if (next == null) return null;
-        return DateFormatter.format(
+        final dateStr = DateFormatter.format(
             next['start'] as String, includeTime: true);
+        // Extract doctor name from "type · specialty · doctorName" format.
+        final parts = ((next['description'] as String?) ?? '').split(' · ');
+        final doctorName = parts.length >= 2 ? parts.last : null;
+        return doctorName != null ? '$dateStr · $doctorName' : dateStr;
       },
       orElse: () => null,
     );

@@ -105,6 +105,12 @@ class AiEngineService {
         out['response'] = (text != null && text.isNotEmpty)
             ? text
             : 'Răspuns primit. Medicul va fi contactat.';
+        // Preserve category if the AI provided a valid one.
+        const validCats = {'medical', 'document', 'other'};
+        final aiCat = parsed['category'] as String?;
+        if (aiCat != null && validCats.contains(aiCat)) {
+          out['category'] = aiCat;
+        }
         return out;
       } catch (_) {}
     }
@@ -247,6 +253,13 @@ class AiEngineService {
         buffer.writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
       }
     }
+    // Category instruction: ask AI to classify the session type.
+    // Values: "medical" (symptoms/health), "document" (prescriptions/referrals),
+    // "other" (admin/scheduling). Include as a JSON field in the response.
+    buffer.writeln(
+        'CLASSIFY: Add "category" to your JSON — "medical" for health/'
+        'symptoms, "document" for prescriptions/referrals/certificates, '
+        '"other" for admin/scheduling/doctor messages.');
     return buffer.toString();
   }
 

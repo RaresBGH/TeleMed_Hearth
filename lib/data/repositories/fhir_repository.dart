@@ -178,12 +178,17 @@ class FhirRepository {
     }
   }
 
-  /// Returns all FHIR Appointment resources for the patient identified by [cnp],
-  /// sorted by start date descending. Returns [] if no Appointments registered yet.
-  Future<List<Map<String, dynamic>>> getAppointments({required String cnp}) async {
+  /// Returns FHIR Appointment resources for [cnp], optionally scoped to a
+  /// specific [practitionerRef] so each doctor's calendar shows only their own
+  /// appointments. If [practitionerRef] is null all patient appointments return.
+  Future<List<Map<String, dynamic>>> getAppointments(
+      {required String cnp, String? practitionerRef}) async {
     try {
-      final String? result =
-          await _channel.invokeMethod<String>('getAppointments', {'cnp': cnp});
+      final String? result = await _channel.invokeMethod<String>(
+          'getAppointments', {
+        'cnp': cnp,
+        if (practitionerRef != null) 'practitionerRef': practitionerRef,
+      });
       if (result == null) return [];
       final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;
       return parsed.cast<Map<String, dynamic>>();

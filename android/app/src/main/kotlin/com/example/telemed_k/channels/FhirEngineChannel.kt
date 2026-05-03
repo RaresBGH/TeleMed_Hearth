@@ -582,7 +582,8 @@ class FhirEngineChannel(
         scope.launch {
             try {
                 ensureInitialized()
-                val patientCnp = call.argument<String>("cnp") ?: ""
+                val patientCnp       = call.argument<String>("cnp") ?: ""
+                val practitionerRef  = call.argument<String>("practitionerRef") // nullable
 
                 // Guard: Appointment type may not be in FHIR schema yet
                 val appointments = runCatching {
@@ -599,11 +600,22 @@ class FhirEngineChannel(
 
                 val filtered = appointments
                     .filter { sr ->
-                        if (patientCnp.isEmpty()) return@filter true
-                        sr.resource.participant.any { p ->
-                            p.actor?.identifier?.system == "urn:oid:1.2.40.0.10.1.4.3.1" &&
-                            p.actor?.identifier?.value  == patientCnp
+                        // Filter by patient CNP
+                        if (patientCnp.isNotEmpty()) {
+                            val hasPatient = sr.resource.participant.any { p ->
+                                p.actor?.identifier?.system == "urn:oid:1.2.40.0.10.1.4.3.1" &&
+                                p.actor?.identifier?.value  == patientCnp
+                            }
+                            if (!hasPatient) return@filter false
                         }
+                        // Filter by practitionerRef when provided (per-doctor calendar scoping)
+                        if (practitionerRef != null) {
+                            val hasPractitioner = sr.resource.participant.any { p ->
+                                p.actor?.reference == "Practitioner/$practitionerRef"
+                            }
+                            if (!hasPractitioner) return@filter false
+                        }
+                        true
                     }
 
                 // Upcoming (start >= now) sorted ascending (soonest first),

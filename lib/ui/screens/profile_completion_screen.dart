@@ -13,6 +13,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/services/ai_engine_service.dart';
 import '../theme/theme.dart';
+import '../widgets/language_toggle.dart';
 
 class ProfileCompletionScreen extends ConsumerStatefulWidget {
   const ProfileCompletionScreen({super.key});
@@ -89,6 +90,10 @@ class _ProfileCompletionScreenState
         elevation: 0,
         automaticallyImplyLeading: false,
         centerTitle: true,
+        actions: const [
+          LanguageToggle(),
+          SizedBox(width: 16),
+        ],
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -181,7 +186,7 @@ class _ProfileCompletionScreenState
                     const SizedBox(height: 48),
 
                     AccessibleTouchTarget(
-                      semanticLabel: 'Salvează profilul și continuă',
+                      semanticLabel: AppStrings.of(lang, 'profile.continue_sem'),
                       onTap: _onSave,
                       child: Container(
                         height: 96,

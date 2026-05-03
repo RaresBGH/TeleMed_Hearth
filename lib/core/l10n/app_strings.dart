@@ -54,6 +54,10 @@ class AppStrings {
     'history.dialog_saved':   'Dialog Salvat',
     'history.triage_ai':      'Triaj AI',
     'history.report':         'Raport',
+    'history.cat_medical':    'Medical',
+    'history.cat_document':   'Document',
+    'history.cat_other':      'Altele',
+    'history.doctor_attr':    'Medic:',
     'history.open_details':   'Deschide detalii raport',
 
     // ── Doctor / Medic ─────────────────────────────────────────────────────
@@ -360,6 +364,10 @@ class AppStrings {
     'history.dialog_saved':   'Saved Dialogue',
     'history.triage_ai':      'AI Triage',
     'history.report':         'Report',
+    'history.cat_medical':    'Medical',
+    'history.cat_document':   'Document',
+    'history.cat_other':      'Other',
+    'history.doctor_attr':    'Doctor:',
     'history.open_details':   'Open report details',
 
     // ── Doctor / Medic ─────────────────────────────────────────────────────

@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/date_formatter.dart';
 import '../../core/providers/language_provider.dart';
-import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/patient_history_provider.dart';
 import '../theme/theme.dart';
 import '../widgets/app_bottom_nav_bar.dart';
@@ -19,14 +18,9 @@ class HistoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Invalidate history whenever a triage session completes (idle transition).
-    ref.listen<MedicalSessionState>(medicalSessionProvider, (previous, current) {
-      if (current.sessionState == SessionState.idle &&
-          previous?.sessionState != SessionState.idle) {
-        ref.invalidate(patientHistoryProvider);
-      }
-    });
-
+    // patientHistoryProvider is invalidated by finalizeConsultation() in
+    // MedicalSessionNotifier — after the FHIR write completes, not on idle
+    // transition (which could fire before the write finishes).
     final historyAsync = ref.watch(patientHistoryProvider);
     final String lang = ref.watch(languageProvider);
 
@@ -92,6 +86,21 @@ class HistoryScreen extends ConsumerWidget {
                             item['valueString'] as String?;
                         final String? status = item['status'] as String?;
 
+                        // Extract doctorName and category from FHIR extensions.
+                        final extensions =
+                            (item['extension'] as List?) ?? const [];
+                        String? doctorName;
+                        String? category;
+                        for (final ext in extensions) {
+                          final e = ext as Map<String, dynamic>;
+                          final url = e['url'] as String? ?? '';
+                          if (url.endsWith('doctor-name')) {
+                            doctorName = e['valueString'] as String?;
+                          } else if (url.endsWith('session-category')) {
+                            category = e['valueString'] as String?;
+                          }
+                        }
+
                         return Container(
                           margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
@@ -127,17 +136,46 @@ class HistoryScreen extends ConsumerWidget {
                                           MainAxisAlignment.spaceBetween,
                                       children: [
                                         Expanded(
-                                          child: Text(
-                                            dateStr,
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black,
-                                            ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                dateStr,
+                                                style: const TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.black,
+                                                ),
+                                              ),
+                                              if (doctorName != null &&
+                                                  doctorName.isNotEmpty) ...[
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  '${AppStrings.of(lang, 'history.doctor_attr')} $doctorName',
+                                                  style: const TextStyle(
+                                                    fontSize: 13,
+                                                    color: Color(0xFF5BA4CF),
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
                                           ),
                                         ),
                                         const SizedBox(width: 8),
-                                        _buildStatusBadge(status, lang),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            _buildStatusBadge(status, lang),
+                                            if (category != null) ...[
+                                              const SizedBox(height: 4),
+                                              _buildCategoryChip(
+                                                  category, lang),
+                                            ],
+                                          ],
+                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 12),
@@ -210,6 +248,45 @@ class HistoryScreen extends ConsumerWidget {
     );
   }
 
+
+  /// Color-coded chip for session category (BUG 7 fix).
+  /// medical → #5BA4CF  |  document → #7B61FF (purple)  |  other → neutral gray
+  Widget _buildCategoryChip(String category, String lang) {
+    final Color bg;
+    final Color fg;
+    final String label;
+    switch (category) {
+      case 'medical':
+        bg = const Color(0x1A5BA4CF);
+        fg = const Color(0xFF5BA4CF);
+        label = AppStrings.of(lang, 'history.cat_medical');
+        break;
+      case 'document':
+        bg = const Color(0x1A7B61FF);
+        fg = const Color(0xFF7B61FF);
+        label = AppStrings.of(lang, 'history.cat_document');
+        break;
+      default: // 'other'
+        bg = const Color(0xFFE6E8ED);
+        fg = const Color(0xFF40484E);
+        label = AppStrings.of(lang, 'history.cat_other');
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: fg,
+        ),
+      ),
+    );
+  }
 
   String _getFallbackText(Map<String, dynamic> item) {
     if (item['resourceType'] == 'Observation') return 'Observație Medicală';

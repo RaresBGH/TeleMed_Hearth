@@ -45,7 +45,20 @@ const List<TimeOfDay> _availableSlots = [
 ];
 
 class AppointmentsScreen extends ConsumerStatefulWidget {
-  const AppointmentsScreen({super.key});
+  /// When non-null, only appointments for this practitioner are loaded,
+  /// scoping the calendar to a single doctor (BUG 5 fix).
+  final String? practitionerRef;
+
+  /// Doctor name and specialty pre-fill the inline booking panel (BUG 2 fix).
+  final String doctorName;
+  final String? doctorSpecialty;
+
+  const AppointmentsScreen({
+    super.key,
+    this.practitionerRef,
+    this.doctorName    = 'Mariana Andronescu',
+    this.doctorSpecialty,
+  });
 
   @override
   ConsumerState<AppointmentsScreen> createState() => _AppointmentsScreenState();
@@ -73,7 +86,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     try {
       final data = await ref
           .read(fhirRepositoryProvider)
-          .getAppointments(cnp: cnp);
+          .getAppointments(cnp: cnp, practitionerRef: widget.practitionerRef);
       if (!mounted) return;
 
       // Dart-side safety sort: upcoming ascending, past descending.
@@ -287,6 +300,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         lastDay: DateTime.utc(2030, 12, 31),
         focusedDay: _focusedDay,
         calendarFormat: CalendarFormat.month,
+        startingDayOfWeek: StartingDayOfWeek.monday,
         // Explicit row heights prevent day cells from being clipped.
         rowHeight: 52.0,
         daysOfWeekHeight: 32.0,
@@ -377,11 +391,20 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
   Widget _buildAppointmentCard(Map<String, dynamic> appt, String lang) {
     final status  = (appt['status'] as String? ?? 'booked').toLowerCase();
     final iso     = appt['start'] as String? ?? '';
-    final desc    = appt['description'] as String?
+    final rawDesc = appt['description'] as String?
         ?? AppStrings.of(lang, 'appointment.video_consult');
     final dateStr = iso.isNotEmpty
         ? DateFormatter.format(iso, includeTime: true)
         : '';
+
+    // Parse "type · specialty · doctorName" format stored by the booking panel.
+    // Older entries may just be "Consultație video" — handle gracefully.
+    final parts = rawDesc.split(' · ');
+    final doctorName = parts.length >= 3
+        ? parts.skip(2).join(' · ')       // everything after specialty
+        : parts.length == 2 ? parts[1]    // just doctorName without specialty
+        : null;
+    final desc = doctorName ?? rawDesc;    // show doctorName as card title
     final canEnter = _canEnterConsult(appt);
 
     return Container(
@@ -709,12 +732,20 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
       );
       final isoString = dateTime.toUtc().toIso8601String();
 
+      // Build description: "Consultație video · {specialty} · {doctorName}"
+      // so appointment cards and dashboard can display doctor info (BUG 2 fix).
+      final baseType = AppStrings.of(lang, 'appointment.video_consult');
+      final specialty = widget.doctorSpecialty;
+      final desc = specialty != null
+          ? '$baseType · $specialty · ${widget.doctorName}'
+          : '$baseType · ${widget.doctorName}';
+
       await ref.read(fhirRepositoryProvider).saveAppointment(data: {
         'patientId':       cnp,
-        'practitionerId':  'family', // TODO(A4): pass real practitionerRef from caller
+        'practitionerId':  widget.practitionerRef ?? 'family',
         'dateTimeIso':     isoString,
         'durationMinutes': 30,
-        'description':     AppStrings.of(lang, 'appointment.video_consult'),
+        'description':     desc,
         'status':          'booked',
       });
 

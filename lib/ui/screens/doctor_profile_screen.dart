@@ -268,6 +268,9 @@ class DoctorProfileScreen extends ConsumerWidget {
                       // Specialist sub-screen: push so back returns here.
                       // TODO(medplum): scope thread to practitionerRef
                       if (!context.mounted) return;
+                      // Set doctorName in state for finalizeConsultation attribution.
+                      ref.read(medicalSessionProvider.notifier)
+                          .startWithPreseed(preseed, doctorName: doctorName);
                       final msg = ChatMessage(
                         role: 'patient',
                         text: preseed,
@@ -288,7 +291,7 @@ class DoctorProfileScreen extends ConsumerWidget {
                       // Family doctor tab: flat nav.
                       ref
                           .read(medicalSessionProvider.notifier)
-                          .startWithPreseed(preseed);
+                          .startWithPreseed(preseed, doctorName: doctorName);
                       ref
                           .read(appNavigationProvider.notifier)
                           .navigateTo(AppRoute.medicalResponse);
@@ -303,13 +306,17 @@ class DoctorProfileScreen extends ConsumerWidget {
                   label: AppStrings.of(lang, 'doctor.book_appointment'),
                   onTap: () {
                     if (showBackButton) {
-                      // Specialist sub-screen: push so back returns here.
-                      // TODO(A3): pass practitionerRef as filter.
+                      // Specialist sub-screen: push with doctor context so the
+                      // calendar is scoped and booking pre-fills doctor info.
                       if (!context.mounted) return;
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const AppointmentsScreen(),
+                          builder: (_) => AppointmentsScreen(
+                            practitionerRef: practitionerRef,
+                            doctorName:      doctorName,
+                            doctorSpecialty: specialty,
+                          ),
                         ),
                       );
                     } else {

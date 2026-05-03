@@ -11,6 +11,7 @@ import '../services/ai_engine_service.dart';
 import '../services/audio_recording_service.dart';
 import '../../data/repositories/fhir_repository.dart';
 import 'auth_provider.dart';
+import 'patient_history_provider.dart';
 
 enum SessionState { idle, recording, processing, success, emergency, error }
 
@@ -23,6 +24,12 @@ class MedicalSessionState {
   final List<ChatMessage>? lastResumeMessages;
   final String? lastResumeObservationId;
   final String? errorMessage;
+  /// Doctor attribution for "Trimite mesaj" sessions (BUG 4 fix).
+  final String? lastDoctorName;
+  /// Session category tag extracted from AI response (BUG 7 fix).
+  /// Values: "medical" | "document" | "other"
+  /// TODO(extend): expand category taxonomy as usage patterns emerge.
+  final String? lastSessionCategory;
 
   const MedicalSessionState({
     required this.sessionState,
@@ -31,6 +38,8 @@ class MedicalSessionState {
     this.lastResumeMessages,
     this.lastResumeObservationId,
     this.errorMessage,
+    this.lastDoctorName,
+    this.lastSessionCategory,
   });
 
   static const idle = MedicalSessionState(sessionState: SessionState.idle);
@@ -112,6 +121,24 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
         noteBuffer.writeln('$prefix $timeStr: ${msg.text}');
       }
 
+      // Resolve doctorName and category for attribution and classification.
+      final String? doctorName = state.lastDoctorName;
+      final String category = state.lastIsEmergency
+          ? 'medical'
+          : (state.lastSessionCategory ?? 'medical');
+
+      final extensions = <Map<String, dynamic>>[
+        {
+          'url': 'http://telemed-k.example.com/fhir/extension/session-category',
+          'valueString': category,
+        },
+        if (doctorName != null && doctorName.isNotEmpty)
+          {
+            'url': 'http://telemed-k.example.com/fhir/extension/doctor-name',
+            'valueString': doctorName,
+          },
+      ];
+
       final observationPayload = {
         'resourceType': 'Observation',
         'status': 'preliminary',
@@ -133,6 +160,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
         },
         'effectiveDateTime': timestamp,
         'valueString': triageResponse,
+        'extension': extensions,
         'note': [
           {'text': noteBuffer.toString()}
         ],
@@ -144,6 +172,9 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       } else {
         await _fhirRepository.saveObservation(observationPayload);
       }
+      // Invalidate AFTER the FHIR write completes so the history screen
+      // re-fetches the updated list, not the pre-write snapshot.
+      ref.invalidate(patientHistoryProvider);
     } catch (e) {
       throw Exception('Failed to save consultation to local FHIR database: $e');
     }
@@ -158,7 +189,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   /// text appears as the patient's first bubble in MedicalResponseScreen.
   ///
   /// TODO(medplum): scope message thread to [practitionerRef] when Medplum wired.
-  void startWithPreseed(String message) {
+  void startWithPreseed(String message, {String? doctorName}) {
     // Reset all previous session state. lastAiResponse is set to the preseed
     // text so MedicalResponseScreen's triage card shows the conversation
     // context rather than a stale triage result or generic fallback.
@@ -172,6 +203,8 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
           timestamp: DateTime.now(),
         ),
       ],
+      lastDoctorName: doctorName,
+      lastSessionCategory: 'other', // default for doctor messages; AI may override
     );
   }
 
@@ -179,10 +212,14 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   /// the chat screen. Call via postFrameCallback in MedicalResponseScreen
   /// to prevent double injection on re-entry.
   void clearPreseed() {
+    // Clear lastResumeMessages to prevent double-injection on re-entry.
+    // Preserve doctorName and category so finalizeConsultation can use them.
     state = MedicalSessionState(
       sessionState: state.sessionState,
       lastAiResponse: state.lastAiResponse,
       lastIsEmergency: state.lastIsEmergency,
+      lastDoctorName: state.lastDoctorName,
+      lastSessionCategory: state.lastSessionCategory,
     );
   }
 
@@ -213,10 +250,18 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
         (result['confidence'] as num?)?.toDouble() ?? 0.0,
       );
     }
+    // Extract AI-provided category; fall back to current category or 'medical'.
+    const _validCategories = {'medical', 'document', 'other'};
+    final aiCategory = result['category'] as String?;
+    final category = (aiCategory != null && _validCategories.contains(aiCategory))
+        ? aiCategory
+        : (state.lastSessionCategory ?? 'medical');
     state = MedicalSessionState(
       sessionState: SessionState.success,
       lastAiResponse: response,
       lastIsEmergency: false,
+      lastDoctorName: state.lastDoctorName,
+      lastSessionCategory: category,
     );
   }
 }
