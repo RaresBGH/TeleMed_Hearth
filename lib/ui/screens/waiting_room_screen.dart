@@ -10,6 +10,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/language_provider.dart';
+import 'video_consultation_screen.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const Color _bg       = Color(0xFFF9F9F9);
@@ -685,8 +686,16 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
           onPressed: _privateSpaceConfirmed
               ? () {
                   // TODO(signaling): pass appointmentId to establish WebRTC session.
-                  ref.read(appNavigationProvider.notifier)
-                      .navigateTo(AppRoute.videoConsultation);
+                  // pushReplacement removes WaitingRoom from the Navigator stack so
+                  // pressing back from the call returns to AppointmentsScreen, not
+                  // back here. Using flat nav would leave WaitingRoom on the stack,
+                  // covering the VideoConsultationScreen.
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const VideoConsultationScreen(),
+                    ),
+                  );
                 }
               : null,
           style: ElevatedButton.styleFrom(

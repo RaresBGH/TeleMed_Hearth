@@ -595,7 +595,9 @@ class FhirEngineChannel(
                 val parser    = fhirContext.newJsonParser()
                 val jsonArray = JSONArray()
 
-                appointments
+                val now = System.currentTimeMillis()
+
+                val filtered = appointments
                     .filter { sr ->
                         if (patientCnp.isEmpty()) return@filter true
                         sr.resource.participant.any { p ->
@@ -603,11 +605,19 @@ class FhirEngineChannel(
                             p.actor?.identifier?.value  == patientCnp
                         }
                     }
+
+                // Upcoming (start >= now) sorted ascending (soonest first),
+                // past (start < now) sorted descending (most recent first).
+                val upcoming = filtered
+                    .filter { (it.resource.start?.time ?: 0L) >= now }
+                    .sortedBy   { it.resource.start?.time ?: 0L }
+                val past = filtered
+                    .filter { (it.resource.start?.time ?: 0L) < now }
                     .sortedByDescending { it.resource.start?.time ?: 0L }
-                    .take(50)
-                    .forEach { sr ->
-                        jsonArray.put(JSONObject(parser.encodeResourceToString(sr.resource)))
-                    }
+
+                (upcoming + past).take(50).forEach { sr ->
+                    jsonArray.put(JSONObject(parser.encodeResourceToString(sr.resource)))
+                }
 
                 Log.i(TAG, "getAppointments: returned ${jsonArray.length()} for CNP=$patientCnp")
                 result.success(jsonArray.toString())

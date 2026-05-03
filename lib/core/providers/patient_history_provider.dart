@@ -12,3 +12,12 @@ final patientHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((ref) 
   final cnp        = ref.watch(loginCnpProvider);
   return repository.getPatientHistory(cnp: cnp);
 });
+
+/// Fetches FHIR Appointments for the currently logged-in patient.
+/// Sorted by the native layer (upcoming-asc, past-desc); Dart side mirrors
+/// the same sort as a safety guard.
+final appointmentsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final repository = ref.watch(fhirRepositoryProvider);
+  final cnp        = ref.watch(loginCnpProvider);
+  return repository.getAppointments(cnp: cnp);
+});

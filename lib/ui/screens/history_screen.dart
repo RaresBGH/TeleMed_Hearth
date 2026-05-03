@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/date_formatter.dart';
 import '../../core/providers/language_provider.dart';
+import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/patient_history_provider.dart';
 import '../theme/theme.dart';
 import '../widgets/app_bottom_nav_bar.dart';
@@ -18,6 +19,14 @@ class HistoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Invalidate history whenever a triage session completes (idle transition).
+    ref.listen<MedicalSessionState>(medicalSessionProvider, (previous, current) {
+      if (current.sessionState == SessionState.idle &&
+          previous?.sessionState != SessionState.idle) {
+        ref.invalidate(patientHistoryProvider);
+      }
+    });
+
     final historyAsync = ref.watch(patientHistoryProvider);
     final String lang = ref.watch(languageProvider);
 
@@ -73,8 +82,12 @@ class HistoryScreen extends ConsumerWidget {
                             '';
                         final String dateStr = DateFormatter.format(isoDate, includeTime: true);
                         final code = item['code'] ?? {};
+                        // Observation entries are always triage dialogs — use the
+                        // translated AppStrings key so the label reacts to RO/EN toggle.
                         final String label =
-                            code['text'] as String? ?? _getFallbackText(item);
+                            item['resourceType'] == 'Observation'
+                                ? AppStrings.of(lang, 'dashboard.triage_dialog')
+                                : (code['text'] as String? ?? _getFallbackText(item));
                         final String? valueString =
                             item['valueString'] as String?;
                         final String? status = item['status'] as String?;
@@ -124,7 +137,7 @@ class HistoryScreen extends ConsumerWidget {
                                           ),
                                         ),
                                         const SizedBox(width: 8),
-                                        _buildStatusBadge(status),
+                                        _buildStatusBadge(status, lang),
                                       ],
                                     ),
                                     const SizedBox(height: 12),
@@ -206,16 +219,16 @@ class HistoryScreen extends ConsumerWidget {
 
 
   /// Status-aware badge.
-  /// • preliminary → blue  "Dialog Salvat"
-  /// • final       → blue  "Triaj AI"
-  /// • anything else       "Raport"
-  Widget _buildStatusBadge(String? status) {
+  /// • preliminary → "Dialog Salvat" / "Saved Dialogue"
+  /// • final       → "Triaj AI" / "AI Triage"
+  /// • anything else → "Raport" / "Report"
+  Widget _buildStatusBadge(String? status, String lang) {
     final bool isPreliminary = status == 'preliminary';
     final String label = isPreliminary
-        ? 'Dialog Salvat'
+        ? AppStrings.of(lang, 'history.dialog_saved')
         : status == 'final'
-            ? 'Triaj AI'
-            : 'Raport';
+            ? AppStrings.of(lang, 'history.triage_ai')
+            : AppStrings.of(lang, 'history.report');
     final Color bg    = isPreliminary
         ? const Color(0xFFE3F2FD)
         : const Color(0xFF5BA4CF).withValues(alpha: 0.10);

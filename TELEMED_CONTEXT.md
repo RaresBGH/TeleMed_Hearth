@@ -35,6 +35,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 | path_provider | ^2.1.5 | Temp/docs directory paths |
 | google_fonts | ^6.2.1 | Lexend font system-wide (resolves to 6.3.3) |
 | flutter_webrtc | ^1.3.0 | WebRTC P2P video (resolves to 1.4.1) |
+| table_calendar | ^3.1.0 (resolves 3.2.0) | Month calendar widget for Programări |
 
 ### Android (Gradle) dependencies
 | Artifact | Version | Role |
@@ -92,17 +93,17 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **DateFormatter utility** — `lib/core/utils/date_formatter.dart`; `format(iso, {includeTime})` replaces `_formatDate` in dashboard and `_formatDateTime` in history; single source of truth
 - **DialogDetailSheet shared widget** — `lib/ui/widgets/dialog_detail_sheet.dart`; static `show()` method replaces duplicated ~130-line bottom sheet in history and dashboard; handles replay, "Continuă conversația", status badge
 - **aiReadyProvider** — `FutureProvider<bool>` in `lib/core/providers/ai_ready_provider.dart`; shared between home and dashboard screens; eliminates redundant `AiEngineService(FhirRepository()).initializeModel()` calls in both `initState()` methods
-- **Medic tab redesign** — family doctor card with "Trimite mesaj" and "Programare" action buttons; specialty navigation row; FHIR data rows (last consultation, active prescription); Stitch assets ready
-- **Specialiști screen** — 2-column specialty grid with search bar; 8 specialties (Cardiologie, Diabet, Reumatologie, Pneumologie, Neurologie, Oftalmologie, Dermatologie, Medicină de familie); Stitch assets ready
-- **Programări screen** — `table_calendar` month view; appointment cards with status chips; "Intră în consultație" and "Solicită programare nouă" action buttons; Stitch assets ready
-- **Profil Pacient screen** — editable personal fields (name, phone, DOB); medical info section; delete account option; accessible from Dashboard
+- **PatientProfileScreen (Profil Pacient)** — FHIR Patient read (CNP + name read-only, phone + email editable); photo picker (image_picker, 200×200 compressed to FHIR Patient.photo); account deletion wipes FHIR DB (Patient + Observations + Conditions + Encounters + Appointments) + model file; phone-change blocked with dialog (B0 pending); email saves to FHIR Patient.telecom; accessible from Dashboard avatar tap
+- **DoctorProfileScreen (reusable template)** — parametrized widget (showBackButton, showSpecialtyPicker, doctorName, practitionerRef); family doctor variant wraps MyDoctorScreen; specialist variant used by SpecialistsScreen; "Trimite mesaj" → MedicalResponseScreen with AI-preseeded prompt ("Bună ziua, am o întrebare pentru Dr. [name]."); "Programare" → AppointmentsScreen; FHIR info rows (last consult, active prescription)
+- **AppointmentsScreen (Programări)** — table_calendar 3.2.0, ro_RO locale; FHIR Appointment CRUD (saveAppointment / getAppointments scoped by Patient CNP); inline booking panel (hardcoded slots MVP); appointment cards with status chips (Confirmată/Finalizată/Anulată); "Intră în consultație" → WaitingRoomScreen with appointmentId; "Solicită programare nouă" → inline panel; Practitioner scoping (MVP: "family" ref, TODO for real Practitioner ID)
+- **SpecialistsScreen (Specialiști)** — 8 specialties (Cardiologie, Neurologie, Dermatologie, Ortopedie, Oftalmologie, Pediatrie, Psihiatrie, Ginecologie); diacritic-insensitive search filter; 2-column grid; taps → DoctorProfileScreen(specialist variant); Dr. Adriana Bogheanu hardcoded for Pediatrie; other specialties use placeholder name pending Medplum Practitioner data
+- **WaitingRoomScreen (compound — A5)** — replaces stub; two-state AnimatedSwitcher (consent → buffer); STATE A: consent card, "Sunt de acord" → STATE B; STATE B: video preview (local only, no signaling), mic/video toggle, private-space checkbox, "Intră în apel" → VideoConsultationScreen; "Anulează" exits; doctorName param replaces hardcoded name; appointmentId param wired from AppointmentsScreen
 
 ### PENDING IMPLEMENTATION
 
-- **Consent + Waiting Room compound screen** — Stitch assets in `stitch_telemed_k/sala_de_a_teptare_i_acord/` folder; replaces existing `WaitingRoomScreen` stub; combines consent agreement with live waiting state
 - **Async messaging thread (Trimite mesaj flow)** — patient ↔ doctor text thread initiated from Medic tab; threaded UI with timestamps; push notification delivery via FCM when online
 - **AI assistant as persistent channel monitor** — Gemma 4 monitors all voice/text/photo triage, messaging, and consultation history; routes urgent cases toward 112; surfaces clinical insights across sessions
-- **`table_calendar` package integration** — add `table_calendar: ^3.1.0` to pubspec.yaml before building Programări screen
+- **Phone number change + device transfer flow (B0)** — new device account creation route; transfers all FHIR data to new device on phone number change; requires new Stitch screens; blocked in PatientProfileScreen with "Funcție în curând disponibilă" dialog
 
 ### STILL BROKEN / SKIPPED FOR HACKATHON
 
@@ -145,6 +146,11 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 | lib/core/utils/date_formatter.dart | `DateFormatter.format(iso, {includeTime})`; replaces per-screen date helpers |
 | lib/core/providers/ai_ready_provider.dart | `FutureProvider<bool>` shared by home and dashboard; calls `initializeModel()` once |
 | lib/ui/widgets/legal_document_modal.dart | Stitch-based legal screens; LegalDocumentType enum; GDPR content |
+| lib/ui/screens/patient_profile_screen.dart | FHIR Patient read/write; photo picker; account deletion |
+| lib/ui/screens/doctor_profile_screen.dart | Reusable parametrized doctor profile; family + specialist variants |
+| lib/ui/screens/appointments_screen.dart | table_calendar; FHIR Appointment CRUD; inline booking |
+| lib/ui/screens/specialists_screen.dart | 8 specialties; diacritic search; routes to DoctorProfileScreen |
+| lib/core/models/specialty.dart | Specialty data model (appStringKey, icon, practitionerRef) |
 | DESIGN.md | The Dignified Guardian design system (permanent reference) |
 
 ### Kotlin / Android
@@ -197,7 +203,12 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Video call initiated ONLY from a confirmed appointment on Programări screen** — NOT from Medic tab directly; Medic tab routes to Programări for scheduling
 - **AI assistant monitors all communication channels** (voice triage, messaging, consultation history) and routes urgent cases toward 112 emergency call
 - **Profil Pacient accessible from Dashboard screen** via profile avatar; editable fields update FHIR Patient resource in local encrypted DB
-- New AppRoutes planned: `AppRoute.specialists` → Specialiști screen; `AppRoute.appointments` → Programări screen; `AppRoute.patientProfile` → Profil Pacient screen
+- AppRoute enum has **15 values**. Added in A1–A5: `AppRoute.specialists` → SpecialistsScreen; `AppRoute.appointments` → AppointmentsScreen; `AppRoute.patientProfile` → PatientProfileScreen
+- **DoctorProfileScreen is a reusable parametrized template** — used by MyDoctorScreen (family doctor tab) and SpecialistsScreen (specialist sub-screens). Parameters: showBackButton, showSpecialtyPicker, doctorName, practitionerRef.
+- **"Trimite mesaj" routes to MedicalResponseScreen with AI preseed** — interim until Medplum async messaging is implemented. Preseed: "Bună ziua, am o întrebare pentru Dr. [name]."
+- **Per-doctor appointment scoping** — FHIR Appointment stores practitionerRef per resource. Patient sees all their appointments; each doctor (Medplum) sees only their own. MVP uses "family" as default practitionerRef.
+- **WaitingRoomScreen is compound** — consent state + buffer state in one screen, switched by AnimatedSwitcher. Entry: AppointmentsScreen "Intră în consultație". Exit chain: → VideoConsultationScreen.
+- **Phone change blocked pending B0** — PatientProfileScreen allows typing a new phone number but blocks save with a dialog. Full device-transfer flow requires new Stitch screens and is tracked as B0.
 
 ---
 
@@ -251,21 +262,23 @@ Refactoring completed during audit:
 - [x] Dashboard screen — post-auth landing; AppRoute.dashboard initial route; live FHIR data
 - [x] LanguageToggle shared widget — replaces all per-screen RO/EN implementations
 - [x] Two full audit cycles — codebase clean: 0 critical, 0 high, 0 medium, 0 low
+- [x] PatientProfileScreen (A1) — FHIR Patient r/w, photo picker, account deletion, B0 phone-change guard
+- [x] DoctorProfileScreen (A2) — reusable template; Trimite mesaj preseed; Programare → appointments
+- [x] AppointmentsScreen (A3) — table_calendar 3.2.0; FHIR Appointment CRUD; inline booking panel
+- [x] SpecialistsScreen (A4) — 8 specialties; diacritic search; → DoctorProfileScreen specialist variant
+- [x] WaitingRoomScreen (A5) — compound consent+buffer; AnimatedSwitcher; → VideoConsultationScreen chain
+- [x] All lib/ warnings + test/ errors resolved — 0 errors, 0 warnings, commit 4fbea03
 
 ### P1 — NEXT
 - [ ] **Make GitHub repo public before May 18 deadline** — currently PRIVATE; required for hackathon submission
 - [ ] **Record competition demo video** — patient story: Maria, 72, chest pain, no car → voice triage → 112 or teleconsult
-- [ ] Implement Medic tab redesign — Stitch assets in `stitch_telemed_k/medic/`
-- [ ] Implement Specialiști screen (`AppRoute.specialists`) — Stitch assets ready
-- [ ] Implement Programări screen (`AppRoute.appointments`) — Stitch assets ready
-- [ ] Implement Profil Pacient screen (`AppRoute.patientProfile`) — Stitch assets ready; link from Dashboard
-- [ ] Add `table_calendar: ^3.1.0` to pubspec.yaml before building Programări
-- [ ] Implement Consent + Waiting Room compound screen (Stitch assets in `sala_de_a_teptare_i_acord/`)
+- [ ] **Device test all A1–A5 screens** — install latest APK (commit 4fbea03) on Pixel 9 Pro; verify PatientProfile, DoctorProfile, Appointments, Specialists, WaitingRoom (compound)
 - [ ] End-to-end text card inference device test (handleRunInference → model output)
 - [ ] WebRTC signaling server on GX10 for real doctor↔patient video
 
 ### P2 — NEXT
 - [ ] Real camera OCR in login (replace `File('dummy_id.jpg')` in `_extractViaCamera()`)
+- [ ] Phone change + device transfer flow (B0) — requires new Stitch screens before implementation
 
 ### P3 — NEXT
 - [ ] DeviceConflictModal trigger from auth flow
@@ -278,6 +291,7 @@ Refactoring completed during audit:
 - **Public repo required:** currently PRIVATE — **must make public before deadline**
 - **Demo video:** not yet recorded
 - **Gemma 4 on-device status:** model file present on test device; `initializeModel()` wired; end-to-end inference **not yet confirmed**
+- **Latest commit:** 4fbea03 — A1–A5 screens complete, 0 errors, 0 warnings
 
 ## Patient Demo Story (for competition video)
 Maria, 72, Brănești, chest pain, no car, hospital 40km away.

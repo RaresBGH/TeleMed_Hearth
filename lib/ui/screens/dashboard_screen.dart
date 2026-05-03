@@ -13,6 +13,7 @@ import '../../core/providers/ai_ready_provider.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
+import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/my_doctor_provider.dart';
 import '../../core/providers/patient_history_provider.dart';
 import '../widgets/app_bottom_nav_bar.dart';
@@ -48,7 +49,41 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       orElse: () => false,
     );
     final historyAsync = ref.watch(patientHistoryProvider);
-    final medAsync    = ref.watch(mostRecentMedicationProvider);
+    final medAsync     = ref.watch(mostRecentMedicationProvider);
+    final apptAsync    = ref.watch(appointmentsProvider);
+
+    // Invalidate caches when a triage session completes.
+    ref.listen<MedicalSessionState>(medicalSessionProvider, (previous, current) {
+      if (current.sessionState == SessionState.idle &&
+          previous?.sessionState != SessionState.idle) {
+        ref.invalidate(patientHistoryProvider);
+      }
+    });
+
+    // Find the earliest upcoming booked appointment for the status card.
+    final String? nextApptText = apptAsync.maybeWhen(
+      data: (appts) {
+        final now = DateTime.now();
+        Map<String, dynamic>? next;
+        for (final appt in appts) {
+          if ((appt['status'] as String?) != 'booked') continue;
+          final dt = DateTime.tryParse(
+              appt['start'] as String? ?? '')?.toLocal();
+          if (dt == null || !dt.isAfter(now)) continue;
+          if (next == null) {
+            next = appt;
+          } else {
+            final prevDt = DateTime.tryParse(
+                next['start'] as String? ?? '')?.toLocal();
+            if (prevDt != null && dt.isBefore(prevDt)) next = appt;
+          }
+        }
+        if (next == null) return null;
+        return DateFormatter.format(
+            next['start'] as String, includeTime: true);
+      },
+      orElse: () => null,
+    );
 
     return Scaffold(
       backgroundColor: _bg,
@@ -86,9 +121,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                     // ── Quick status row ───────────────────────────────────
                     medAsync.when(
-                      data: (med) => _buildQuickStatusRow(lang, med),
-                      loading: () => _buildQuickStatusRow(lang, null),
-                      error: (_, __) => _buildQuickStatusRow(lang, null),
+                      data: (med) => _buildQuickStatusRow(lang, med, nextApptText),
+                      loading: () => _buildQuickStatusRow(lang, null, nextApptText),
+                      error: (_, __) => _buildQuickStatusRow(lang, null, nextApptText),
                     ),
                     const SizedBox(height: 24),
 
@@ -287,7 +322,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   // ── Quick status row ──────────────────────────────────────────────────────
 
-  Widget _buildQuickStatusRow(String lang, Map<String, dynamic>? med) {
+  Widget _buildQuickStatusRow(
+      String lang, Map<String, dynamic>? med, String? nextApptText) {
     final medText = med != null
         ? (med['medicationCodeableConcept']?['text'] as String? ??
            AppStrings.of(lang, 'doctor.treatment'))
@@ -299,7 +335,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: _StatusCard(
             icon: Icons.calendar_month,
             label: AppStrings.of(lang, 'dashboard.next_appt'),
-            value: AppStrings.of(lang, 'dashboard.no_appt'),
+            value: nextApptText ?? AppStrings.of(lang, 'dashboard.no_appt'),
           ),
         ),
         const SizedBox(width: 16),

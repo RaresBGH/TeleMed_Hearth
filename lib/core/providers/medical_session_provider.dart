@@ -123,7 +123,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
               'display': 'Symptom',
             }
           ],
-          'text': 'Dialog Triaj AI',
+          'text': 'Dialog Triaj',
         },
         'subject': {
           'identifier': {
@@ -159,8 +159,12 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   ///
   /// TODO(medplum): scope message thread to [practitionerRef] when Medplum wired.
   void startWithPreseed(String message) {
+    // Reset all previous session state. lastAiResponse is set to the preseed
+    // text so MedicalResponseScreen's triage card shows the conversation
+    // context rather than a stale triage result or generic fallback.
     state = MedicalSessionState(
       sessionState: SessionState.idle,
+      lastAiResponse: message,
       lastResumeMessages: [
         ChatMessage(
           role: 'patient',
@@ -168,6 +172,17 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
           timestamp: DateTime.now(),
         ),
       ],
+    );
+  }
+
+  /// Clears the preseed message from state after it has been injected into
+  /// the chat screen. Call via postFrameCallback in MedicalResponseScreen
+  /// to prevent double injection on re-entry.
+  void clearPreseed() {
+    state = MedicalSessionState(
+      sessionState: state.sessionState,
+      lastAiResponse: state.lastAiResponse,
+      lastIsEmergency: state.lastIsEmergency,
     );
   }
 

@@ -36,6 +36,11 @@ class _VideoConsultationScreenState
   bool     _isMuted      = false;
   bool     _isConnecting = true;
 
+  // ── In-call chat (session-only, no FHIR persistence) ──────────────────────
+  // TODO(signaling): route messages through WebRTC data channel.
+  final List<String>          _chatMessages  = [];
+  final TextEditingController _chatController = TextEditingController();
+
   String get _lang => ref.read(languageProvider);
   Duration _callDuration = Duration.zero;
 
@@ -57,6 +62,7 @@ class _VideoConsultationScreenState
   void dispose() {
     _durationTimer?.cancel();
     _animController.dispose();
+    _chatController.dispose();
     if (_localStream    != null) unawaited(_localStream!.dispose());
     if (_peerConnection != null) unawaited(_peerConnection!.close());
     unawaited(_localRenderer.dispose());
@@ -155,7 +161,12 @@ class _VideoConsultationScreenState
 
   void _endCall() {
     // WebRTC cleanup happens in dispose() when the widget is removed.
-    ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.home);
+    // Pop returns to AppointmentsScreen via the existing Navigator stack.
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.myDoctor);
+    }
   }
 
   void _onAttachDocument() { /* future: file picker → send to doctor */ }
@@ -164,21 +175,129 @@ class _VideoConsultationScreenState
   void _showChatPanel(BuildContext ctx) {
     showModalBottomSheet<void>(
       context: ctx,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        height: 300,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: const Center(
-          child: Text(
-            'Chat și documente — în curând',
-            style: TextStyle(fontSize: 18),
-          ),
-        ),
+      builder: (_) => StatefulBuilder(
+        builder: (_, setSheetState) {
+          return Container(
+            height: MediaQuery.of(ctx).size.height * 0.5,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                // Drag handle
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 10),
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black26,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 8, 8),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'Chat',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(_),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                // Messages list
+                Expanded(
+                  child: _chatMessages.isEmpty
+                      ? Center(
+                          child: Text(
+                            AppStrings.of(_lang, 'video.chat_soon'),
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 15),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _chatMessages.length,
+                          itemBuilder: (_, i) => Align(
+                            alignment: Alignment.centerRight,
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF5BA4CF),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                _chatMessages[i],
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 15),
+                              ),
+                            ),
+                          ),
+                        ),
+                ),
+                // Input row
+                Container(
+                  padding: EdgeInsets.fromLTRB(
+                      12, 8, 12,
+                      8 + MediaQuery.of(ctx).viewInsets.bottom),
+                  decoration: const BoxDecoration(
+                    border:
+                        Border(top: BorderSide(color: Color(0xFFE2E2E2))),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _chatController,
+                          style: const TextStyle(fontSize: 16),
+                          decoration: InputDecoration(
+                            hintText:
+                                AppStrings.of(_lang, 'video.chat_hint'),
+                            hintStyle: const TextStyle(color: Colors.grey),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                          ),
+                          onSubmitted: (_) => _sendChatMessage(setSheetState),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.send,
+                            color: Color(0xFF5BA4CF), size: 26),
+                        onPressed: () => _sendChatMessage(setSheetState),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
+  }
+
+  void _sendChatMessage(StateSetter setSheetState) {
+    final text = _chatController.text.trim();
+    if (text.isEmpty) return;
+    // TODO(signaling): route messages through WebRTC data channel.
+    _chatMessages.add(text);
+    setSheetState(() {}); // rebuild the sheet ListView
+    _chatController.clear();
   }
 
   String _formatDuration(Duration d) {

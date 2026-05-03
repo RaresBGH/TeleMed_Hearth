@@ -15,6 +15,7 @@ import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
+import '../../core/providers/patient_history_provider.dart';
 import '../../core/utils/date_formatter.dart';
 import 'waiting_room_screen.dart';
 
@@ -74,8 +75,24 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
           .read(fhirRepositoryProvider)
           .getAppointments(cnp: cnp);
       if (!mounted) return;
+
+      // Dart-side safety sort: upcoming ascending, past descending.
+      final now    = DateTime.now();
+      final sorted = List<Map<String, dynamic>>.from(data);
+      sorted.sort((a, b) {
+        final aDt = DateTime.tryParse(a['start'] as String? ?? '')?.toLocal();
+        final bDt = DateTime.tryParse(b['start'] as String? ?? '')?.toLocal();
+        final aUp = aDt != null && aDt.isAfter(now);
+        final bUp = bDt != null && bDt.isAfter(now);
+        if (aUp && bUp) return aDt.compareTo(bDt);
+        if (!aUp && !bUp) {
+          return (bDt ?? DateTime(0)).compareTo(aDt ?? DateTime(0));
+        }
+        return aUp ? -1 : 1;
+      });
+
       setState(() {
-        _appointments = data;
+        _appointments = sorted;
         _loading      = false;
       });
     } catch (_) {
@@ -270,6 +287,9 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         lastDay: DateTime.utc(2030, 12, 31),
         focusedDay: _focusedDay,
         calendarFormat: CalendarFormat.month,
+        // Explicit row heights prevent day cells from being clipped.
+        rowHeight: 52.0,
+        daysOfWeekHeight: 32.0,
         selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
         onDaySelected: (selected, focused) {
           setState(() {
@@ -283,25 +303,20 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
           final key = DateTime(day.year, day.month, day.day);
           return byDay[key] ?? [];
         },
-        headerStyle: HeaderStyle(
+        headerStyle: const HeaderStyle(
           titleCentered: true,
           formatButtonVisible: false,
-          titleTextStyle: const TextStyle(
+          titleTextStyle: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: _onSurface,
           ),
-          // 64dp tap targets for chevrons per DESIGN.md
-          leftChevronIcon: const SizedBox(
-            width: 64,
-            height: 64,
-            child: Icon(Icons.chevron_left, color: _outline, size: 28),
-          ),
-          rightChevronIcon: const SizedBox(
-            width: 64,
-            height: 64,
-            child: Icon(Icons.chevron_right, color: _outline, size: 28),
-          ),
+          // Padding gives sufficient tap area without forcing a 64dp icon
+          // that would overflow the default header height and clip day cells.
+          leftChevronPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          rightChevronPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          leftChevronIcon: Icon(Icons.chevron_left, color: _outline, size: 28),
+          rightChevronIcon: Icon(Icons.chevron_right, color: _outline, size: 28),
         ),
         calendarStyle: CalendarStyle(
           outsideDaysVisible: false,
@@ -705,6 +720,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
 
       if (!mounted) return;
       await _loadAppointments();
+      ref.invalidate(appointmentsProvider); // refresh dashboard cache
       setState(() {
         _showBookingPanel = false;
         _selectedSlot     = null;

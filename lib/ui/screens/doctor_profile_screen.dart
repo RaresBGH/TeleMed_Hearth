@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/l10n/app_strings.dart';
+import '../../core/models/chat_message.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
@@ -14,6 +15,9 @@ import '../../core/providers/my_doctor_provider.dart';
 import '../../core/utils/date_formatter.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/language_toggle.dart';
+import 'appointments_screen.dart';
+import 'medical_response_screen.dart';
+import 'specialists_screen.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const Color _bg         = Color(0xFFF7F9FE);
@@ -71,7 +75,7 @@ class DoctorProfileScreen extends ConsumerWidget {
                     _buildDoctorCard(context, ref, lang, specialty),
                     const SizedBox(height: 20),
                     if (showSpecialtyPicker) ...[
-                      _buildConsultationsSection(ref, lang),
+                      _buildConsultationsSection(context, ref, lang),
                       const SizedBox(height: 20),
                     ],
                     _buildInfoCard(lang, encounterAsync, medAsync),
@@ -260,13 +264,35 @@ class DoctorProfileScreen extends ConsumerWidget {
                     final preseed =
                         AppStrings.of(lang, 'doctor.message_preseed')
                             .replaceAll('[name]', doctorName);
-                    // TODO(medplum): scope thread to practitionerRef
-                    ref
-                        .read(medicalSessionProvider.notifier)
-                        .startWithPreseed(preseed);
-                    ref
-                        .read(appNavigationProvider.notifier)
-                        .navigateTo(AppRoute.medicalResponse);
+                    if (showBackButton) {
+                      // Specialist sub-screen: push so back returns here.
+                      // TODO(medplum): scope thread to practitionerRef
+                      if (!context.mounted) return;
+                      final msg = ChatMessage(
+                        role: 'patient',
+                        text: preseed,
+                        timestamp: DateTime.now(),
+                      );
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MedicalResponseScreen(
+                            initialResponse: AppStrings.of(
+                                lang, 'chat.default_response'),
+                            isEmergency: false,
+                            initialMessages: [msg],
+                          ),
+                        ),
+                      );
+                    } else {
+                      // Family doctor tab: flat nav.
+                      ref
+                          .read(medicalSessionProvider.notifier)
+                          .startWithPreseed(preseed);
+                      ref
+                          .read(appNavigationProvider.notifier)
+                          .navigateTo(AppRoute.medicalResponse);
+                    }
                   },
                 ),
               ),
@@ -276,10 +302,22 @@ class DoctorProfileScreen extends ConsumerWidget {
                   icon: Icons.calendar_month_outlined,
                   label: AppStrings.of(lang, 'doctor.book_appointment'),
                   onTap: () {
-                    // TODO(A3): pass practitionerRef as filter when Programări is built.
-                    ref
-                        .read(appNavigationProvider.notifier)
-                        .navigateTo(AppRoute.appointments);
+                    if (showBackButton) {
+                      // Specialist sub-screen: push so back returns here.
+                      // TODO(A3): pass practitionerRef as filter.
+                      if (!context.mounted) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AppointmentsScreen(),
+                        ),
+                      );
+                    } else {
+                      // Family doctor tab: flat nav.
+                      ref
+                          .read(appNavigationProvider.notifier)
+                          .navigateTo(AppRoute.appointments);
+                    }
                   },
                 ),
               ),
@@ -292,7 +330,8 @@ class DoctorProfileScreen extends ConsumerWidget {
 
   // ── Specialty consultations section ───────────────────────────────────────
 
-  Widget _buildConsultationsSection(WidgetRef ref, String lang) {
+  Widget _buildConsultationsSection(
+      BuildContext context, WidgetRef ref, String lang) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -314,9 +353,14 @@ class DoctorProfileScreen extends ConsumerWidget {
           label: AppStrings.of(lang, 'doctor.specialty_nav'),
           child: InkWell(
             onTap: () {
-              ref
-                  .read(appNavigationProvider.notifier)
-                  .navigateTo(AppRoute.specialists);
+              // Always push so back button returns to this screen (BUG 7 fix).
+              if (!context.mounted) return;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SpecialistsScreen(),
+                ),
+              );
             },
             borderRadius: BorderRadius.circular(16),
             child: Container(

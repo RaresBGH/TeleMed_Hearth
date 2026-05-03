@@ -73,8 +73,13 @@ class _MedicalResponseScreenState
   void initState() {
     super.initState();
     if (widget.initialMessages != null && widget.initialMessages!.isNotEmpty) {
-      // Resume from Dosar Medical — restore prior conversation.
+      // Resume from Dosar Medical or doctor preseed — restore prior conversation.
       _messages.addAll(widget.initialMessages!);
+      // Clear the preseed from provider state after the first frame so that
+      // re-entering this screen does not inject the same bubble twice.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(medicalSessionProvider.notifier).clearPreseed();
+      });
     } else {
       // Fresh triage entry — seed with default follow-up prompt.
       _messages.add(ChatMessage(
@@ -132,8 +137,13 @@ class _MedicalResponseScreenState
     if (choice == true) {
       await _onFinalize();
     } else if (choice == false) {
-      // Discard — reset() → SessionState.idle → AppRoute.dashboard
-      await ref.read(medicalSessionProvider.notifier).reset();
+      if (Navigator.canPop(context)) {
+        // Pushed via Navigator (e.g. specialist flow) — pop back to caller.
+        Navigator.pop(context);
+      } else {
+        // Flat-nav entry — reset session to return to dashboard.
+        await ref.read(medicalSessionProvider.notifier).reset();
+      }
     }
     // choice == null means the dialog was dismissed; stay in chat.
   }
@@ -416,9 +426,17 @@ class _MedicalResponseScreenState
       backgroundColor: Colors.white,
       elevation: 1,
       shadowColor: Colors.black12,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: _brandBlue),
-        onPressed: _onBack,
+      leading: Semantics(
+        button: true,
+        label: AppStrings.of(_lang, 'profil.back_sem'),
+        child: InkWell(
+          onTap: _onBack,
+          child: const SizedBox(
+            width: 64,
+            height: 64,
+            child: Icon(Icons.arrow_back, color: _brandBlue, size: 24),
+          ),
+        ),
       ),
       titleSpacing: 0,
       title: Text(
