@@ -17,8 +17,14 @@ class MedplumAuthService {
   // ── OAuth / Medplum constants ──────────────────────────────────────────────
   static const _tokenUrl =
       'https://telemed-medplum.duckdns.org/oauth2/token';
-  static const _clientId  = 'd5d39070-c8a4-43a6-92e5-1a78b695ca72';
-  static const _clientSecret = 'TeleMed_K_Client_Secret_2026!';
+  static const _clientId = String.fromEnvironment(
+    'MEDPLUM_CLIENT_ID',
+    defaultValue: '',
+  );
+  static const _clientSecret = String.fromEnvironment(
+    'MEDPLUM_CLIENT_SECRET',
+    defaultValue: '',
+  );
 
   // ── Secure-storage keys ────────────────────────────────────────────────────
   static const _storageKeyToken  = 'medplum_access_token';

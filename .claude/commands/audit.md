@@ -13,8 +13,40 @@ When auditing the TeleMed_K codebase, check these in order:
 
 6. APPSTRINGS COVERAGE — Find any hardcoded Romanian or English strings in UI files that are not routed through AppStrings.
 
-7. ERROR HANDLING GAPS — Find any async calls (FHIR, inference, audio, camera) that have no try/catch or fallback.
+7. ERROR HANDLING GAPS — Find any async calls (FHIR, inference, audio, camera, Medplum REST) that have no try/catch or fallback.
+
+8. SECURITY — Check for:
+   - Hardcoded secrets or credentials in Dart files (client secrets, passwords, API keys)
+   - Any token or credential logged via print() or log() calls
+   - flutter_secure_storage used correctly for all sensitive values (tokens, secrets never in SharedPreferences)
+
+9. RESOURCE DISPOSAL — Check for:
+   - AnimationController, TextEditingController, ScrollController, StreamSubscription declared in State classes but missing dispose() calls
+   - Any timer (Timer.periodic) not cancelled in dispose()
+
+10. ANDROID PERMISSIONS — Verify AndroidManifest.xml declares every permission actually used in code:
+    - INTERNET (Medplum REST, model download)
+    - RECORD_AUDIO (microphone)
+    - CAMERA
+    - READ_EXTERNAL_STORAGE / READ_MEDIA_* (image picker)
+    - FOREGROUND_SERVICE (model download service)
+    - RECEIVE_BOOT_COMPLETED (if used)
+    Flag any permission used in code but missing from manifest, and any declared but never used.
+
+11. NETWORK SECURITY — Verify:
+    - network_security_config.xml exists and restricts cleartext traffic
+    - Only explicitly allowed domains permit cleartext (none should — all three endpoints use HTTPS)
+    - usesCleartextTraffic in manifest is false or absent
 
 Report findings as a numbered list per category. Severity: CRITICAL (breaks build or crashes), HIGH (data loss or wrong behavior), MEDIUM (code smell), LOW (style). Fix nothing — report only.
+
+Files to include in audit scope (explicitly):
+  lib/core/services/medplum_auth_service.dart
+  lib/core/services/medplum_repository.dart
+  lib/core/providers/medplum_auth_provider.dart
+  lib/core/constants/practitioner_constants.dart
+  All other files under lib/
+  android/app/src/main/AndroidManifest.xml
+  android/app/src/main/res/xml/network_security_config.xml (if exists)
 
 FINISH MESSAGE: "AUDIT_COMPLETE — critical: N — high: N — medium: N — low: N"

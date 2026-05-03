@@ -56,14 +56,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
 
-    final imagePath = await cameraService.captureImage();
-    if (!mounted) return;
-    if (imagePath == null) return;
+    try {
+      final imagePath = await cameraService.captureImage();
+      if (!mounted) return;
+      if (imagePath == null) return;
 
-    await ref
-        .read(medicalSessionProvider.notifier)
-        .processMedia(File(imagePath));
-    cameraService.deleteTempFile(imagePath);
+      await ref
+          .read(medicalSessionProvider.notifier)
+          .processMedia(File(imagePath));
+      cameraService.deleteTempFile(imagePath);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A apărut o eroare. Încercați din nou.',
+              style: TextStyle(fontSize: 18)),
+        ),
+      );
+    }
   }
 
   // ── Microphone ─────────────────────────────────────────────────────────────
@@ -72,24 +82,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final audioService = ref.read(audioRecordingServiceProvider);
 
     if (_isRecording) {
-      final wavPath = await audioService.stopRecording();
-      if (!mounted) return;
-      setState(() => _isRecording = false);
+      try {
+        final wavPath = await audioService.stopRecording();
+        if (!mounted) return;
+        setState(() => _isRecording = false);
 
-      if (wavPath.isEmpty) {
+        if (wavPath.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppStrings.of(ref.read(languageProvider), 'home.mic_stop_error'),
+                  style: const TextStyle(fontSize: 18)),
+            ),
+          );
+          return;
+        }
+
+        await ref
+            .read(medicalSessionProvider.notifier)
+            .processAudio(File(wavPath));
+        audioService.deleteWavFile(wavPath);
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isRecording = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppStrings.of(ref.read(languageProvider), 'home.mic_stop_error'),
-                style: const TextStyle(fontSize: 18)),
+          const SnackBar(
+            content: Text('A apărut o eroare. Încercați din nou.',
+                style: TextStyle(fontSize: 18)),
           ),
         );
-        return;
       }
-
-      await ref
-          .read(medicalSessionProvider.notifier)
-          .processAudio(File(wavPath));
-      audioService.deleteWavFile(wavPath);
     } else {
       final hasPermission = await audioService.requestPermission();
       if (!mounted) return;
@@ -163,7 +184,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _onTextSubmit(String text, BuildContext dialogCtx) async {
     if (text.trim().isEmpty) return;
     Navigator.of(dialogCtx).pop();
-    await ref.read(medicalSessionProvider.notifier).processText(text.trim());
+    try {
+      await ref.read(medicalSessionProvider.notifier).processText(text.trim());
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A apărut o eroare. Încercați din nou.',
+              style: TextStyle(fontSize: 18)),
+        ),
+      );
+    }
   }
 
   // ── Emergency ──────────────────────────────────────────────────────────────
@@ -186,6 +217,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       data: (v) => v,
       orElse: () => false,
     );
+
+    ref.listen<MedicalSessionState>(medicalSessionProvider, (prev, next) {
+      if (next.sessionState == SessionState.error &&
+          prev?.sessionState != SessionState.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              next.errorMessage ?? 'Eroare.',
+              style: const TextStyle(fontSize: 18),
+            ),
+          ),
+        );
+      }
+    });
 
     return Scaffold(
       backgroundColor: _bg,

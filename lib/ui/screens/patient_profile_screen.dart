@@ -249,11 +249,10 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
         builder: (ctx) => AlertDialog(
           title: Text(AppStrings.of(lang, 'profil.phone_change_blocked'),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          content: const Text(
-            'Schimbarea numărului de telefon necesită re-verificarea '
-            'identității pe un dispozitiv nou.',
+          content: Text(
+            AppStrings.of(lang, 'profil.phone_change_body'),
             // TODO(B0): wire device-transfer flow here
-            style: TextStyle(fontSize: 16),
+            style: const TextStyle(fontSize: 16),
           ),
           actions: [
             ElevatedButton(

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/chat_message.dart';
 import '../services/ai_engine_service.dart';
 import '../services/audio_recording_service.dart';
+import '../utils/date_formatter.dart';
 import '../../data/repositories/fhir_repository.dart';
 import 'auth_provider.dart';
 import 'medplum_auth_provider.dart';
@@ -117,8 +118,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       for (final msg in messages) {
         final String prefix = msg.role == 'ai' ? '[AI]' : '[Pacient]';
         final String timeStr =
-            '${msg.timestamp.hour.toString().padLeft(2, '0')}:'
-            '${msg.timestamp.minute.toString().padLeft(2, '0')}';
+            DateFormatter.formatTimeOfDay(msg.timestamp.hour, msg.timestamp.minute);
         noteBuffer.writeln('$prefix $timeStr: ${msg.text}');
       }
 

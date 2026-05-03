@@ -55,8 +55,8 @@ class FhirRepository {
       if (result == null) return null;
       return jsonDecode(result) as Map<String, dynamic>;
     } on PlatformException catch (e) {
-      throw Exception(
-          'Secure local FHIR Patient Lookup failed: Error ${e.code}');
+      debugPrint('FhirRepository.getPatientByCnp: local SDK error ${e.code}');
+      return null;
     }
   }
 
@@ -197,8 +197,8 @@ class FhirRepository {
       final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;
       return parsed.cast<Map<String, dynamic>>();
     } on PlatformException catch (e) {
-      throw Exception(
-          'Secure offline FHIR History Read failed: Error ${e.code}');
+      debugPrint('FhirRepository.getPatientHistory: local SDK error ${e.code}');
+      return [];
     }
   }
 
@@ -233,8 +233,8 @@ class FhirRepository {
       final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;
       return parsed.cast<Map<String, dynamic>>();
     } on PlatformException catch (e) {
-      throw Exception(
-          'Secure offline FHIR Appointment Read failed: Error ${e.code}');
+      debugPrint('FhirRepository.getAppointments: local SDK error ${e.code}');
+      return [];
     }
   }
 
@@ -269,8 +269,8 @@ class FhirRepository {
       if (result == null) return null;
       return jsonDecode(result) as Map<String, dynamic>;
     } on PlatformException catch (e) {
-      throw Exception(
-          'Secure offline FHIR Encounter Read failed: Error ${e.code}');
+      debugPrint('FhirRepository.getMostRecentEncounter: local SDK error ${e.code}');
+      return null;
     }
   }
 
@@ -281,8 +281,8 @@ class FhirRepository {
       if (result == null) return null;
       return jsonDecode(result) as Map<String, dynamic>;
     } on PlatformException catch (e) {
-      throw Exception(
-          'Secure offline FHIR Medication Read failed: Error ${e.code}');
+      debugPrint('FhirRepository.getMostRecentMedicationRequest: local SDK error ${e.code}');
+      return null;
     }
   }
 
@@ -306,8 +306,8 @@ class FhirRepository {
       final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;
       return parsed.cast<Map<String, dynamic>>();
     } on PlatformException catch (e) {
-      throw Exception(
-          'Secure FHIR Sync Read failed: Error ${e.code}');
+      debugPrint('FhirRepository.getUnsyncedResources: local SDK error ${e.code}');
+      return [];
     }
   }
 

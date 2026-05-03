@@ -7,6 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'medical_session_provider.dart';
 
+// Note: DoctorProfileScreen is intentionally absent from AppRoute.
+// It is navigated via Navigator.push as a sub-screen (from MyDoctorScreen and
+// SpecialistsScreen) and does not participate in the flat session-guard routing.
+// Adding it here would allow the session guard to overwrite it mid-stack.
 enum AppRoute {
   dashboard,
   home,

@@ -13,6 +13,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/language_provider.dart';
+import '../../core/utils/date_formatter.dart';
 
 class VideoConsultationScreen extends ConsumerStatefulWidget {
   const VideoConsultationScreen({super.key});
@@ -300,11 +301,7 @@ class _VideoConsultationScreenState
     _chatController.clear();
   }
 
-  String _formatDuration(Duration d) {
-    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
+  String _formatDuration(Duration d) => DateFormatter.formatDuration(d);
 
   // ── Build ──────────────────────────────────────────────────────────────────
 

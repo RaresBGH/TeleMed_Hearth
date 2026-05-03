@@ -201,6 +201,7 @@ class AppStrings {
     'profil.change_photo_sem':       'Schimbă poza de profil',
     'profil.back_sem':               'Înapoi',
     'profil.phone_change_blocked':   'Funcție în curând disponibilă',
+    'profil.phone_change_body':      'Schimbarea numărului de telefon necesită re-verificarea identității pe un dispozitiv nou.',
     'profil.delete_confirm_title':   'Sigur doriți să ștergeți contul?',
     'profil.delete_confirm_body':    'Toate datele medicale și modelul AI vor fi șterse permanent.',
     'profil.delete_confirm_yes':     'Da, șterge',
@@ -229,6 +230,7 @@ class AppStrings {
     'appointment.booking_cancel':  'Anulează',
     'appointment.booking_success': 'Programarea a fost salvată.',
     'appointment.booking_error':   'Eroare la salvarea programării.',
+    'appointment.select_slot':     'Alegeți o oră.',
     'appointment.back_sem':        'Înapoi',
 
     // ── Specialiști ────────────────────────────────────────────────────────
@@ -511,6 +513,7 @@ class AppStrings {
     'profil.change_photo_sem':       'Change profile photo',
     'profil.back_sem':               'Back',
     'profil.phone_change_blocked':   'Feature coming soon',
+    'profil.phone_change_body':      'Changing your phone number requires identity re-verification on a new device.',
     'profil.delete_confirm_title':   'Are you sure you want to delete your account?',
     'profil.delete_confirm_body':    'All medical data and the AI model will be permanently deleted.',
     'profil.delete_confirm_yes':     'Yes, delete',
@@ -539,6 +542,7 @@ class AppStrings {
     'appointment.booking_cancel':  'Cancel',
     'appointment.booking_success': 'Appointment saved.',
     'appointment.booking_error':   'Error saving appointment.',
+    'appointment.select_slot':     'Please select a time slot.',
     'appointment.back_sem':        'Back',
 
     // ── Specialiști ────────────────────────────────────────────────────────

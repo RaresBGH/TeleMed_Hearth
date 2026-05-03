@@ -3,6 +3,8 @@
 //
 // TeleMed_K: Offline-first telemedicine app for seniors
 
+import 'package:flutter/material.dart';
+
 /// Shared ISO 8601 date/time formatter used across the app.
 class DateFormatter {
   DateFormatter._();
@@ -21,5 +23,24 @@ class DateFormatter {
     final h   = dt.hour.toString().padLeft(2, '0');
     final min = dt.minute.toString().padLeft(2, '0');
     return '$d.$m.${dt.year}  $h:$min';
+  }
+
+  /// Formats a [TimeOfDay] as "HH:mm".
+  static String formatTime(TimeOfDay time) {
+    final h = time.hour.toString().padLeft(2, '0');
+    final m = time.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  /// Formats a [Duration] as "MM:SS" (minutes and seconds within an hour).
+  static String formatDuration(Duration d) {
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  /// Formats raw [hour] and [minute] integers as "HH:mm".
+  static String formatTimeOfDay(int hour, int minute) {
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
   }
 }

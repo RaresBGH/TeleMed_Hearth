@@ -182,8 +182,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     return startTime != null && startTime.isAfter(DateTime.now());
   }
 
-  String _formatSlot(TimeOfDay slot) =>
-      '${slot.hour.toString().padLeft(2, '0')}:${slot.minute.toString().padLeft(2, '0')}';
+  String _formatSlot(TimeOfDay slot) => DateFormatter.formatTime(slot);
 
   // ── Build ─────────────────────────────────────────────────────────────────
 
@@ -716,7 +715,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
   Future<void> _onSaveBooking(String lang, DateTime targetDay) async {
     if (_selectedSlot == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Alegeți o oră.', style: TextStyle(fontSize: 16))),
+        SnackBar(content: Text(AppStrings.of(lang, 'appointment.select_slot'), style: const TextStyle(fontSize: 16))),
       );
       return;
     }

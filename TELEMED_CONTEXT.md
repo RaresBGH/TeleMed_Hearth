@@ -31,6 +31,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 | smart_auth | ^3.2.0 | Android SMS Retriever API for OTP autofill |
 | connectivity_plus | ^7.1.0 | Network state for WiFi check + offline sync |
 | http | ^1.6.0 | REST calls to Medplum |
+| flutter_secure_storage | ^9.2.2 | OAuth token secure storage (M1) |
 | url_launcher | ^6.3.0 | tel:112 emergency dialer |
 | path_provider | ^2.1.5 | Temp/docs directory paths |
 | google_fonts | ^6.2.1 | Lexend font system-wide (resolves to 6.3.3) |
@@ -99,6 +100,9 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **SpecialistsScreen (Specialiști)** — 8 specialties (Cardiologie, Neurologie, Dermatologie, Ortopedie, Oftalmologie, Pediatrie, Psihiatrie, Ginecologie); diacritic-insensitive search filter; 2-column grid; taps → DoctorProfileScreen(specialist variant); Dr. Adriana Bogheanu hardcoded for Pediatrie; other specialties use placeholder name pending Medplum Practitioner data
 - **WaitingRoomScreen (compound — A5)** — replaces stub; two-state AnimatedSwitcher (consent → buffer); STATE A: consent card, "Sunt de acord" → STATE B; STATE B: video preview (local only, no signaling), mic/video toggle, private-space checkbox, "Intră în apel" → VideoConsultationScreen; "Anulează" exits; doctorName param replaces hardcoded name; appointmentId param wired from AppointmentsScreen
 - **Device bug fixes (F1–F6, G1–G5)** — i18n badges translated (RO/EN); navigation routing fixed (specialists, specialist doctor sub-screens, footer link); Dosar Medical refreshes post-finalize without login; appointments scoped per Practitioner; doctor name + specialty on appointment cards; calendar starts Monday; language toggle on profile completion screen; message categorization by doctor + AI category chip (medical/document/other); WaitingRoom button swap fixed; in-call chat local state wired
+- **MedplumAuthService (M1)** — OAuth2 client_credentials token fetch against `https://telemed-medplum.duckdns.org/oauth2/token`; 3-tier resolution (in-memory cache → flutter_secure_storage → POST to token endpoint); 60-second expiry buffer; `clearToken()`; `isOnline()` via connectivity_plus; `medplumAuthServiceProvider` singleton Provider
+- **MedplumRepository (M2)** — 9 REST FHIR methods against `https://telemed-medplum.duckdns.org/fhir/R4`; online-first reads with local FHIR SDK offline fallback; dual-write on all save/update operations (Medplum best-effort + local guaranteed); FhirRepository method signatures unchanged; `medplumRepositoryProvider` injected into `fhirRepositoryProvider`
+- **Practitioner constants (M3)** — `lib/core/constants/practitioner_constants.dart` with real Medplum IDs; 11 hardcoded strings replaced across 7 files; `"family"` practitionerRef eliminated; `"Mariana Andronescu"` → `Practitioners.familyDoctorName`; `"specialist_pedia"` → `Practitioners.bogheanuId`; backwards-compatible appointment card name resolution
 
 ### PENDING IMPLEMENTATION
 
@@ -152,6 +156,10 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 | lib/ui/screens/appointments_screen.dart | table_calendar; FHIR Appointment CRUD; inline booking |
 | lib/ui/screens/specialists_screen.dart | 8 specialties; diacritic search; routes to DoctorProfileScreen |
 | lib/core/models/specialty.dart | Specialty data model (appStringKey, icon, practitionerRef) |
+| lib/core/services/medplum_auth_service.dart | OAuth2 client_credentials token fetch + 3-tier cache + flutter_secure_storage (M1) |
+| lib/core/services/medplum_repository.dart | Medplum REST FHIR client — 9 methods, online-first reads, dual-write (M2) |
+| lib/core/providers/medplum_auth_provider.dart | medplumAuthServiceProvider + medplumRepositoryProvider (M1/M2) |
+| lib/core/constants/practitioner_constants.dart | Real Medplum Practitioner IDs + display names (M3) |
 | DESIGN.md | The Dignified Guardian design system (permanent reference) |
 
 ### Kotlin / Android
@@ -264,7 +272,8 @@ FHIR search patterns:
 - AppRoute enum has **15 values**. Added in A1–A5: `AppRoute.specialists` → SpecialistsScreen; `AppRoute.appointments` → AppointmentsScreen; `AppRoute.patientProfile` → PatientProfileScreen
 - **DoctorProfileScreen is a reusable parametrized template** — used by MyDoctorScreen (family doctor tab) and SpecialistsScreen (specialist sub-screens). Parameters: showBackButton, showSpecialtyPicker, doctorName, practitionerRef.
 - **"Trimite mesaj" routes to MedicalResponseScreen with AI preseed** — interim until Medplum async messaging is implemented. Preseed: "Bună ziua, am o întrebare pentru Dr. [name]."
-- **Per-doctor appointment scoping** — FHIR Appointment stores practitionerRef per resource. Patient sees all their appointments; each doctor (Medplum) sees only their own. Real Practitioner IDs from Medplum: family doctor = Practitioner/733e1972-b42d-4bd0-82c7-66db72b2d311; Dr. Bogheanu (Pediatrie) = Practitioner/474f526b-7919-48dd-9528-3c0eaff80cb6.
+- **Per-doctor appointment scoping** — FHIR Appointment stores practitionerRef per resource. Patient sees all their appointments; each doctor (Medplum) sees only their own. Real Practitioner IDs defined in `Practitioners` constants: family doctor = `Practitioners.familyDoctorId`; Dr. Bogheanu (Pediatrie) = `Practitioners.bogheanuId`.
+- **Medplum sync layer (M2)** — `FhirRepository` is the single access point. When online, reads go to Medplum first and fall back to local FHIR SDK. Writes always hit both (dual-write). Method signatures unchanged; all existing callers are unaffected.
 - **WaitingRoomScreen is compound** — consent state + buffer state in one screen, switched by AnimatedSwitcher. Entry: AppointmentsScreen "Intră în consultație". Exit chain: → VideoConsultationScreen.
 - **Phone change blocked pending B0** — PatientProfileScreen allows typing a new phone number but blocks save with a dialog. Full device-transfer flow requires new Stitch screens and is tracked as B0.
 
@@ -330,14 +339,16 @@ Refactoring completed during audit:
 - [x] Medplum 5.1.10 self-hosted on GX10 — FHIR R4 live at https://telemed-medplum.duckdns.org/fhir/R4/metadata
 - [x] Medplum seeded — 5 patients, 5 conditions, 2 practitioners
 - [x] Device bugs F1–F6 + G1–G5 fixed
+- [x] MedplumAuthService — client_credentials OAuth2 token fetch + flutter_secure_storage (M1)
+- [x] MedplumRepository — 9 REST FHIR methods, online-first, dual-write (M2)
+- [x] Replace all hardcoded practitionerRefs with real Medplum IDs (M3)
 
 ### P1 — NEXT
 - [ ] **Make GitHub repo public before May 18 deadline** — currently PRIVATE; required for hackathon submission
 - [ ] **Record competition demo video** — patient story: Maria, 72, chest pain, no car → voice triage → 112 or teleconsult
 - [ ] **Device test all A1–A5 screens** — install latest APK (commit 4fbea03) on Pixel 9 Pro; verify PatientProfile, DoctorProfile, Appointments, Specialists, WaitingRoom (compound)
-- [ ] Wire Medplum client_credentials auth in Flutter app (replace fictional client_id; implement token fetch using Client ID d5d39070)
-- [ ] Replace local FHIR SDK calls with Medplum REST (keep local as offline cache, sync when online)
-- [ ] Replace hardcoded "family" practitionerRef with Practitioner/733e1972-b42d-4bd0-82c7-66db72b2d311
+- [ ] Device test Medplum sync — verify online writes reach https://telemed-medplum.duckdns.org/fhir/R4 and are visible in Medplum admin UI
+- [ ] Wire Medplum patient lookup in auth flow — replace local FHIR SDK seed with Medplum Patient search by CNP
 - [ ] End-to-end text card inference device test (handleRunInference → model output)
 - [ ] WebRTC signaling server on GX10 for real doctor↔patient video
 
@@ -357,7 +368,7 @@ Refactoring completed during audit:
 - **Demo video:** not yet recorded
 - **Gemma 4 on-device status:** model file present on test device; `initializeModel()` wired; end-to-end inference **not yet confirmed**
 - **Latest commit:** 24ca0cc — Kotlin FHIR Appointment type fix; G1–G5 bug fixes pending commit
-- **Medplum status:** server live at https://telemed-medplum.duckdns.org — Flutter auth not yet wired
+- **Medplum status:** Flutter auth wired (M1-M3) — MedplumAuthService + MedplumRepository + real Practitioner IDs; device sync test pending
 
 ## Patient Demo Story (for competition video)
 Maria, 72, Brănești, chest pain, no car, hospital 40km away.
