@@ -68,6 +68,14 @@ flutter {
     source = "../.."
 }
 
+// Force Guava version to satisfy the FHIR SDK's strict requirement (32.1.3-android)
+// while integration_test pulls an older 28.1-android, causing resolution conflicts.
+configurations.all {
+    resolutionStrategy {
+        force("com.google.guava:guava:32.1.3-android")
+    }
+}
+
 dependencies {
     // --- Core Library Desugaring (required by FHIR SDK for java.time on API < 33) ---
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
@@ -92,6 +100,6 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // --- ML Kit Text Recognition: ID-card OCR for login screen Ajutor flow ---
+    // Latin script support is bundled inside text-recognition; no separate artifact needed.
     implementation("com.google.mlkit:text-recognition:16.0.1")
-    implementation("com.google.mlkit:text-recognition-latin:16.0.1")
 }
