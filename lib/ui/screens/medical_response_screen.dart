@@ -23,6 +23,7 @@ import '../../core/providers/medical_session_provider.dart';
 import '../../core/services/audio_recording_service.dart';
 import '../../core/services/camera_service.dart';
 import '../../core/services/ocr_service.dart';
+import '../widgets/image_preview_screen.dart';
 
 // ── Design tokens (matches Stitch palette from code.html) ─────────────────────
 
@@ -145,10 +146,20 @@ class _MedicalResponseScreenState
 
   Future<void> _onAttachDocument() async {
     final lang = _lang;
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'wav', 'mp3', 'aac', 'm4a'],
-    );
+    final FilePickerResult? result;
+    try {
+      result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'wav', 'mp3', 'aac', 'm4a'],
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppStrings.of(lang, 'attachment.error_analyse'),
+            style: const TextStyle(fontSize: 16)),
+      ));
+      return;
+    }
     if (!mounted || result == null || result.files.isEmpty) return;
 
     final file = result.files.single;
@@ -260,21 +271,9 @@ class _MedicalResponseScreenState
       context,
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.black,
-            iconTheme: const IconThemeData(color: Colors.white),
-            title: Text(
-              AppStrings.of(_lang, 'attachment.image_label'),
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-          body: Center(
-            child: InteractiveViewer(
-              child: Image.file(File(imagePath)),
-            ),
-          ),
+        builder: (_) => ImagePreviewScreen(
+          imagePath: imagePath,
+          title: AppStrings.of(_lang, 'attachment.image_label'),
         ),
       ),
     );

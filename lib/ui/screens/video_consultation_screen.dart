@@ -22,6 +22,7 @@ import '../../core/providers/language_provider.dart';
 import '../../core/providers/medplum_auth_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/utils/date_formatter.dart';
+import '../widgets/image_preview_screen.dart';
 
 /// A message exchanged during an in-call chat session.
 class _CallMessage {
@@ -42,9 +43,12 @@ class _CallMessage {
   });
 }
 
-// Secure WebSocket via Caddy TLS termination on GX10 → GCP WireGuard tunnel.
-// Works both on LAN (via GCP→WireGuard) and over internet (same path).
-const _kSignalingUrl = 'wss://telemed-signal.duckdns.org';
+// Override at build time: --dart-define=SIGNALING_URL=wss://...
+// Default keeps working without dart-define for hackathon builds.
+const _kSignalingUrl = String.fromEnvironment(
+  'SIGNALING_URL',
+  defaultValue: 'wss://telemed-signal.duckdns.org',
+);
 
 class VideoConsultationScreen extends ConsumerStatefulWidget {
   final String? appointmentId;
@@ -346,10 +350,15 @@ class _VideoConsultationScreenState
   // ── Chat — attach file ────────────────────────────────────────────────────────
 
   Future<void> _attachCallFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-    );
+    final FilePickerResult? result;
+    try {
+      result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      );
+    } catch (_) {
+      return; // picker dismissed or plugin error — silent fail in call context
+    }
     if (!mounted || result == null || result.files.isEmpty) return;
 
     final file = result.files.single;
@@ -476,19 +485,9 @@ class _VideoConsultationScreenState
       context,
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.black,
-            iconTheme: const IconThemeData(color: Colors.white),
-            title: Text(
-              AppStrings.of(_lang, 'attachment.image_label'),
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-          body: Center(
-            child: InteractiveViewer(child: Image.file(File(imagePath))),
-          ),
+        builder: (_) => ImagePreviewScreen(
+          imagePath: imagePath,
+          title: AppStrings.of(_lang, 'attachment.image_label'),
         ),
       ),
     );
@@ -918,7 +917,9 @@ class _VideoConsultationScreenState
   Widget _buildMuteButton() {
     return Semantics(
       button: true,
-      label: _isMuted ? 'Activează microfonul' : 'Dezactivează microfonul',
+      label: _isMuted
+          ? AppStrings.of(_lang, 'call.mute_enable')
+          : AppStrings.of(_lang, 'call.mute_disable'),
       child: GestureDetector(
         onTap: _toggleMute,
         child: Container(
@@ -954,7 +955,7 @@ class _VideoConsultationScreenState
   Widget _buildEndCallButton() {
     return Semantics(
       button: true,
-      label: 'Închide consultația',
+      label: AppStrings.of(_lang, 'call.end'),
       child: GestureDetector(
         onTap: () { _endCall(); },
         child: Container(
@@ -993,7 +994,7 @@ class _VideoConsultationScreenState
 
   Widget _buildChatStrip(BuildContext context) {
     return Semantics(
-      label: 'Deschide chat și documente',
+      label: AppStrings.of(_lang, 'call.open_chat'),
       child: GestureDetector(
         onTap: () => setState(() => _chatOpen = !_chatOpen),
         child: Container(

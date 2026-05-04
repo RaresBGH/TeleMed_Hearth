@@ -37,7 +37,7 @@ class MainActivity : FlutterFragmentActivity() {
         private const val TELEMEDICINE_CHANNEL = "com.telemed_k/telemedicine"
         private const val AUDIO_TRANSCODE_CHANNEL = "com.telemed_k/audio_transcode"
         private const val MODEL_DOWNLOAD_CHANNEL  = "com.telemed_k/model_download"
-        private const val OCR_CHANNEL             = "com.example.telemed_k/ocr"
+        private const val OCR_CHANNEL             = "com.telemed_k/ocr"
     }
 
     private lateinit var audioTranscodeChannel: AudioTranscodeChannel

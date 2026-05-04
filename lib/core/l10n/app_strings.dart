@@ -22,10 +22,15 @@ class AppStrings {
 
     // ── Navigation ────────────────────────────────────────────────────────
     'nav.back':               'Înapoi',
+    'error.generic':          'A apărut o eroare. Încercați din nou.',
 
     // ── In-call chat ──────────────────────────────────────────────────────
     'call.chat_hint':        'Scrieți un mesaj...',
     'call.summary_saved':    'Rezumatul consultației a fost salvat.',
+    'call.mute_enable':      'Activează microfonul',
+    'call.mute_disable':     'Dezactivează microfonul',
+    'call.end':              'Închide consultația',
+    'call.open_chat':        'Deschide chat și documente',
 
     // ── Attachment ────────────────────────────────────────────────────────
     'attachment.pdf_label':      'Document PDF',
@@ -369,10 +374,15 @@ class AppStrings {
 
     // ── Navigation ────────────────────────────────────────────────────────
     'nav.back':               'Back',
+    'error.generic':          'An error occurred. Please try again.',
 
     // ── In-call chat ──────────────────────────────────────────────────────
     'call.chat_hint':        'Type a message...',
     'call.summary_saved':    'Consultation summary saved.',
+    'call.mute_enable':      'Enable microphone',
+    'call.mute_disable':     'Disable microphone',
+    'call.end':              'End consultation',
+    'call.open_chat':        'Open chat and documents',
 
     // ── Attachment ────────────────────────────────────────────────────────
     'attachment.pdf_label':      'PDF Document',

@@ -6,14 +6,10 @@
 // HTML sourced from Stitch designs (termeni_de_utilizare_updated / politica_de_confidentialitate).
 // Green/teal color values replaced with brand blue #5BA4CF.
 
-/// Raw HTML strings for the two legal documents.
+/// Full HTML for the Terms of Use document.
 /// Rendered via WebView in [LegalDocumentModal].
-class LegalContent {
-  LegalContent._();
-
-  // ── Terms of Use ────────────────────────────────────────────────────────────
-
-  static const String termsHtml = r'''<!DOCTYPE html>
+// ignore: non_constant_identifier_names — k-prefix convention for top-level constants
+const String kTermsHtml = r'''<!DOCTYPE html>
 
 <html lang="ro"><head>
 <meta charset="utf-8"/>
@@ -170,9 +166,10 @@ class LegalContent {
 </nav>
 </body></html>''';
 
-  // ── Privacy Policy ──────────────────────────────────────────────────────────
-
-  static const String privacyHtml = r'''<!DOCTYPE html>
+/// Full HTML for the Privacy Policy document.
+/// Rendered via WebView in [LegalDocumentModal].
+// ignore: non_constant_identifier_names
+const String kPrivacyHtml = r'''<!DOCTYPE html>
 
 <html class="light" lang="ro"><head>
 <meta charset="utf-8"/>
@@ -353,4 +350,3 @@ class LegalContent {
 </button>
 </footer>
 </body></html>''';
-}

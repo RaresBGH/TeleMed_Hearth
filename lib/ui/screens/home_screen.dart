@@ -69,9 +69,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('A apărut o eroare. Încercați din nou.',
-              style: TextStyle(fontSize: 18)),
+        SnackBar(
+          content: Text(AppStrings.of(ref.read(languageProvider), 'error.generic'),
+              style: const TextStyle(fontSize: 18)),
         ),
       );
     }
@@ -265,9 +265,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('A apărut o eroare. Încercați din nou.',
-              style: TextStyle(fontSize: 18)),
+        SnackBar(
+          content: Text(AppStrings.of(ref.read(languageProvider), 'error.generic'),
+              style: const TextStyle(fontSize: 18)),
         ),
       );
     }

@@ -34,12 +34,12 @@ class LegalDocumentModal extends StatelessWidget {
   // ── Terms of Use — rendered via WebView ──────────────────────────────────
 
   Widget _buildTerms(BuildContext context) =>
-      _WebShell(title: 'Termeni de Utilizare', html: LegalContent.termsHtml);
+      _WebShell(title: 'Termeni de Utilizare', html: kTermsHtml);
 
   // ── Privacy Policy — rendered via WebView ─────────────────────────────────
 
   Widget _buildPrivacy(BuildContext context) =>
-      _WebShell(title: 'Politica de Confidențialitate', html: LegalContent.privacyHtml);
+      _WebShell(title: 'Politica de Confidențialitate', html: kPrivacyHtml);
 
   // ── Generic fallback ──────────────────────────────────────────────────────
 

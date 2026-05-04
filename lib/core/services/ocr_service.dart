@@ -9,7 +9,7 @@ import 'package:flutter/services.dart';
 class OcrService {
   OcrService._();
 
-  static const _channel = MethodChannel('com.example.telemed_k/ocr');
+  static const _channel = MethodChannel('com.telemed_k/ocr');
 
   /// Runs ML Kit text recognition on [imagePath].
   /// Returns the full extracted text, or '' on any failure.
