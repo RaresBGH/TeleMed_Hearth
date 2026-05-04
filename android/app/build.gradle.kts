@@ -90,4 +90,8 @@ dependencies {
 
     // --- OkHttp: Streaming model download with resume support ---
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // --- ML Kit Text Recognition: ID-card OCR for login screen Ajutor flow ---
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+    implementation("com.google.mlkit:text-recognition-latin:16.0.1")
 }

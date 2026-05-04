@@ -254,4 +254,113 @@ class MedplumRepository {
       return null;
     }
   }
+
+  // ── Communication ──────────────────────────────────────────────────────────
+
+  /// Saves an in-call or async text message as a FHIR Communication resource.
+  /// Never throws — returns null when offline or on server error.
+  Future<Map<String, dynamic>?> saveCommunication({
+    required String patientCnp,
+    String? appointmentId,
+    required String text,
+    required bool isPatient,
+    required DateTime timestamp,
+    String? attachmentPath,
+    String? mimeType,
+    String? attachmentTitle,
+  }) async {
+    if (!await auth.isOnline()) return null;
+    try {
+      final payload = <String, dynamic>{
+        'resourceType': 'Communication',
+        'status': 'completed',
+        'sent': timestamp.toUtc().toIso8601String(),
+        'subject': {
+          'type': 'Patient',
+          'identifier': {
+            'system': 'urn:oid:1.2.40.0.10.1.4.3.1',
+            'value': patientCnp,
+          },
+        },
+        if (appointmentId != null && appointmentId.isNotEmpty)
+          'about': [{'reference': 'Appointment/$appointmentId'}],
+        'payload': [
+          {'contentString': text},
+          if (mimeType != null && attachmentTitle != null)
+            {
+              'contentAttachment': {
+                'contentType': mimeType,
+                'title': attachmentTitle,
+                'creation': timestamp.toUtc().toIso8601String(),
+              }
+            },
+        ],
+        'extension': [
+          {'url': 'isPatient', 'valueBoolean': isPatient},
+        ],
+      };
+      final response = await client.post(
+        Uri.parse('$_base/Communication'),
+        headers: await _headers(),
+        body: jsonEncode(payload),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      debugPrint('MedplumRepository.saveCommunication: ${response.statusCode}');
+      return null;
+    } catch (e) {
+      debugPrint('MedplumRepository.saveCommunication error: $e');
+      return null;
+    }
+  }
+
+  // ── DocumentReference ──────────────────────────────────────────────────────
+
+  /// Records a file attachment as a FHIR DocumentReference.
+  /// [patientCnp] is used as a logical identifier — Medplum resolves the Patient.
+  /// Never throws; returns null when offline or on server error.
+  Future<Map<String, dynamic>?> saveDocumentReference({
+    required String patientCnp,
+    required String filePath,
+    required String mimeType,
+    required String description,
+  }) async {
+    if (!await auth.isOnline()) return null;
+    try {
+      final payload = {
+        'resourceType': 'DocumentReference',
+        'status': 'current',
+        'subject': {
+          'type': 'Patient',
+          'identifier': {
+            'system': 'urn:oid:1.2.40.0.10.1.4.3.1',
+            'value': patientCnp,
+          },
+        },
+        'content': [
+          {
+            'attachment': {
+              'contentType': mimeType,
+              'title': description,
+              'creation': DateTime.now().toUtc().toIso8601String(),
+            }
+          }
+        ],
+      };
+      final response = await client.post(
+        Uri.parse('$_base/DocumentReference'),
+        headers: await _headers(),
+        body: jsonEncode(payload),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      debugPrint('MedplumRepository.saveDocumentReference: ${response.statusCode}');
+      return null;
+    } catch (e) {
+      debugPrint('MedplumRepository.saveDocumentReference error: $e');
+      return null;
+    }
+  }
 }

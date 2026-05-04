@@ -10,14 +10,19 @@ import 'dart:io';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/language_provider.dart';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models/chat_message.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/providers/medplum_auth_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/services/audio_recording_service.dart';
 import '../../core/services/camera_service.dart';
+import '../../core/services/ocr_service.dart';
 
 // ── Design tokens (matches Stitch palette from code.html) ─────────────────────
 
@@ -38,12 +43,16 @@ class MedicalResponseScreen extends ConsumerStatefulWidget {
   /// passed here and used to pre-populate the chat instead of the default
   /// "Aveți și alte simptome?" seed message.
   final List<ChatMessage>? initialMessages;
+  /// When set, adds a patient message with this text and immediately triggers
+  /// AI inference — used by the "Trimite mesaj" doctor flow.
+  final String? initialPrompt;
 
   const MedicalResponseScreen({
     super.key,
     required this.initialResponse,
     required this.isEmergency,
     this.initialMessages,
+    this.initialPrompt,
   });
 
   @override
@@ -63,6 +72,11 @@ class _MedicalResponseScreenState
   bool _isFinalizing     = false;
   bool _isPhotoAnalyzing = false;
 
+  // ── Audio playback (voice messages) ──────────────────────────────────────
+  late final AudioPlayer _audioPlayer;
+  StreamSubscription<PlayerState>? _playerSubscription;
+  String? _playingMessagePath; // attachmentPath of the currently playing message
+
   // Readable from any method; build() uses ref.watch for reactivity.
   String get _lang => ref.read(languageProvider);
   // Set to true when finalize is requested while _isProcessing is true.
@@ -72,7 +86,32 @@ class _MedicalResponseScreenState
   @override
   void initState() {
     super.initState();
-    if (widget.initialMessages != null && widget.initialMessages!.isNotEmpty) {
+    _audioPlayer = AudioPlayer();
+    if (widget.initialPrompt != null && widget.initialPrompt!.isNotEmpty) {
+      // Doctor "Trimite mesaj" flow — add patient message and immediately
+      // trigger AI inference so the doctor receives a response on open.
+      _messages.add(ChatMessage(
+        role: 'patient',
+        text: widget.initialPrompt!,
+        timestamp: DateTime.now(),
+      ));
+      _isProcessing = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        try {
+          final result = await ref
+              .read(aiEngineServiceProvider)
+              .evaluateText(widget.initialPrompt!);
+          if (!mounted || _cancelRequested) {
+            if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
+            return;
+          }
+          _appendAiResponse(result);
+        } catch (_) {
+          if (mounted) setState(() => _isProcessing = false);
+        }
+      });
+    } else if (widget.initialMessages != null && widget.initialMessages!.isNotEmpty) {
       // Resume from Dosar Medical or doctor preseed — restore prior conversation.
       _messages.addAll(widget.initialMessages!);
       // Clear the preseed from provider state after the first frame so that
@@ -97,7 +136,148 @@ class _MedicalResponseScreenState
     unawaited(ref.read(audioRecordingServiceProvider).stopAndRelease());
     _textController.dispose();
     _scrollController.dispose();
+    _playerSubscription?.cancel();
+    _audioPlayer.dispose();
     super.dispose();
+  }
+
+  // ── Document attachment ───────────────────────────────────────────────────────
+
+  Future<void> _onAttachDocument() async {
+    final lang = _lang;
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'wav', 'mp3', 'aac', 'm4a'],
+    );
+    if (!mounted || result == null || result.files.isEmpty) return;
+
+    final file = result.files.single;
+    final path = file.path;
+    if (path == null) return;
+
+    final ext = (file.extension ?? '').toLowerCase();
+    final AttachmentType attachType;
+    if (ext == 'pdf') {
+      attachType = AttachmentType.pdf;
+    } else if (ext == 'jpg' || ext == 'jpeg' || ext == 'png') {
+      attachType = AttachmentType.image;
+    } else {
+      attachType = AttachmentType.audio;
+    }
+    final fileName = file.name;
+
+    setState(() {
+      _messages.add(ChatMessage(
+        role: 'patient',
+        text: fileName,
+        timestamp: DateTime.now(),
+        attachmentPath: path,
+        attachmentType: attachType,
+      ));
+      if (attachType != AttachmentType.audio) _isProcessing = true;
+    });
+    _scrollToBottom();
+
+    if (attachType == AttachmentType.audio) return; // audio: no AI inference
+
+    try {
+      final Map<String, dynamic> aiResult;
+      if (attachType == AttachmentType.image) {
+        aiResult = await ref.read(aiEngineServiceProvider).evaluateMedia(File(path));
+      } else {
+        // PDF: attempt OCR, fall back to filename-only message
+        final ocrText = await OcrService.extractText(path);
+        if (ocrText.isNotEmpty) {
+          aiResult = await ref.read(aiEngineServiceProvider).evaluateText(ocrText);
+        } else {
+          final fallback = AppStrings.of(lang, 'attachment.fallback_msg')
+              .replaceAll('{filename}', fileName);
+          aiResult = await ref.read(aiEngineServiceProvider).evaluateText(fallback);
+        }
+      }
+      if (!mounted || _cancelRequested) {
+        if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
+        return;
+      }
+      _appendAiResponse(aiResult);
+
+      // Save DocumentReference to Medplum (best-effort, no UI impact on failure).
+      final cnp = ref.read(loginCnpProvider);
+      final mimeType =
+          attachType == AttachmentType.pdf ? 'application/pdf' : 'image/jpeg';
+      unawaited(
+        ref.read(medplumRepositoryProvider).saveDocumentReference(
+          patientCnp: cnp,
+          filePath: path,
+          mimeType: mimeType,
+          description: fileName,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() { _isProcessing = false; _cancelRequested = false; });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppStrings.of(lang, 'attachment.error_analyse'),
+            style: const TextStyle(fontSize: 16)),
+      ));
+    }
+  }
+
+  // ── Audio playback ────────────────────────────────────────────────────────────
+
+  Future<void> _togglePlayback(ChatMessage msg) async {
+    final path = msg.attachmentPath;
+    if (path == null) return;
+
+    if (_playingMessagePath == path) {
+      await _audioPlayer.stop();
+      setState(() => _playingMessagePath = null);
+      return;
+    }
+
+    _playerSubscription?.cancel();
+    if (_playingMessagePath != null) await _audioPlayer.stop();
+
+    try {
+      await _audioPlayer.setFilePath(path);
+      await _audioPlayer.play();
+      setState(() => _playingMessagePath = path);
+
+      _playerSubscription = _audioPlayer.playerStateStream.listen((state) {
+        if (state.processingState == ProcessingState.completed && mounted) {
+          setState(() => _playingMessagePath = null);
+        }
+      });
+    } catch (_) {
+      if (mounted) setState(() => _playingMessagePath = null);
+    }
+  }
+
+  // ── Image full-screen preview ─────────────────────────────────────────────────
+
+  void _showImagePreview(String imagePath) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+            title: Text(
+              AppStrings.of(_lang, 'attachment.image_label'),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              child: Image.file(File(imagePath)),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   // ── Navigation ──────────────────────────────────────────────────────────────
@@ -602,6 +782,7 @@ class _MedicalResponseScreenState
 
   Widget _buildBubble(ChatMessage msg) {
     final bool isAi = msg.role == 'ai';
+    final Widget content = _buildBubbleContent(msg, isAi);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Align(
@@ -611,7 +792,10 @@ class _MedicalResponseScreenState
             maxWidth: MediaQuery.of(context).size.width * 0.82,
           ),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.symmetric(
+              horizontal: msg.attachmentType == AttachmentType.image ? 8 : 16,
+              vertical:   msg.attachmentType == AttachmentType.image ? 8 : 12,
+            ),
             decoration: BoxDecoration(
               color: isAi ? _aiBubbleBg : _brandBlue,
               borderRadius: BorderRadius.only(
@@ -628,19 +812,74 @@ class _MedicalResponseScreenState
                 ),
               ],
             ),
-            child: Text(
-              msg.text,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: isAi ? _onSurface : Colors.white,
-                height: 1.45,
-              ),
-            ),
+            child: content,
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildBubbleContent(ChatMessage msg, bool isAi) {
+    final textStyle = TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w500,
+      color: isAi ? _onSurface : Colors.white,
+      height: 1.45,
+    );
+
+    switch (msg.attachmentType) {
+      case AttachmentType.audio:
+        final path = msg.attachmentPath;
+        final isPlaying = path != null && _playingMessagePath == path;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(
+                isPlaying ? Icons.stop_circle_outlined : Icons.play_circle_outline,
+                size: 32,
+                color: isAi ? _brandBlue : Colors.white,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => _togglePlayback(msg),
+            ),
+            const SizedBox(width: 8),
+            Text(AppStrings.of(_lang, 'voice.message_label'), style: textStyle),
+          ],
+        );
+
+      case AttachmentType.image:
+        final path = msg.attachmentPath;
+        if (path == null) return Text(msg.text, style: textStyle);
+        return GestureDetector(
+          onTap: () => _showImagePreview(path),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              File(path),
+              width: 200,
+              height: 150,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) =>
+                  const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+            ),
+          ),
+        );
+
+      case AttachmentType.pdf:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.picture_as_pdf, color: Color(0xFFAB1118), size: 32),
+            const SizedBox(width: 8),
+            Flexible(child: Text(msg.text, style: textStyle)),
+          ],
+        );
+
+      case null:
+        return Text(msg.text, style: textStyle);
+    }
   }
 
   // ── Typing indicator ──────────────────────────────────────────────────────────
@@ -744,10 +983,10 @@ class _MedicalResponseScreenState
           // Icon row + text field
           Row(
         children: [
-          // Attachment stub
+          // Attachment — opens file picker (pdf/image/audio)
           _InputIconButton(
             icon: Icons.attach_file,
-            onTap: () {},
+            onTap: _isProcessing ? null : _onAttachDocument,
           ),
           const SizedBox(width: 6),
           // Mic — turns red while recording

@@ -14,6 +14,7 @@ import io.flutter.plugin.common.MethodChannel
 import com.example.telemed_k.channels.AudioTranscodeChannel
 import com.example.telemed_k.channels.FhirEngineChannel
 import com.example.telemed_k.channels.LiteRtLmChannel
+import com.example.telemed_k.channels.OcrChannel
 import com.example.telemed_k.channels.TelemedicineChannel
 import com.example.telemed_k.services.ModelDownloadService
 
@@ -35,12 +36,14 @@ class MainActivity : FlutterFragmentActivity() {
         private const val LITERT_LM_CHANNEL = "com.telemed_k/litert_lm"
         private const val TELEMEDICINE_CHANNEL = "com.telemed_k/telemedicine"
         private const val AUDIO_TRANSCODE_CHANNEL = "com.telemed_k/audio_transcode"
-        private const val MODEL_DOWNLOAD_CHANNEL = "com.telemed_k/model_download"
+        private const val MODEL_DOWNLOAD_CHANNEL  = "com.telemed_k/model_download"
+        private const val OCR_CHANNEL             = "com.example.telemed_k/ocr"
     }
 
     private lateinit var audioTranscodeChannel: AudioTranscodeChannel
     private lateinit var fhirEngineChannel: FhirEngineChannel
     private lateinit var liteRtLmChannel: LiteRtLmChannel
+    private lateinit var ocrChannel: OcrChannel
     private lateinit var telemedicineChannel: TelemedicineChannel
     private lateinit var modelDownloadService: ModelDownloadService
 
@@ -75,7 +78,14 @@ class MainActivity : FlutterFragmentActivity() {
             LITERT_LM_CHANNEL
         ).setMethodCallHandler(liteRtLmChannel)
 
-        // --- 3. Telemedicine Channel ---
+        // --- 3. OCR Channel ---
+        ocrChannel = OcrChannel(this)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            OCR_CHANNEL
+        ).setMethodCallHandler(ocrChannel)
+
+        // --- 4. Telemedicine Channel ---
         telemedicineChannel = TelemedicineChannel(this)
         val telemedicineMethodChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,

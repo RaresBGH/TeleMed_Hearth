@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/language_toggle.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/ai_ready_provider.dart';
@@ -125,6 +126,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return;
       }
 
+      // Show confirmation dialog before starting to record.
+      final lang = ref.read(languageProvider);
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => _buildVoiceConfirmDialog(ctx, lang),
+      );
+      if (!mounted) return;
+      if (confirmed != true) return; // user cancelled
+
       try {
         await audioService.startRecording();
         if (!mounted) return;
@@ -139,6 +150,71 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
       }
     }
+  }
+
+  Widget _buildVoiceConfirmDialog(BuildContext ctx, String lang) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      contentPadding: const EdgeInsets.all(24),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.mic, size: 48, color: _iconColor),
+          const SizedBox(height: 16),
+          Text(
+            AppStrings.of(lang, 'voice.confirm_title'),
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: _titleColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            AppStrings.of(lang, 'voice.confirm_body'),
+            style: const TextStyle(fontSize: 18, color: _titleColor),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 64,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _iconColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                AppStrings.of(lang, 'voice.confirm_start'),
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 64,
+            child: TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              style: TextButton.styleFrom(
+                foregroundColor: _subtitleColor,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                AppStrings.of(lang, 'voice.confirm_cancel'),
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // ── Text triage ────────────────────────────────────────────────────────────
@@ -197,6 +273,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  // ── Back / exit ────────────────────────────────────────────────────────────
+
+  Future<void> _onBack() async {
+    final lang = ref.read(languageProvider);
+    final session = ref.read(medicalSessionProvider);
+
+    // If no active triage session, return to dashboard without a dialog.
+    if (session.sessionState == SessionState.idle ||
+        session.sessionState == SessionState.error) {
+      ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.dashboard);
+      return;
+    }
+
+    // Active session — show the same exit dialog used in MedicalResponseScreen.
+    final bool? choice = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(AppStrings.of(lang, 'chat.back_title')),
+        content: Text(AppStrings.of(lang, 'chat.back_content'),
+            style: const TextStyle(fontSize: 16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(AppStrings.of(lang, 'chat.back_exit'),
+                style: const TextStyle(color: Colors.red, fontSize: 16)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _iconColor, foregroundColor: Colors.white),
+            child: Text(AppStrings.of(lang, 'chat.finalize_btn'),
+                style: const TextStyle(fontSize: 16)),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (choice != null) {
+      // Both "Ieși" and "Finalizează" reset the session and return to dashboard
+      // from the home/triage screen (no FHIR observation has been started yet).
+      await ref.read(medicalSessionProvider.notifier).reset();
+      if (mounted) {
+        ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.dashboard);
+      }
+    }
+    // choice == null → dialog dismissed → stay in triage
+  }
+
   // ── Emergency ──────────────────────────────────────────────────────────────
 
   Future<void> _onEmergencyTap() async {
@@ -232,12 +356,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _onBack();
+      },
+      child: Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
         backgroundColor: _bg,
         elevation: 0,
         automaticallyImplyLeading: false,
+        leading: Semantics(
+          button: true,
+          label: AppStrings.of(lang, 'nav.back'),
+          child: SizedBox(
+            width: 64,
+            height: 64,
+            child: IconButton(
+              tooltip: AppStrings.of(lang, 'nav.back'),
+              icon: const Icon(Icons.arrow_back, color: _iconColor),
+              onPressed: _onBack,
+            ),
+          ),
+        ),
         title: const Text(
           'TeleMed_K',
           style: TextStyle(
@@ -380,7 +522,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
-    );
+    ), // Scaffold
+    ); // PopScope
   }
 }
 

@@ -289,13 +289,23 @@ class DoctorProfileScreen extends ConsumerWidget {
                         ),
                       );
                     } else {
-                      // Family doctor tab: flat nav.
+                      // Family doctor tab: push via Navigator so back returns
+                      // here; initialPrompt auto-triggers AI inference.
                       ref
                           .read(medicalSessionProvider.notifier)
                           .startWithPreseed(preseed, doctorName: doctorName);
-                      ref
-                          .read(appNavigationProvider.notifier)
-                          .navigateTo(AppRoute.medicalResponse);
+                      if (!context.mounted) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MedicalResponseScreen(
+                            initialResponse: AppStrings.of(
+                                lang, 'chat.default_response'),
+                            isEmergency: false,
+                            initialPrompt: preseed,
+                          ),
+                        ),
+                      );
                     }
                   },
                 ),

@@ -146,9 +146,7 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
                   _build3DotLoader(),
                   const SizedBox(height: 32),
                   _buildConsentCard(lang),
-                  const SizedBox(height: 20),
-                  _buildAmbientInstruction(lang),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -292,7 +290,16 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
+          Text(
+            AppStrings.of(lang, 'waiting.info'),
+            style: const TextStyle(
+              fontSize: 16,
+              color: _onSurfaceV,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          const SizedBox(height: 8),
           Text(
             // TODO(MVP): update consent_text key to use [name] placeholder.
             AppStrings.of(lang, 'waiting.consent_text')
@@ -329,34 +336,6 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
           ),
         ),
       ],
-    );
-  }
-
-  // Ambient instruction
-  Widget _buildAmbientInstruction(String lang) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _surfLow,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.info_outline, color: _onSurfaceV, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              AppStrings.of(lang, 'waiting.info'),
-              style: const TextStyle(
-                fontSize: 15,
-                fontStyle: FontStyle.italic,
-                color: _onSurfaceV,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -603,25 +582,45 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
     );
   }
 
-  // Private space checkbox (amber-tinted, NO Border object per DESIGN.md)
+  // Private space checkbox — brand-blue tint, 2px border, full-row tappable.
   Widget _buildPrivateSpaceCheckbox(String lang) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB), // amber-50
-        borderRadius: BorderRadius.circular(12),
-        // No Border — tonal color only per DESIGN.md "No-Line" rule
-      ),
-      child: CheckboxListTile(
-        value: _privateSpaceConfirmed,
-        onChanged: (v) => setState(() => _privateSpaceConfirmed = v ?? false),
-        title: Text(
-          AppStrings.of(lang, 'waiting.private_space'),
-          style: const TextStyle(fontSize: 14, color: _onSurface, height: 1.4),
+    return GestureDetector(
+      onTap: () => setState(() => _privateSpaceConfirmed = !_privateSpaceConfirmed),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 64),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEBF4FB),
+          border: Border.all(color: _brand, width: 2),
+          borderRadius: BorderRadius.circular(12),
         ),
-        activeColor: _brand,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        controlAffinity: ListTileControlAffinity.leading,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Checkbox(
+              value: _privateSpaceConfirmed,
+              onChanged: (v) =>
+                  setState(() => _privateSpaceConfirmed = v ?? false),
+              activeColor: _brand,
+              checkColor: Colors.white,
+              side: const BorderSide(color: _brand, width: 2),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                AppStrings.of(lang, 'waiting.private_space'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: _onSurface,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -686,7 +685,6 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
         child: ElevatedButton(
           onPressed: _privateSpaceConfirmed
               ? () {
-                  // TODO(signaling): pass appointmentId to establish WebRTC session.
                   // pushReplacement removes WaitingRoom from the Navigator stack so
                   // pressing back from the call returns to AppointmentsScreen, not
                   // back here. Using flat nav would leave WaitingRoom on the stack,
@@ -694,7 +692,9 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const VideoConsultationScreen(),
+                      builder: (_) => VideoConsultationScreen(
+                        appointmentId: widget.appointmentId,
+                      ),
                     ),
                   );
                 }

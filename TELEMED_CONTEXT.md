@@ -1,5 +1,5 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-05-03
+Last updated: 2026-05-04
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
@@ -37,6 +37,9 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 | google_fonts | ^6.2.1 | Lexend font system-wide (resolves to 6.3.3) |
 | flutter_webrtc | ^1.3.0 | WebRTC P2P video (resolves to 1.4.1) |
 | table_calendar | ^3.1.0 (resolves 3.2.0) | Month calendar widget for Programări |
+| webview_flutter | ^4.10.0 | HTML legal document rendering (H4) |
+| file_picker | ^8.1.2 | PDF + image + audio file selection (H9) |
+| just_audio | ^0.9.42 | Inline voice replay in chat bubbles (H9) |
 
 ### Android (Gradle) dependencies
 | Artifact | Version | Role |
@@ -103,6 +106,17 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **MedplumAuthService (M1)** — OAuth2 client_credentials token fetch against `https://telemed-medplum.duckdns.org/oauth2/token`; 3-tier resolution (in-memory cache → flutter_secure_storage → POST to token endpoint); 60-second expiry buffer; `clearToken()`; `isOnline()` via connectivity_plus; `medplumAuthServiceProvider` singleton Provider
 - **MedplumRepository (M2)** — 9 REST FHIR methods against `https://telemed-medplum.duckdns.org/fhir/R4`; online-first reads with local FHIR SDK offline fallback; dual-write on all save/update operations (Medplum best-effort + local guaranteed); FhirRepository method signatures unchanged; `medplumRepositoryProvider` injected into `fhirRepositoryProvider`
 - **Practitioner constants (M3)** — `lib/core/constants/practitioner_constants.dart` with real Medplum IDs; 11 hardcoded strings replaced across 7 files; `"family"` practitionerRef eliminated; `"Mariana Andronescu"` → `Practitioners.familyDoctorName`; `"specialist_pedia"` → `Practitioners.bogheanuId`; backwards-compatible appointment card name resolution
+- **Security fixes R1–R8** — R1: OAuth credentials moved to `--dart-define` (no literals in source); R2: `network_security_config.xml` created, `usesCleartextTraffic` removed, `READ_MEDIA_IMAGES` confirmed, `WRITE_EXTERNAL_STORAGE` dead code removed; R3: 2 hardcoded Romanian strings extracted to AppStrings; R4: mic/camera/text handlers wrapped in try/catch + `ref.listen` for error state in home screen; R5: `FhirRepository` read methods now return safe empty values instead of throwing; R6: `aiReadyProvider` invalidated after model deletion (confirmed already in place); R7: resource disposal verified (no gaps); R8: `DoctorProfileScreen` intentional non-route comment added, time-padding consolidated into `DateFormatter` (3 call sites)
+- **H1 — Language toggle on login screen** — `LanguageToggle()` added to `login_identity_screen.dart` AppBar; `nav.back` AppStrings key added; all auth-screen strings confirmed routed through AppStrings
+- **H2 — Valid Romanian CNPs** — 5 checksum-valid CNPs generated (county 15 Dâmbovița, NNN 001–005); `FhirEngineChannel.kt` seed data updated; Medplum update script at `tools/update_medplum_cnps.dart`; OTPs: Maria 150013 / Ion 150027 / Elena 150032 / Gheorghe 150048 / Ana 150058
+- **H3 — Ajutor button with ML Kit OCR + voice** — `OcrChannel.kt` (ML Kit `TextRecognition`); `OcrService.dart` with `parseCnp()`/`parsePhone()` regex; 15-second countdown dialog for voice input; model-not-ready guard shows info dialog; `com.google.mlkit:text-recognition:16.0.1` + `text-recognition-latin:16.0.1` added; OcrChannel registered in `MainActivity.kt`; 9 `ajutor.*` AppStrings keys added
+- **H4 — Legal screens wired via WebView** — `LegalContent.dart` stores full Stitch HTML with green→#5BA4CF replacement; `webview_flutter: ^4.10.0` added; `LegalDocumentModal` updated to render via `WebViewController.loadHtmlString`; OTP screen buttons now call `LegalDocumentType.terms/privacy` instead of placeholder strings; `legal.terms_title` + `legal.privacy_title` AppStrings added
+- **H5 — Back button on triage + Trimite mesaj AI routing** — `PopScope(canPop:false)` + 64dp AppBar back button on home/triage screen; `_onBack()` navigates to dashboard (idle) or shows exit dialog (active session); `MedicalResponseScreen.initialPrompt` parameter added — auto-triggers AI inference on open; family doctor "Trimite mesaj" changed from flat nav to `Navigator.push` + `initialPrompt`; `nav.back` AppStrings key
+- **H6 — Consent screen layout fix** — WaitingRoomScreen STATE A: "Vă rugăm să citiți..." subtitle moved inside consent card (16sp italic, directly below title); STATE B checkbox redesigned (#EBF4FB background, 2px #5BA4CF border, full-row GestureDetector, 64dp min height)
+- **H7 — In-call chat panel** — `DraggableScrollableSheet` (45%–85% height) overlaid on video; text + file messaging (pdf/image); `_CallMessage` local class; FHIR Communication via `MedplumRepository.saveCommunication()`; `appointmentId` forwarded AppointmentsScreen → WaitingRoom → VideoConsultationScreen; Gemma 4 transcript summary saved as FHIR Observation on call end; `call.chat_hint` + `call.summary_saved` AppStrings
+- **H8 — Voice recording confirmation dialog** — First mic tap on triage screen shows AlertDialog (48dp mic icon, 64dp stacked buttons); cancel does nothing; stop-tap skips dialog; `voice.confirm_title/body/start/cancel` AppStrings (4 keys)
+- **H9 — Document attachment + voice replay + image preview** — `file_picker: ^8.1.2` + `just_audio: ^0.9.42` added; `AttachmentType` enum + `attachmentPath` field in `ChatMessage`; `_onAttachDocument()` in `MedicalResponseScreen` (pdf/image/audio); ML Kit OCR fallback for PDFs; `MedplumRepository.saveDocumentReference()` added; inline audio playback (`AudioPlayer`, play/stop per bubble); full-screen `InteractiveViewer` image preview; pdf row display; `attachment.*` + `voice.message_label` AppStrings (5 keys)
+- **H11 — Medplum sync verification + appointmentId fix** — Live connectivity confirmed (HTTP 200 to `/fhir/R4/metadata`); `saveCommunication` + `saveDocumentReference` methods verified present; `VideoConsultationScreen.appointmentId` parameter added; `Communication.about` field now populated; GitHub Actions secrets instructions provided
 
 ### PENDING IMPLEMENTATION
 
@@ -116,9 +130,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Login screen on-device visibility** — scroll fix committed, CI green — **not confirmed on device**
 - **WebRTC signaling** — PeerConnection wired with Google STUN; no signaling server deployed; remote video stays black
 - **Text card → inference** — `handleRunInference` implemented in Kotlin; end-to-end path from text card UI → MethodChannel → model output not yet device-tested
-- **Document sharing** — `_onAttachDocument` and `_onSendMessage` are empty stubs
-- **Login camera OCR** — `_extractViaCamera()` passes `File('dummy_id.jpg')`; not real OCR
-- **Medplum auth** — fictional `client_id`; will 401; skipped for hackathon
+- **Medplum device sync** — auth wired with dart-define (R1); GitHub Actions secrets not yet set; actual on-device sync test pending
 - **Firebase/FCM** — no `google-services.json`; FCM returns stub token; skipped for hackathon
 - **DeviceConflictModal** — implemented but never triggered from auth flow
 
@@ -193,21 +205,30 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 ### GCP Reverse Proxy VM
 - **VM:** telemed-proxy, e2-micro, Frankfurt (34.185.191.34)
 - **Services:** caddy.service + wg-quick@wg0.service
-- **Caddy config** (routes all three domains through WireGuard tunnel):
+- **Caddy config** (routes all domains through WireGuard tunnel):
     telemed-b.duckdns.org → reverse_proxy https://10.0.0.2:443
       (tls_server_name: telemed-b.duckdns.org)
     telemed-medplum.duckdns.org → reverse_proxy 10.0.0.2:8103
     telemed-medplum-ui.duckdns.org → reverse_proxy 10.0.0.2:8104
+    telemed-doctor.duckdns.org → reverse_proxy https://10.0.0.2:443
+      (tls_server_name: telemed-doctor.duckdns.org) — Doctor WebRTC UI
+    telemed-signal.duckdns.org → reverse_proxy 10.0.0.2:8765 — WebSocket signaling relay
 - **WireGuard:** VPS peer 10.0.0.1 ↔ GX10 peer 10.0.0.2
   wg-quick@wg0.service on both ends
 
 ### GX10 Services
 - **GX10 LAN IP (WiFi):** 192.168.0.101
 - **GX10 LAN IP (Ethernet):** 192.168.0.144 — interface `enP7s7`; no `tc` rate limiting
-- **caddy-telemed.service** — serves telemed-b.duckdns.org on port 443
-  (AI model file server, gemma-4-E2B-it.litertlm); Caddy 2.11.2 ARM64; TLS via DuckDNS DNS-01
+- **caddy-telemed.service** — serves telemed-b.duckdns.org + telemed-doctor.duckdns.org +
+  telemed-signal.duckdns.org on port 443; Caddy 2.11.2 ARM64; TLS via DuckDNS DNS-01
 - **wg-quick@wg0.service** — WireGuard tunnel to GCP VM
 - **medplum systemd service** — Docker Compose via sovereign-factory/ directory
+- **telemed-signaling.service** — Node.js WebRTC signaling relay; ws://0.0.0.0:8765;
+  `/home/corb_d/sovereign-factory/signaling/server.js`; relay-only, rooms keyed by appointmentId;
+  external URL: wss://telemed-signal.duckdns.org (via Caddy + WireGuard)
+- **Doctor UI** — static HTML served by caddy-telemed from
+  `/home/corb_d/sovereign-factory/doctor-ui/index.html`;
+  URL: https://telemed-doctor.duckdns.org; vanilla JS WebRTC client, joins signaling room by appointmentId
 - **Router port forward:** TCP 443 → 192.168.0.101:443 on TP-Link AX5400
 
 ### Medplum (Self-Hosted FHIR Server)
@@ -236,11 +257,18 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 
 ### Medplum Seeded Data
 Patients (CNP → FHIR ID):
-  Maria Ionescu     2540203152485 → Patient/a0e44abc-acc5-442e-a316-be70192fc72b
-  Ion Popescu       1490815054321 → Patient/118149bf-26e0-46e1-87de-7149e8066284
-  Elena Dumitrescu  2621105287654 → Patient/510b8c93-ef4a-43bc-b265-197fcfc03c2b
-  Gheorghe Stan     1551220187432 → Patient/6955bb14-46d7-4a9b-b7a4-d98e95051f3f
-  Ana Constantin    2480430098765 → Patient/40d2b51f-5a36-4e13-9755-5e7b6bb9ba85
+  Maria Ionescu     2540203150013 → Patient/a0e44abc-acc5-442e-a316-be70192fc72b
+  Ion Popescu       1490815150027 → Patient/118149bf-26e0-46e1-87de-7149e8066284
+  Elena Dumitrescu  2621105150032 → Patient/510b8c93-ef4a-43bc-b265-197fcfc03c2b
+  Gheorghe Stan     1551220150048 → Patient/6955bb14-46d7-4a9b-b7a4-d98e95051f3f
+  Ana Constantin    2480430150058 → Patient/40d2b51f-5a36-4e13-9755-5e7b6bb9ba85
+
+Demo OTPs (last 6 digits of each CNP):
+  Maria Ionescu:    150013
+  Ion Popescu:      150027
+  Elena Dumitrescu: 150032
+  Gheorghe Stan:    150048
+  Ana Constantin:   150058
 
 Conditions:
   Hipertensiune arterială     → Condition/36d3b343 → Maria Ionescu
@@ -342,11 +370,30 @@ Refactoring completed during audit:
 - [x] MedplumAuthService — client_credentials OAuth2 token fetch + flutter_secure_storage (M1)
 - [x] MedplumRepository — 9 REST FHIR methods, online-first, dual-write (M2)
 - [x] Replace all hardcoded practitionerRefs with real Medplum IDs (M3)
+- [x] R1: OAuth credentials moved to dart-define; `defaultValue: ''` fallback; `.github/workflows/build-apk.yml` updated; `.env.example` created
+- [x] R2: `network_security_config.xml` created; `usesCleartextTraffic` removed; `READ_MEDIA_IMAGES` confirmed; `WRITE_EXTERNAL_STORAGE` removed
+- [x] R3: 2 hardcoded Romanian strings extracted (`profil.phone_change_body`, `appointment.select_slot`)
+- [x] R4: Mic/camera/text handlers wrapped in try/catch; `ref.listen` for `SessionState.error` in home screen
+- [x] R5: FhirRepository read methods return safe empty values on `PlatformException` instead of throwing
+- [x] R6: `aiReadyProvider` invalidated after model deletion (already in place — confirmed)
+- [x] R7: Resource disposal gaps verified as non-issues; `_pulseController.dispose()` confirmed
+- [x] R8: `DoctorProfileScreen` intentional non-route comment; time zero-padding consolidated into `DateFormatter` (3 methods: `formatTime`, `formatDuration`, `formatTimeOfDay`)
+- [x] H1: Language toggle on login identity screen; `nav.back` key added
+- [x] H2: 5 checksum-valid CNPs (county 15); seed data updated; `tools/update_medplum_cnps.dart` script
+- [x] H3: ML Kit OCR (`OcrChannel.kt` + `OcrService.dart`); 15s voice countdown dialog; model-not-ready guard; login `_extractViaCamera()` now real OCR (no more `dummy_id.jpg`)
+- [x] H4: Legal screens via WebView; `LegalContent.dart`; green→blue HTML cleanup; `webview_flutter` added
+- [x] H5: Back button + PopScope on triage screen; `MedicalResponseScreen.initialPrompt`; Trimite mesaj via Navigator.push
+- [x] H6: Consent subtitle repositioned inside card; checkbox redesigned brand-blue
+- [x] H7: In-call chat DraggableScrollableSheet; FHIR Communication; Gemma 4 summary on call end; `appointmentId` forwarded end-to-end
+- [x] H8: Voice recording confirmation dialog (elderly-friendly, 64dp buttons)
+- [x] H9: Document attachment + audio replay + image fullscreen; `file_picker` + `just_audio` added; `AttachmentType` enum; `saveDocumentReference` in MedplumRepository
+- [x] H11: `appointmentId` wired VideoConsultationScreen; `Communication.about` field populated; Medplum connectivity confirmed HTTP 200
 
 ### P1 — NEXT
 - [ ] **Make GitHub repo public before May 18 deadline** — currently PRIVATE; required for hackathon submission
 - [ ] **Record competition demo video** — patient story: Maria, 72, chest pain, no car → voice triage → 112 or teleconsult
-- [ ] **Device test all A1–A5 screens** — install latest APK (commit 4fbea03) on Pixel 9 Pro; verify PatientProfile, DoctorProfile, Appointments, Specialists, WaitingRoom (compound)
+- [ ] **Add GitHub Actions secrets** — `MEDPLUM_CLIENT_ID` + `MEDPLUM_CLIENT_SECRET` at Settings → Secrets → Actions (see H11 instructions)
+- [ ] **Device test all H1–H9 + H11 items** — install latest APK on Pixel 9 Pro; verify each BUILT item above
 - [ ] Device test Medplum sync — verify online writes reach https://telemed-medplum.duckdns.org/fhir/R4 and are visible in Medplum admin UI
 - [ ] Wire Medplum patient lookup in auth flow — replace local FHIR SDK seed with Medplum Patient search by CNP
 - [ ] End-to-end text card inference device test (handleRunInference → model output)
@@ -363,12 +410,13 @@ Refactoring completed during audit:
 
 ## Hackathon
 
-- **Deadline:** May 18, 2026 — **15 days remaining**
+- **Deadline:** May 18, 2026 — **14 days remaining**
 - **Public repo required:** currently PRIVATE — **must make public before deadline**
 - **Demo video:** not yet recorded
 - **Gemma 4 on-device status:** model file present on test device; `initializeModel()` wired; end-to-end inference **not yet confirmed**
-- **Latest commit:** 24ca0cc — Kotlin FHIR Appointment type fix; G1–G5 bug fixes pending commit
-- **Medplum status:** Flutter auth wired (M1-M3) — MedplumAuthService + MedplumRepository + real Practitioner IDs; device sync test pending
+- **Latest commit:** aecf3a5 — Medplum integration M1-M3 + H1-H11 + R1-R8 (full session work uncommitted)
+- **Medplum status:** Flutter auth wired (M1-M3, R1); credentials in dart-define; GitHub Actions secrets not yet set; HTTP 200 confirmed from GX10; device sync test pending
+- **New capabilities (this session):** ML Kit OCR login (H3), legal WebView (H4), voice confirm dialog (H8), document attachment (H9), in-call chat + Gemma 4 summary (H7), appointmentId end-to-end (H11)
 
 ## Patient Demo Story (for competition video)
 Maria, 72, Brănești, chest pain, no car, hospital 40km away.

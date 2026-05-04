@@ -1,6 +1,7 @@
 // Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
 // You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
 
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,10 +12,13 @@ import '../../core/providers/medical_session_provider.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
+import '../../core/services/ai_engine_service.dart';
 import '../../core/services/audio_recording_service.dart';
 import '../../core/services/camera_service.dart';
 import '../../core/services/cnp_service.dart';
+import '../../core/services/ocr_service.dart';
 import '../theme/theme.dart';
+import '../widgets/language_toggle.dart';
 
 class LoginIdentityScreen extends ConsumerStatefulWidget {
   const LoginIdentityScreen({super.key});
@@ -73,83 +77,56 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
     }
   }
 
-  void _showAjutorModal() {
+  Future<void> _showAjutorModal() async {
+    final lang = ref.read(languageProvider);
+
+    // Guard: show info dialog when AI model is not on disk.
+    if (!await AiEngineService.isModelOnDisk()) {
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(AppStrings.of(lang, 'ajutor.title'),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          content: Text(AppStrings.of(lang, 'ajutor.model_not_ready'),
+              style: const TextStyle(fontSize: 16)),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF5BA4CF)),
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK', style: TextStyle(color: Colors.white, fontSize: 16)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFFF5F5F5),
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (BuildContext context) {
-        final lang = ref.read(languageProvider);
+      builder: (ctx) {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(AppStrings.of(lang, 'login.help_title'),
+                Text(AppStrings.of(lang, 'ajutor.title'),
                     style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black)),
-                const SizedBox(height: 16),
-                Text(AppStrings.of(lang, 'login.help_desc'),
-                    style: const TextStyle(fontSize: 18, color: Colors.black)),
+                        fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black)),
                 const SizedBox(height: 32),
                 AccessibleTouchTarget(
-                  semanticLabel: AppStrings.of(lang, 'login.camera_sem'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _extractViaCamera();
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF5BA4CF),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.camera_alt, color: Colors.white, size: 32),
-                        const SizedBox(width: 16),
-                        Text(AppStrings.of(lang, 'login.camera_btn'),
-                            style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white)),
-                      ],
-                    ),
-                  ),
+                  semanticLabel: AppStrings.of(lang, 'ajutor.photo_option'),
+                  onTap: () { Navigator.pop(ctx); _extractViaCamera(); },
+                  child: _ajutorOption(Icons.camera_alt, AppStrings.of(lang, 'ajutor.photo_option')),
                 ),
                 const SizedBox(height: 16),
                 AccessibleTouchTarget(
-                  semanticLabel: AppStrings.of(lang, 'login.voice_sem'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _extractViaVoice();
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF5BA4CF),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.mic, color: Colors.white, size: 32),
-                        const SizedBox(width: 16),
-                        Text(AppStrings.of(lang, 'login.voice_btn'),
-                            style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white)),
-                      ],
-                    ),
-                  ),
+                  semanticLabel: AppStrings.of(lang, 'ajutor.voice_option'),
+                  onTap: () { Navigator.pop(ctx); _extractViaVoice(); },
+                  child: _ajutorOption(Icons.mic, AppStrings.of(lang, 'ajutor.voice_option')),
                 ),
               ],
             ),
@@ -159,51 +136,76 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
     );
   }
 
+  Widget _ajutorOption(IconData icon, String label) => Container(
+    width: double.infinity,
+    height: 80,
+    decoration: BoxDecoration(
+      color: const Color(0xFF5BA4CF),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: Colors.white, size: 32),
+        const SizedBox(width: 16),
+        Text(label, style: const TextStyle(
+            fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+      ],
+    ),
+  );
+
   Future<void> _extractViaCamera() async {
-    setState(() => _isLoading = true);
+    final lang = ref.read(languageProvider);
     final messenger = ScaffoldMessenger.of(context);
+    final cameraService = ref.read(cameraServiceProvider);
+
+    final hasPermission = await cameraService.requestPermission();
+    if (!mounted) return;
+    if (!hasPermission) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(AppStrings.of(lang, 'home.cam_no_perm'),
+            style: const TextStyle(fontSize: 18)),
+      ));
+      return;
+    }
+
+    final imagePath = await cameraService.captureImage();
+    if (imagePath == null || !mounted) return;
+
+    setState(() => _isLoading = true);
     try {
-      final cameraService = ref.read(cameraServiceProvider);
-      final hasPermission = await cameraService.requestPermission();
-      if (!hasPermission) {
-        if (mounted) {
-          messenger.showSnackBar(SnackBar(
-            content: Text(AppStrings.of(ref.read(languageProvider), 'home.cam_no_perm'),
-                style: const TextStyle(fontSize: 18)),
-          ));
-        }
-        return;
-      }
-
-      final imagePath = await cameraService.captureImage();
-      if (imagePath == null) return;
-
-      final aiEngine = ref.read(aiEngineServiceProvider);
-      final result = await aiEngine.evaluateMedia(
-        File(imagePath),
-        customPrompt:
-            'Aceasta este o fotografie a unui act de identitate românesc (CI/BI/Pașaport). '
-            'Extrage CNP-ul (numărul de 13 cifre) și numărul de telefon dacă sunt vizibile. '
-            'Răspunde DOAR cu JSON: {"cnp": "...", "phone": "..."}',
-      );
+      // Use ML Kit OCR — no AI model required.
+      final text = await OcrService.extractText(imagePath);
       cameraService.deleteTempFile(imagePath);
 
-      if (result.containsKey('cnp')) {
-        _cnpController.text = result['cnp'].toString();
-      }
-      if (result.containsKey('phone')) {
-        _phoneController.text = result['phone'].toString();
-      }
-    } catch (e) {
+      final cnp   = OcrService.parseCnp(text);
+      final phone = OcrService.parsePhone(text);
+
+      if (cnp   != null) _cnpController.text   = cnp;
+      if (phone != null) _phoneController.text = phone;
+
+      if (!mounted) return;
       messenger.showSnackBar(SnackBar(
-          content: Text('${AppStrings.of(ref.read(languageProvider), 'login.cam_error')} $e',
-              style: const TextStyle(fontSize: 18))));
+        content: Text(
+          cnp != null
+              ? AppStrings.of(lang, 'ajutor.cnp_detected')
+              : AppStrings.of(lang, 'ajutor.cnp_not_found'),
+          style: const TextStyle(fontSize: 18),
+        ),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text('${AppStrings.of(lang, 'login.cam_error')} $e',
+            style: const TextStyle(fontSize: 18)),
+      ));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _extractViaVoice() async {
+    final lang = ref.read(languageProvider);
     final messenger = ScaffoldMessenger.of(context);
     final audioService = ref.read(audioRecordingServiceProvider);
 
@@ -211,62 +213,118 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
     if (!mounted) return;
     if (!hasPermission) {
       messenger.showSnackBar(SnackBar(
-        content: Text(AppStrings.of(ref.read(languageProvider), 'home.mic_no_perm'),
+        content: Text(AppStrings.of(lang, 'home.mic_no_perm'),
             style: const TextStyle(fontSize: 18)),
       ));
       return;
     }
 
+    await audioService.startRecording();
+    if (!mounted) return;
+
+    // Show 15-second countdown dialog with animated progress bar.
+    int secondsLeft = 15;
+    Timer? countdownTimer;
+    bool manualStop = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+            if (secondsLeft <= 1) {
+              countdownTimer?.cancel();
+              if (!manualStop && ctx.mounted) Navigator.of(ctx).pop();
+            } else {
+              setDialogState(() => secondsLeft--);
+            }
+          });
+          return AlertDialog(
+            title: Text(AppStrings.of(lang, 'ajutor.voice_recording'),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.mic, size: 56, color: Color(0xFF5BA4CF)),
+                const SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: secondsLeft / 15.0,
+                    minHeight: 10,
+                    color: const Color(0xFF5BA4CF),
+                    backgroundColor: const Color(0xFFE0E0E0),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text('$secondsLeft s',
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF5BA4CF)),
+                onPressed: () {
+                  manualStop = true;
+                  countdownTimer?.cancel();
+                  Navigator.of(ctx).pop();
+                },
+                child: Text(AppStrings.of(lang, 'ajutor.voice_gata'),
+                    style: const TextStyle(color: Colors.white, fontSize: 18)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    countdownTimer?.cancel();
+    if (!mounted) return;
+
     setState(() => _isLoading = true);
-
     try {
-      await audioService.startRecording();
-
-      // Show countdown so the patient knows to speak now.
-      messenger.showSnackBar(SnackBar(
-        content: Text(AppStrings.of(ref.read(languageProvider), 'login.voice_listening'),
-            style: const TextStyle(fontSize: 18)),
-        duration: const Duration(seconds: 8),
-      ));
-
-      await Future.delayed(const Duration(seconds: 8));
-      if (!mounted) return;
-
       final wavPath = await audioService.stopRecording();
       if (wavPath.isEmpty) {
-        messenger.showSnackBar(SnackBar(
-          content: Text(AppStrings.of(ref.read(languageProvider), 'login.voice_no_data'),
-              style: const TextStyle(fontSize: 18)),
-        ));
+        if (mounted) {
+          messenger.showSnackBar(SnackBar(
+            content: Text(AppStrings.of(lang, 'ajutor.voice_failed'),
+                style: const TextStyle(fontSize: 18)),
+          ));
+        }
         return;
       }
 
       final aiEngine = ref.read(aiEngineServiceProvider);
-      final result = await aiEngine.evaluateAudio(
+      final result   = await aiEngine.evaluateAudio(
         File(wavPath),
         customPrompt:
-            'You are a medical speech-to-text assistant. The user is dictating their personal details. Extract the 13-digit CNP and/or Phone number. Output JSON strictly constrained to: {"cnp": "1234567890123", "phone": "07..."} (include fields only if detected)',
+            'Extrage din textul următor un CNP (13 cifre) și un număr de telefon '
+            '(format 07XXXXXXXX). Răspunde DOAR cu JSON: '
+            '{"cnp":"...","phone":"..."} sau null dacă nu găsești.',
       );
       audioService.deleteWavFile(wavPath);
 
       final cnp   = result['cnp']   as String?;
       final phone = result['phone'] as String?;
 
-      if ((cnp == null || cnp.isEmpty) && (phone == null || phone.isEmpty)) {
+      if (cnp   != null && cnp.isNotEmpty)   _cnpController.text   = cnp;
+      if (phone != null && phone.isNotEmpty) _phoneController.text = phone;
+
+      if (!mounted) return;
+      if (cnp == null || cnp.isEmpty) {
         messenger.showSnackBar(SnackBar(
-          content: Text(
-            AppStrings.of(ref.read(languageProvider), 'login.voice_no_data'),
-            style: const TextStyle(fontSize: 18),
-          ),
+          content: Text(AppStrings.of(lang, 'ajutor.voice_failed'),
+              style: const TextStyle(fontSize: 18)),
         ));
-      } else {
-        if (cnp != null && cnp.isNotEmpty) _cnpController.text = cnp;
-        if (phone != null && phone.isNotEmpty) _phoneController.text = phone;
       }
     } catch (e) {
+      if (!mounted) return;
       messenger.showSnackBar(SnackBar(
-          content: Text('${AppStrings.of(ref.read(languageProvider), 'login.voice_error')} $e',
-              style: const TextStyle(fontSize: 18))));
+        content: Text(AppStrings.of(lang, 'ajutor.voice_failed'),
+            style: const TextStyle(fontSize: 18)),
+      ));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -314,6 +372,10 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                     fontWeight: FontWeight.bold)),
           ],
         ),
+        actions: const [
+          LanguageToggle(),
+          SizedBox(width: 16),
+        ],
       ),
       body: SafeArea(
         child: _isLoading

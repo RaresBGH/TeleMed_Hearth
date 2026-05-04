@@ -710,11 +710,11 @@ class FhirEngineChannel(
                 data class PatientSeed(val id: String, val cnp: String, val family: String,
                     val given: String, val dob: String, val phone: String, val condition: String)
                 val seeds = listOf(
-                    PatientSeed("patient-2540203152485","2540203152485","Ionescu","Maria","1954-02-03","0721234567","Hipertensiune arterială"),
-                    PatientSeed("patient-1490815054321","1490815054321","Popescu","Ion","1949-08-15","0732345678","Diabet zaharat tip 2"),
-                    PatientSeed("patient-2621105287654","2621105287654","Dumitrescu","Elena","1962-11-05","0743456789","Artrită reumatoidă"),
-                    PatientSeed("patient-1551220187432","1551220187432","Stan","Gheorghe","1955-12-20","0754567890","Insuficiență cardiacă"),
-                    PatientSeed("patient-2480430098765","2480430098765","Constantin","Ana","1948-04-30","0765678901","Boală pulmonară obstructivă cronică")
+                    PatientSeed("patient-2540203150013","2540203150013","Ionescu","Maria","1954-02-03","0721234567","Hipertensiune arterială"),
+                    PatientSeed("patient-1490815150027","1490815150027","Popescu","Ion","1949-08-15","0732345678","Diabet zaharat tip 2"),
+                    PatientSeed("patient-2621105150032","2621105150032","Dumitrescu","Elena","1962-11-05","0743456789","Artrită reumatoidă"),
+                    PatientSeed("patient-1551220150048","1551220150048","Stan","Gheorghe","1955-12-20","0754567890","Insuficiență cardiacă"),
+                    PatientSeed("patient-2480430150058","2480430150058","Constantin","Ana","1948-04-30","0765678901","Boală pulmonară obstructivă cronică")
                 )
                 val patients = seeds.map { s ->
                     parser.parseResource(org.hl7.fhir.r4.model.Patient::class.java, """

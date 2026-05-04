@@ -66,10 +66,10 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
     setState(() {});
   }
 
-  void _openLegalModal(BuildContext context, String title, String content) {
+  void _openLegalModal(LegalDocumentType type) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => LegalDocumentModal(title: title, content: content),
+        builder: (_) => LegalDocumentModal(type: type),
         fullscreenDialog: true,
       ),
     );
@@ -305,11 +305,7 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
               Column(
                 children: [
                   ElevatedButton(
-                    onPressed: () => _openLegalModal(
-                      context,
-                      AppStrings.of(lang, 'otp.terms_title'),
-                      'Placeholder pentru Termeni de Utilizare.\n\n1. Acceptarea Termenilor\nPrin accesarea și utilizarea acestei aplicații, confirmați că ați citit, înțeles și sunteți de acord cu acești termeni. Serviciul nostru este dedicat exclusiv utilizării personale, oferind suport pentru sănătate și monitorizare zilnică, respectând cele mai înalte standarde de etică digitală.\n\n2. Confidențialitatea Datelor\nProtecția informațiilor dumneavoastră este prioritatea noastră absolută.',
-                    ),
+                    onPressed: () => _openLegalModal(LegalDocumentType.terms),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFF5F5F5),
                       foregroundColor: const Color(0xFF000000),
@@ -324,11 +320,7 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () => _openLegalModal(
-                      context,
-                      AppStrings.of(lang, 'otp.privacy_title'),
-                      'Placeholder pentru Politica de Confidențialitate.\n\nModul de stocare al datelor:\nToate datele medicale sunt stocate local pe dispozitiv via Google Android FHIR SDK SQLCipher.\n\nFără Telemetrie Ascunsă:\nInference-ul se realizează exclusiv On-Device utilizând LiteRT-LM (Gemma 4 E2B). Nu vor exista apeluri către servere cloud pentru procesarea RAG.\n',
-                    ),
+                    onPressed: () => _openLegalModal(LegalDocumentType.privacy),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFF5F5F5),
                       foregroundColor: const Color(0xFF000000),

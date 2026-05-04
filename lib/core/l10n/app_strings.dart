@@ -16,6 +16,30 @@ class AppStrings {
 
   // ── Romanian strings (default) ────────────────────────────────────────────
   static const _ro = <String, String>{
+    // ── Legal ─────────────────────────────────────────────────────────────
+    'legal.terms_title':      'Termeni de Utilizare',
+    'legal.privacy_title':    'Politica de Confidențialitate',
+
+    // ── Navigation ────────────────────────────────────────────────────────
+    'nav.back':               'Înapoi',
+
+    // ── In-call chat ──────────────────────────────────────────────────────
+    'call.chat_hint':        'Scrieți un mesaj...',
+    'call.summary_saved':    'Rezumatul consultației a fost salvat.',
+
+    // ── Attachment ────────────────────────────────────────────────────────
+    'attachment.pdf_label':      'Document PDF',
+    'attachment.image_label':    'Imagine',
+    'attachment.error_analyse':  'Nu s-a putut analiza documentul.',
+    'attachment.fallback_msg':   'Document atașat: {filename}.',
+    'voice.message_label':       'Mesaj vocal',
+
+    // ── Voice confirm dialog ───────────────────────────────────────────────
+    'voice.confirm_title':    'Înregistrare vocală',
+    'voice.confirm_body':     'Apăsați Înregistrează și vorbiți clar.\nApăsați din nou pentru a opri.',
+    'voice.confirm_start':    'Înregistrează',
+    'voice.confirm_cancel':   'Anulează',
+
     // ── Home ──────────────────────────────────────────────────────────────
     'home.greeting_default':  'Bună ziua!',
     'home.subtitle':          'Cum vă simțiți astăzi?',
@@ -113,6 +137,17 @@ class AppStrings {
     'login.voice_no_data':    'Nu am putut extrage datele. Vă rugăm completați manual.',
     'login.cam_error':        'Eroare cameră:',
     'login.voice_error':      'Eroare voce:',
+
+    // ── Ajutor modal ───────────────────────────────────────────────────────
+    'ajutor.title':           'Ajutor',
+    'ajutor.model_not_ready': 'Asistentul vocal nu este disponibil. Descărcați modelul AI după crearea contului pentru a activa această funcție.',
+    'ajutor.photo_option':    'Fotografiați actul de identitate',
+    'ajutor.voice_option':    'Introduceți datele prin voce',
+    'ajutor.cnp_detected':    'CNP detectat automat',
+    'ajutor.cnp_not_found':   'CNP negăsit — completați manual',
+    'ajutor.voice_recording': 'Vorbiți acum...',
+    'ajutor.voice_failed':    'Nu am putut extrage datele — completați manual',
+    'ajutor.voice_gata':      'Gata',
 
     // ── OTP verification ──────────────────────────────────────────────────
     'otp.title':              'Verificare',
@@ -326,8 +361,32 @@ class AppStrings {
     'lang.switch_sem':        'Schimbă Limba / Change Language',
   };
 
-  // ── English strings ───────────────────────────────────────────────────────
+  // ── English strings (EN) ─────────────────────────────────────────────────
   static const _en = <String, String>{
+    // ── Legal ─────────────────────────────────────────────────────────────
+    'legal.terms_title':      'Terms of Use',
+    'legal.privacy_title':    'Privacy Policy',
+
+    // ── Navigation ────────────────────────────────────────────────────────
+    'nav.back':               'Back',
+
+    // ── In-call chat ──────────────────────────────────────────────────────
+    'call.chat_hint':        'Type a message...',
+    'call.summary_saved':    'Consultation summary saved.',
+
+    // ── Attachment ────────────────────────────────────────────────────────
+    'attachment.pdf_label':      'PDF Document',
+    'attachment.image_label':    'Image',
+    'attachment.error_analyse':  'Could not analyse the document.',
+    'attachment.fallback_msg':   'Document attached: {filename}.',
+    'voice.message_label':       'Voice message',
+
+    // ── Voice confirm dialog ───────────────────────────────────────────────
+    'voice.confirm_title':    'Voice recording',
+    'voice.confirm_body':     'Tap Record and speak clearly.\nTap again to stop.',
+    'voice.confirm_start':    'Record',
+    'voice.confirm_cancel':   'Cancel',
+
     // ── Home ──────────────────────────────────────────────────────────────
     'home.greeting_default':  'Good day!',
     'home.subtitle':          'How do you feel today?',
@@ -425,6 +484,17 @@ class AppStrings {
     'login.voice_no_data':    'Could not extract data. Please fill in manually.',
     'login.cam_error':        'Camera error:',
     'login.voice_error':      'Voice error:',
+
+    // ── Ajutor modal ───────────────────────────────────────────────────────
+    'ajutor.title':           'Help',
+    'ajutor.model_not_ready': 'Voice assistant not available. Download the AI model after account creation to enable this feature.',
+    'ajutor.photo_option':    'Photograph your ID card',
+    'ajutor.voice_option':    'Enter data by voice',
+    'ajutor.cnp_detected':    'CNP detected automatically',
+    'ajutor.cnp_not_found':   'CNP not found — please fill manually',
+    'ajutor.voice_recording': 'Speak now...',
+    'ajutor.voice_failed':    'Could not extract data — please fill manually',
+    'ajutor.voice_gata':      'Done',
 
     // ── OTP verification ──────────────────────────────────────────────────
     'otp.title':              'Verification',
