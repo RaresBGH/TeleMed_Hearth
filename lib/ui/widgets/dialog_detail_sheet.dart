@@ -6,10 +6,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:flutter/foundation.dart';
+
 import '../../core/l10n/app_strings.dart';
 import '../../core/models/chat_message.dart';
-import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
+import '../screens/medical_response_screen.dart';
 
 /// Shared bottom sheet used by HistoryScreen and DashboardScreen to display
 /// a saved FHIR Observation's conversation and AI response.
@@ -247,15 +249,35 @@ class DialogDetailSheet {
                       elevation: 0,
                     ),
                     onPressed: () {
+                      // Close the bottom sheet first using its own context.
                       Navigator.of(context).pop();
-                      ref.read(medicalSessionProvider.notifier).prepareResume(
-                        aiResponse: valueString ?? '',
-                        messages: _parseNoteToMessages(noteText ?? ''),
-                        existingObservationId: item['id'] as String?,
-                      );
-                      ref
-                          .read(appNavigationProvider.notifier)
-                          .navigateTo(AppRoute.medicalResponse);
+                      try {
+                        final messages = _parseNoteToMessages(noteText ?? '');
+                        final obsId    = item['id'] as String?;
+                        // Navigator.push bypasses the flat-nav session guard,
+                        // preventing the idle-state → dashboard race condition.
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MedicalResponseScreen(
+                              initialResponse: valueString ?? '',
+                              isEmergency: false,
+                              initialMessages: messages,
+                            ),
+                          ),
+                        );
+                        // Persist the observationId so finalizeConsultation
+                        // calls updateObservation (not saveObservation).
+                        if (obsId != null && obsId.isNotEmpty) {
+                          ref.read(medicalSessionProvider.notifier).prepareResume(
+                            aiResponse: valueString ?? '',
+                            messages: messages,
+                            existingObservationId: obsId,
+                          );
+                        }
+                      } catch (e) {
+                        debugPrint('DialogDetailSheet: continue conversation error: $e');
+                      }
                     },
                   ),
                 ),

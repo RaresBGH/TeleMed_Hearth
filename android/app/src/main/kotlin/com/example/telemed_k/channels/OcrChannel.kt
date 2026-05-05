@@ -16,9 +16,11 @@ import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 
 /**
@@ -50,20 +52,25 @@ class OcrChannel(private val context: Context) : MethodChannel.MethodCallHandler
     private suspend fun extractText(imagePath: String): String {
         if (imagePath.isEmpty()) return ""
         return try {
-            val bitmap = BitmapFactory.decodeFile(imagePath) ?: return ""
-            val image  = InputImage.fromBitmap(bitmap, 0)
+            withTimeout(15_000L) {
+                val bitmap = BitmapFactory.decodeFile(imagePath) ?: return@withTimeout ""
+                val image  = InputImage.fromBitmap(bitmap, 0)
 
-            suspendCancellableCoroutine { cont ->
-                recognizer.process(image)
-                    .addOnSuccessListener { visionText ->
-                        Log.d("OcrChannel", "OCR complete — ${visionText.text.length} chars")
-                        cont.resume(visionText.text)
-                    }
-                    .addOnFailureListener { e ->
-                        Log.e("OcrChannel", "OCR failed", e)
-                        cont.resume("")
-                    }
+                suspendCancellableCoroutine { cont ->
+                    recognizer.process(image)
+                        .addOnSuccessListener { visionText ->
+                            Log.d("OcrChannel", "OCR complete — ${visionText.text.length} chars")
+                            cont.resume(visionText.text)
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("OcrChannel", "OCR failed", e)
+                            cont.resume("")
+                        }
+                }
             }
+        } catch (e: TimeoutCancellationException) {
+            Log.w("OcrChannel", "ML Kit timed out after 15s")
+            ""
         } catch (e: Exception) {
             Log.e("OcrChannel", "extractText error", e)
             ""

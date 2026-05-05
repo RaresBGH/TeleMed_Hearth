@@ -125,9 +125,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                     // ── Quick status row ───────────────────────────────────
                     medAsync.when(
-                      data: (med) => _buildQuickStatusRow(lang, med, nextApptText),
-                      loading: () => _buildQuickStatusRow(lang, null, nextApptText),
-                      error: (_, __) => _buildQuickStatusRow(lang, null, nextApptText),
+                      data: (med) => _buildQuickStatusRow(lang, med, nextApptText,
+                          onApptTap: () => ref.read(appNavigationProvider.notifier)
+                              .navigateTo(AppRoute.appointments)),
+                      loading: () => _buildQuickStatusRow(lang, null, nextApptText,
+                          onApptTap: () => ref.read(appNavigationProvider.notifier)
+                              .navigateTo(AppRoute.appointments)),
+                      error: (_, __) => _buildQuickStatusRow(lang, null, nextApptText,
+                          onApptTap: () => ref.read(appNavigationProvider.notifier)
+                              .navigateTo(AppRoute.appointments)),
                     ),
                     const SizedBox(height: 24),
 
@@ -327,7 +333,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   // ── Quick status row ──────────────────────────────────────────────────────
 
   Widget _buildQuickStatusRow(
-      String lang, Map<String, dynamic>? med, String? nextApptText) {
+      String lang, Map<String, dynamic>? med, String? nextApptText,
+      {VoidCallback? onApptTap}) {
     final medText = med != null
         ? (med['medicationCodeableConcept']?['text'] as String? ??
            AppStrings.of(lang, 'doctor.treatment'))
@@ -338,8 +345,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Expanded(
           child: _StatusCard(
             icon: Icons.calendar_month,
-            label: AppStrings.of(lang, 'dashboard.next_appt'),
+            label: AppStrings.of(lang, 'dashboard.appointments_title'),
             value: nextApptText ?? AppStrings.of(lang, 'dashboard.no_appt'),
+            onTap: onApptTap ?? () {},
           ),
         ),
         const SizedBox(width: 16),
@@ -531,16 +539,20 @@ class _StatusCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   const _StatusCard({
     required this.icon,
     required this.label,
     required this.value,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.all(16),
       constraints: const BoxConstraints(minHeight: 110),
       decoration: BoxDecoration(
@@ -592,7 +604,8 @@ class _StatusCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ), // Container
+    ); // GestureDetector
   }
 }
 

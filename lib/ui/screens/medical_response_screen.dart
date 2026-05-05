@@ -73,6 +73,8 @@ class _MedicalResponseScreenState
   bool _isProcessing     = false;
   bool _isFinalizing     = false;
   bool _isPhotoAnalyzing = false;
+  // Screen-level duplicate guard: set true in _onFinalize() before writing.
+  bool _screenFinalized  = false;
 
   // ── Streaming shim (Dart-side typewriter) ─────────────────────────────────
   /// Accumulates streaming text while an inference response is being typed out.
@@ -541,7 +543,8 @@ class _MedicalResponseScreenState
   // ── Finalize dialog ───────────────────────────────────────────────────────────
 
   Future<void> _onFinalize() async {
-    if (_isFinalizing) return;
+    if (_isFinalizing || _screenFinalized) return;
+    _screenFinalized = true; // set before any await to prevent race conditions
 
     // If an inference call is in progress, signal it to abort and wait up to
     // 3 seconds. After the timeout we force-finalize with whatever messages

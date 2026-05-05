@@ -182,6 +182,16 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       final text = await OcrService.extractText(imagePath);
       cameraService.deleteTempFile(imagePath);
 
+      if (text.isEmpty) {
+        // Empty = timeout (15s) or no text detected — show specific error.
+        if (!mounted) return;
+        messenger.showSnackBar(SnackBar(
+          content: Text(AppStrings.of(lang, 'ocr.timeout_error'),
+              style: const TextStyle(fontSize: 18)),
+        ));
+        return;
+      }
+
       final cnp   = OcrService.parseCnp(text);
       final phone = OcrService.parsePhone(text);
 
@@ -310,14 +320,30 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       );
       audioService.deleteWavFile(wavPath);
 
-      final cnp   = result['cnp']   as String?;
-      final phone = result['phone'] as String?;
+      final cnpRaw   = result['cnp']   as String?;
+      final phoneRaw = result['phone'] as String?;
 
-      if (cnp   != null && cnp.isNotEmpty)   _cnpController.text   = cnp;
-      if (phone != null && phone.isNotEmpty) _phoneController.text = phone;
+      // Validate before filling — AI sometimes returns extra digits or
+      // puts phone in the CNP field. Enforce exact formats.
+      final validCnp = (cnpRaw != null &&
+              RegExp(r'^\d{13}$').hasMatch(cnpRaw.trim()))
+          ? cnpRaw.trim()
+          : null;
+      final validPhone = (phoneRaw != null &&
+              RegExp(r'^07\d{8}$').hasMatch(phoneRaw.trim()))
+          ? phoneRaw.trim()
+          : null;
+
+      if (validCnp   != null) _cnpController.text   = validCnp;
+      if (validPhone != null) _phoneController.text = validPhone;
 
       if (!mounted) return;
-      if (cnp == null || cnp.isEmpty) {
+      if (validCnp == null && validPhone == null) {
+        messenger.showSnackBar(SnackBar(
+          content: Text(AppStrings.of(lang, 'ocr.voice_parse_error'),
+              style: const TextStyle(fontSize: 18)),
+        ));
+      } else if (validCnp == null) {
         messenger.showSnackBar(SnackBar(
           content: Text(AppStrings.of(lang, 'ajutor.voice_failed'),
               style: const TextStyle(fontSize: 18)),

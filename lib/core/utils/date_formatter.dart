@@ -15,8 +15,10 @@ class DateFormatter {
   /// With time: "DD.MM.YYYY  HH:mm"        — returns 'Dată recentă' on empty/invalid.
   static String format(String iso, {bool includeTime = false}) {
     if (iso.isEmpty) return includeTime ? 'Dată recentă' : '';
-    final dt = DateTime.tryParse(iso);
-    if (dt == null) return includeTime ? 'Dată recentă' : iso;
+    final dtUtc = DateTime.tryParse(iso);
+    if (dtUtc == null) return includeTime ? 'Dată recentă' : iso;
+    // Convert to device local time so stored UTC appointment times display correctly.
+    final dt  = dtUtc.toLocal();
     final d   = dt.day.toString().padLeft(2, '0');
     final m   = dt.month.toString().padLeft(2, '0');
     if (!includeTime) return '$d.$m.${dt.year}';

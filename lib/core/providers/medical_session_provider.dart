@@ -53,6 +53,10 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   @override
   MedicalSessionState build() => MedicalSessionState.idle;
 
+  // Duplicate-entry guard: true after the first successful finalizeConsultation().
+  // Reset by reset() so the next session can finalize normally.
+  bool _finalized = false;
+
   AiEngineService get _aiEngineService => ref.read(aiEngineServiceProvider);
   FhirRepository  get _fhirRepository  => ref.read(fhirRepositoryProvider);
 
@@ -109,6 +113,9 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   // doctor-side app. Auto-save is intentionally disabled — patient must
   // explicitly finalize.
   Future<void> finalizeConsultation(List<ChatMessage> messages) async {
+    // Guard: prevent duplicate FHIR writes if called more than once per session.
+    if (_finalized) return;
+    _finalized = true;
     try {
       final String cnp           = ref.read(loginCnpProvider);
       final String timestamp     = DateTime.now().toIso8601String();
@@ -242,6 +249,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
     await ref.read(audioRecordingServiceProvider).stopAndRelease();
     // Reset session isolation so next session injects fresh FHIR history.
     ref.read(aiEngineServiceProvider).resetSession();
+    _finalized = false; // allow finalization in the next session
     state = MedicalSessionState.idle;
   }
 

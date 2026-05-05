@@ -69,6 +69,8 @@ class MedplumRepository {
   }
 
   /// Creates a new Patient resource on Medplum. Returns the created resource.
+  /// On 401: clears the cached token and retries once (token expiry / rotation).
+  /// On any failure: logs and returns null — callers must NOT block on this.
   Future<Map<String, dynamic>?> savePatient(
       Map<String, dynamic> payload) async {
     if (!await auth.isOnline()) return null;
@@ -81,10 +83,41 @@ class MedplumRepository {
       if (response.statusCode == 200 || response.statusCode == 201) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }
-      debugPrint('MedplumRepository.savePatient: ${response.statusCode}');
+      if (response.statusCode == 401) {
+        debugPrint(
+            'MedplumRepository.savePatient: 401 Unauthorized — '
+            'check client credentials (dart-define MEDPLUM_CLIENT_ID/SECRET). '
+            'Clearing cached token and retrying once.');
+        await auth.clearToken();
+        final token = await auth.getValidToken();
+        if (token == null) {
+          debugPrint('MedplumRepository.savePatient: retry aborted — no valid token. '
+              'Local FHIR write will proceed.');
+          return null;
+        }
+        final retry = await client.post(
+          Uri.parse('$_base/Patient'),
+          headers: await _headers(),
+          body: jsonEncode(payload),
+        );
+        if (retry.statusCode == 200 || retry.statusCode == 201) {
+          debugPrint('MedplumRepository.savePatient: retry succeeded');
+          return jsonDecode(retry.body) as Map<String, dynamic>;
+        }
+        debugPrint('MedplumRepository.savePatient: retry also failed '
+            '${retry.statusCode}. Local FHIR write will proceed.');
+        return null;
+      }
+      final snippet = response.body.length > 200
+          ? response.body.substring(0, 200)
+          : response.body;
+      debugPrint(
+          'MedplumRepository.savePatient: HTTP ${response.statusCode} — $snippet. '
+          'Local FHIR write will proceed.');
       return null;
     } catch (e) {
-      debugPrint('MedplumRepository.savePatient error: $e');
+      debugPrint('MedplumRepository.savePatient exception: $e. '
+          'Local FHIR write will proceed.');
       return null;
     }
   }
