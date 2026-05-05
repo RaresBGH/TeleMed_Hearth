@@ -23,6 +23,8 @@ class AppStrings {
     // ── Navigation ────────────────────────────────────────────────────────
     'nav.back':               'Înapoi',
     'error.generic':          'A apărut o eroare. Încercați din nou.',
+    'assistant.title':        'Asistent Medical',
+    'assistant.subtitle':     'Descrieți simptomele și voi pregăti un raport pentru medicul dvs.',
 
     // ── In-call chat ──────────────────────────────────────────────────────
     'call.chat_hint':        'Scrieți un mesaj...',
@@ -378,6 +380,8 @@ class AppStrings {
     // ── Navigation ────────────────────────────────────────────────────────
     'nav.back':               'Back',
     'error.generic':          'An error occurred. Please try again.',
+    'assistant.title':        'Medical Assistant',
+    'assistant.subtitle':     'Describe your symptoms and I will prepare a report for your doctor.',
 
     // ── In-call chat ──────────────────────────────────────────────────────
     'call.chat_hint':        'Type a message...',

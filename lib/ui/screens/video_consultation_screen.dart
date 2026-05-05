@@ -127,6 +127,8 @@ class _VideoConsultationScreenState
     _callPlayerSub?.cancel();
     _callAudioPlayer.dispose();
     _sheetController.dispose();
+    // Restore normal AI mode when call ends.
+    try { ref.read(aiEngineServiceProvider).setDoctorPresent(false); } catch (_) {}
     // Signal leave before closing WebSocket.
     try {
       _signalingSocket?.add(jsonEncode({
@@ -230,7 +232,9 @@ class _VideoConsultationScreenState
 
       // Connect to signaling server and (if initiator) create offer.
       await _initSignaling();
-      debugPrint('WebRTC initialized — signaling connected');
+      // Doctor is present — switch AI to silent documentation mode.
+      ref.read(aiEngineServiceProvider).setDoctorPresent(true);
+      debugPrint('WebRTC initialized — signaling connected, doctor-present mode active');
     } catch (e) {
       debugPrint('VideoConsultationScreen._initWebRTC error: $e');
       if (mounted) setState(() => _isConnecting = false);

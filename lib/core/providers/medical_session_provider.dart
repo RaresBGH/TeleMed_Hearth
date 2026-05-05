@@ -240,6 +240,8 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
 
   Future<void> reset() async {
     await ref.read(audioRecordingServiceProvider).stopAndRelease();
+    // Reset session isolation so next session injects fresh FHIR history.
+    ref.read(aiEngineServiceProvider).resetSession();
     state = MedicalSessionState.idle;
   }
 

@@ -20,6 +20,7 @@ import '../../core/models/chat_message.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/medplum_auth_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
+import '../../core/services/ai_engine_service.dart';
 import '../../core/services/audio_recording_service.dart';
 import '../../core/services/camera_service.dart';
 import '../../core/services/ocr_service.dart';
@@ -73,6 +74,14 @@ class _MedicalResponseScreenState
   bool _isFinalizing     = false;
   bool _isPhotoAnalyzing = false;
 
+  // ── Streaming shim (Dart-side typewriter) ─────────────────────────────────
+  /// Accumulates streaming text while an inference response is being typed out.
+  String _streamingText = '';
+
+  // ── Opening state ──────────────────────────────────────────────────────────
+  /// True after the first AI response has been received — gates the triage card.
+  bool _hasFirstAiResponse = false;
+
   // ── Audio playback (voice messages) ──────────────────────────────────────
   late final AudioPlayer _audioPlayer;
   StreamSubscription<PlayerState>? _playerSubscription;
@@ -88,6 +97,8 @@ class _MedicalResponseScreenState
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
+    // Reset session isolation so this screen gets a fresh FHIR history injection.
+    ref.read(aiEngineServiceProvider).resetSession();
     if (widget.initialPrompt != null && widget.initialPrompt!.isNotEmpty) {
       // Doctor "Trimite mesaj" flow — add patient message and immediately
       // trigger AI inference so the doctor receives a response on open.
@@ -115,13 +126,13 @@ class _MedicalResponseScreenState
     } else if (widget.initialMessages != null && widget.initialMessages!.isNotEmpty) {
       // Resume from Dosar Medical or doctor preseed — restore prior conversation.
       _messages.addAll(widget.initialMessages!);
-      // Clear the preseed from provider state after the first frame so that
-      // re-entering this screen does not inject the same bubble twice.
+      _hasFirstAiResponse = true; // resuming — triage card shown immediately
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) ref.read(medicalSessionProvider.notifier).clearPreseed();
       });
     } else {
-      // Fresh triage entry — seed with default follow-up prompt.
+      // Fresh triage entry — show welcome card; do NOT seed a default message.
+      // The triage card appears only after the first AI response.
       _messages.add(ChatMessage(
         role: 'ai',
         text: AppStrings.of(_lang, 'chat.followup_prompt'),
@@ -352,6 +363,37 @@ class _MedicalResponseScreenState
     setState(() {
       _isProcessing = false;
       _isPhotoAnalyzing = false;
+      _streamingText = '';
+      _hasFirstAiResponse = true; // reveal triage card after first AI reply
+      _messages.add(ChatMessage(role: 'ai', text: text, timestamp: DateTime.now()));
+    });
+    _scrollToBottom();
+  }
+
+  /// Streams [result]'s response word-by-word (typewriter shim), then appends
+  /// the full [ChatMessage] and updates metadata.
+  /// TODO: replace with native EventChannel streaming when available.
+  Future<void> _streamAndAppendAiResponse(Map<String, dynamic> result) async {
+    final String text =
+        (result['response'] as String?)?.trim().isNotEmpty == true
+            ? result['response'] as String
+            : AppStrings.of(_lang, 'chat.no_understand');
+    if (!mounted) return;
+
+    // Stream the words progressively.
+    await for (final chunk in AiEngineService.streamWords(text)) {
+      if (!mounted || _cancelRequested) break;
+      setState(() => _streamingText = chunk);
+      _scrollToBottom();
+    }
+    if (!mounted) return;
+
+    // Commit the full message and clear streaming text.
+    setState(() {
+      _isProcessing     = false;
+      _isPhotoAnalyzing = false;
+      _streamingText    = '';
+      _hasFirstAiResponse = true;
       _messages.add(ChatMessage(role: 'ai', text: text, timestamp: DateTime.now()));
     });
     _scrollToBottom();
@@ -482,7 +524,8 @@ class _MedicalResponseScreenState
         if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
         return;
       }
-      _appendAiResponse(result);
+      // Use streaming shim for typewriter effect on text responses.
+      await _streamAndAppendAiResponse(result);
     } catch (_) {
       if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
     }
@@ -581,12 +624,20 @@ class _MedicalResponseScreenState
                 controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 children: [
-                  _buildTriageCard(),
+                  // Show welcome card until the first AI response arrives.
+                  if (!_hasFirstAiResponse && !_isProcessing)
+                    _buildWelcomeCard()
+                  else if (_hasFirstAiResponse)
+                    _buildTriageCard(),
                   const SizedBox(height: 24),
-                  _buildSectionDivider(),
+                  if (_hasFirstAiResponse) _buildSectionDivider(),
                   const SizedBox(height: 16),
                   ..._messages.map(_buildBubble),
-                  if (_isProcessing) _buildTypingIndicator(),
+                  // Streaming typewriter bubble (shows while words are emitting).
+                  if (_isProcessing && _streamingText.isNotEmpty)
+                    _buildStreamingBubble(_streamingText),
+                  if (_isProcessing && _streamingText.isEmpty)
+                    _buildTypingIndicator(),
                   const SizedBox(height: 8),
                 ],
               ),
@@ -624,6 +675,74 @@ class _MedicalResponseScreenState
           color: _brandBlue,
           fontSize: 20,
           fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  // ── Welcome card (shown before first AI response) ─────────────────────────────
+
+  Widget _buildWelcomeCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Color(0x145BA4CF), blurRadius: 24, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.health_and_safety, color: _brandBlue, size: 48),
+          const SizedBox(height: 16),
+          Text(
+            AppStrings.of(_lang, 'assistant.title'),
+            style: const TextStyle(
+              fontSize: 20, fontWeight: FontWeight.bold, color: _onSurface),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            AppStrings.of(_lang, 'assistant.subtitle'),
+            style: const TextStyle(fontSize: 16, color: _muted, height: 1.5),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Streaming bubble (typewriter shim) ────────────────────────────────────────
+
+  Widget _buildStreamingBubble(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.82),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              color: _aiBubbleBg,
+              borderRadius: BorderRadius.only(
+                topLeft:     Radius.circular(20),
+                topRight:    Radius.circular(20),
+                bottomLeft:  Radius.circular(4),
+                bottomRight: Radius.circular(20),
+              ),
+            ),
+            child: Text(
+              text,
+              style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w500,
+                  color: _onSurface, height: 1.45),
+            ),
+          ),
         ),
       ),
     );

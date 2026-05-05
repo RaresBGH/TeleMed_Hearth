@@ -5,10 +5,10 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Holds the active UI/AI language code: "ro" (Romanian, default) or "en" (English).
+/// Holds the active UI/AI language code: "en" (English, default) or "ro" (Romanian).
 class LanguageNotifier extends Notifier<String> {
   @override
-  String build() => 'ro';
+  String build() => 'en';
 
   void setLanguage(String lang) => state = lang;
 }

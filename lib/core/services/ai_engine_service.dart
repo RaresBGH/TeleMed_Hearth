@@ -3,6 +3,7 @@
 //
 // TeleMed_K: Offline-first telemedicine app for seniors
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -33,24 +34,127 @@ class AiEngineService {
   // without a crash and avoids an empty state for the user.
   static const Map<String, dynamic> _fallbackResponse = {
     'response':
-        'Asistentul AI nu este disponibil momentan. Vă rugăm descrieți '
-        'simptomele dumneavoastră și medicul vă va contacta.',
+        'The medical assistant is not available. Please describe your '
+        'symptoms and the doctor will follow up with you.',
     'emergency': false,
     'confidence': 0.0,
-    'doctor_summary': null,
+    'priority': 'normal',
+    'ready_to_finalize': false,
+    'category': 'other',
   };
 
   final FhirRepository _fhirRepository;
 
+  // ── Instance state ─────────────────────────────────────────────────────────
+
+  /// Active UI language — set by [setLanguage].
+  String _lang = 'en';
+
+  /// True when a doctor has joined the video call — assistant enters silent
+  /// documentation mode (records messages, does not respond to patient).
+  bool _doctorPresent = false;
+
+  /// Session isolation: full FHIR history is injected only once per session.
+  bool _historyInjectedThisSession = false;
+
   AiEngineService(this._fhirRepository);
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Response normalisation helpers
-  // ──────────────────────────────────────────────────────────────────────────
+  // ── Public controls ────────────────────────────────────────────────────────
 
-  /// Strips markdown fences from [raw] and, if the result is still a JSON
-  /// object, extracts the first human-readable text field it contains.
-  /// Returns empty string when nothing usable is found — never raw braces.
+  /// Switches the response language. Persists for the lifetime of this instance.
+  Future<void> setLanguage(String lang) async {
+    _lang = lang;
+    try {
+      await _channel.invokeMethod<void>('setLanguage', {'lang': lang});
+      debugPrint('AiEngineService: language set to $lang');
+    } on PlatformException catch (e) {
+      debugPrint('AiEngineService.setLanguage error: ${e.code}');
+    }
+  }
+
+  /// Called when a doctor joins / leaves a VideoConsultationScreen.
+  /// In doctor-present mode the assistant silently records messages only.
+  void setDoctorPresent(bool present) => _doctorPresent = present;
+
+  /// Resets session-isolation state so the next inference injects full
+  /// FHIR history again. Call from [MedicalSessionNotifier.reset] and
+  /// [MedicalResponseScreen.initState].
+  void resetSession() => _historyInjectedThisSession = false;
+
+  // ── System prompt ──────────────────────────────────────────────────────────
+
+  /// Builds the structured system prompt used by all three evaluate methods.
+  ///
+  /// [doctorPresent] → silent documentation mode (records only, no reply).
+  static String buildSystemPrompt(String lang, bool doctorPresent) {
+    if (doctorPresent) {
+      return lang == 'en'
+          ? 'Silently record all patient messages for the medical report. Do not respond to the patient.'
+          : 'Înregistrați silențios toate mesajele pacientului pentru raportul medical. Nu răspundeți pacientului.';
+    }
+
+    final isEn = lang == 'en';
+    final boundary = isEn
+        ? 'Your doctor will address that in the consultation.'
+        : 'Medicul dumneavoastră va răspunde la această întrebare în cadrul consultației.';
+    final emergency112 = isEn ? 'Call 112 immediately.' : 'Sunați 112 imediat.';
+    final greeting   = isEn
+        ? 'Hello [name]. What brings you to the doctor today?'
+        : 'Bună ziua, [name]. Cu ce vă putem ajuta astăzi?';
+    final finalTurn  = isEn
+        ? 'Thank you. I have recorded your symptoms. If you have anything to add, please write it now. When ready, press Finalize Dialog.'
+        : 'Mulțumesc. Am înregistrat simptomele. Dacă mai aveți ceva de adăugat, scrieți acum. Când sunteți gata, apăsați Finalizează Dialog.';
+    final langRule   = isEn
+        ? 'Respond EXCLUSIVELY in English regardless of the language the patient uses.'
+        : 'Răspundeți EXCLUSIV în română indiferent de limba pe care o folosește pacientul.';
+    final toneRule   = isEn
+        ? 'Warm, calm. Max 15 words per sentence. Address patient by first name after Turn 1.'
+        : 'Ton cald, calm. Maximum 15 cuvinte per propoziție. Folosiți "dumneavoastră" pe tot parcursul.';
+
+    // Few-shot examples
+    final ex1q  = isEn ? 'I have a headache.' : 'Am dureri de cap.';
+    final ex1r  = isEn ? 'I\'m sorry to hear that. How long have you had this headache?' : 'Îmi pare rău să aud. De cât timp aveți aceste dureri de cap?';
+    final ex2q  = isEn ? 'I have chest pain and cannot breathe.' : 'Am dureri în piept și nu pot respira.';
+    final ex3q  = isEn ? 'What medication should I take?' : 'Ce medicamente să iau?';
+    final ex3r  = isEn
+        ? 'Your doctor will address that in the consultation. Can you tell me more about your current symptoms?'
+        : 'Medicul dumneavoastră va răspunde la această întrebare. Puteți să îmi spuneți mai multe despre simptomele dumneavoastră?';
+
+    return '''
+ROLE: You are a symptom documentation tool for Cabinet Medical Dr. Bogheanu (rural Romania). Help patients describe symptoms clearly so the doctor has a comprehensive report before the consultation.
+
+STRICT BOUNDARIES:
+- Ask follow-up questions ONLY. Never diagnose.
+- Never recommend medication or treatment.
+- Never interpret test results.
+- Off-topic medical advice → reply ONLY: "$boundary"
+- EMERGENCY EXCEPTION: chest pain + shortness of breath, loss of consciousness, severe bleeding, stroke signs → reply ONLY "$emergency112" and set emergency:true.
+
+CONVERSATION STRUCTURE:
+Turn 1: "$greeting"
+Turns 2-6: ONE clarifying question per turn — duration / intensity (1-10) / associated symptoms / context / relevant history.
+Final turn (when sufficient information collected): "$finalTurn" — set ready_to_finalize:true.
+
+LANGUAGE: $langRule
+TONE: $toneRule
+
+MANDATORY JSON FORMAT — every response MUST be valid JSON, no markdown fences:
+{"response":"message text","priority":"normal"|"urgent"|"emergency","emergency":false|true,"confidence":0.0-1.0,"ready_to_finalize":false|true,"category":"medical"|"document"|"other"}
+
+EXAMPLES:
+Patient: "$ex1q"
+{"response":"$ex1r","priority":"normal","emergency":false,"confidence":0.8,"ready_to_finalize":false,"category":"medical"}
+
+Patient: "$ex2q"
+{"response":"$emergency112","priority":"emergency","emergency":true,"confidence":0.99,"ready_to_finalize":false,"category":"medical"}
+
+Patient: "$ex3q"
+{"response":"$ex3r","priority":"normal","emergency":false,"confidence":0.9,"ready_to_finalize":false,"category":"medical"}
+''';
+  }
+
+  // ── Response helpers ───────────────────────────────────────────────────────
+
   static String _cleanText(String raw) {
     var s = raw.trim();
     s = s.replaceAll(RegExp(r'```json', caseSensitive: false), '');
@@ -64,22 +168,18 @@ class AiEngineService {
           final val = inner[k];
           if (val is String && val.trim().isNotEmpty) return val.trim();
         }
-        return ''; // suppress raw JSON braces
+        return '';
       } catch (_) {}
     }
     return s;
   }
 
-  /// Parses [raw] (possibly fenced or prose) into a normalised result map
-  /// where 'response' is always clean human-readable text.
   static Map<String, dynamic> _parseAndNormalize(String raw) {
-    // Strip markdown fences from the outer wrapper first.
     var s = raw.trim();
     s = s.replaceAll(RegExp(r'```json', caseSensitive: false), '');
     s = s.replaceAll('```', '');
     s = s.trim();
 
-    // Find the outermost JSON object.
     final int start = s.indexOf('{');
     final int end   = s.lastIndexOf('}');
     if (start != -1 && end > start) {
@@ -87,7 +187,6 @@ class AiEngineService {
         final parsed = jsonDecode(s.substring(start, end + 1)) as Map<String, dynamic>;
         final out = Map<String, dynamic>.from(parsed);
 
-        // Normalise the human-readable field.
         String? text;
         for (final k in ['response', 'recommendation']) {
           final val = parsed[k];
@@ -96,16 +195,10 @@ class AiEngineService {
             if (text.isNotEmpty) break;
           }
         }
-        if (text == null || text.isEmpty) {
-          debugPrint(
-              'AiEngineService._parseAndNormalize: FALLBACK — '
-              'response/recommendation field absent or empty after _cleanText; '
-              'snippet="${s.length > 80 ? s.substring(0, 80) : s}"');
-        }
         out['response'] = (text != null && text.isNotEmpty)
             ? text
-            : 'Răspuns primit. Medicul va fi contactat.';
-        // Preserve category if the AI provided a valid one.
+            : 'Response received.';
+
         const validCats = {'medical', 'document', 'other'};
         final aiCat = parsed['category'] as String?;
         if (aiCat != null && validCats.contains(aiCat)) {
@@ -115,44 +208,70 @@ class AiEngineService {
       } catch (_) {}
     }
 
-    // No JSON found — treat as prose.
     final prose = _cleanText(s);
     return Map<String, dynamic>.from(_fallbackResponse)
-      ..['response'] = prose.isNotEmpty
-          ? prose
-          : _fallbackResponse['response'] as String;
+      ..['response'] = prose.isNotEmpty ? prose : _fallbackResponse['response'] as String;
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Language
-  // ──────────────────────────────────────────────────────────────────────────
+  // ── Streaming shim ─────────────────────────────────────────────────────────
 
-  /// Instructs the native LiteRtLmChannel to generate responses in [lang].
-  /// [lang] must be "ro" (Romanian) or "en" (English).
-  Future<void> setLanguage(String lang) async {
-    try {
-      await _channel.invokeMethod<void>('setLanguage', {'lang': lang});
-      debugPrint('AiEngineService: language set to $lang');
-    } on PlatformException catch (e) {
-      debugPrint('AiEngineService.setLanguage PlatformException: ${e.code}');
+  /// Dart-side streaming shim: splits [fullText] into word chunks of 3,
+  /// emitting each with a 40 ms delay to produce a typewriter effect.
+  ///
+  /// TODO: replace with native EventChannel streaming when available.
+  static Stream<String> streamWords(String fullText) async* {
+    final words = fullText.split(' ').where((w) => w.isNotEmpty).toList();
+    final buffer = StringBuffer();
+    for (int i = 0; i < words.length; i += 3) {
+      final end = (i + 3).clamp(0, words.length);
+      buffer.write(words.sublist(i, end).join(' '));
+      if (end < words.length) buffer.write(' ');
+      yield buffer.toString();
+      await Future.delayed(const Duration(milliseconds: 40));
     }
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Model lifecycle
-  // ──────────────────────────────────────────────────────────────────────────
+  // ── History context ────────────────────────────────────────────────────────
+
+  Future<String> _buildHistoryContext(String? customPrompt) async {
+    final buffer = StringBuffer();
+
+    // New structured system prompt (Step 1).
+    buffer.writeln(buildSystemPrompt(_lang, _doctorPresent));
+
+    if (customPrompt != null && customPrompt.isNotEmpty) {
+      buffer.writeln(customPrompt);
+    }
+
+    // Session isolation (Step 3): inject full FHIR history only once.
+    if (!_historyInjectedThisSession) {
+      final history = await _fhirRepository.getPatientHistory();
+      if (history.isNotEmpty) {
+        buffer.writeln('\nPATIENT MEDICAL HISTORY (FHIR):');
+        for (final resource in history) {
+          buffer.writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
+        }
+      }
+      _historyInjectedThisSession = true;
+    } else {
+      buffer.writeln('\nPatient history loaded. Current session only.');
+    }
+
+    buffer.writeln(
+        '\nCLASSIFY: Add "category" to your JSON — "medical" for health/'
+        'symptoms, "document" for prescriptions/referrals/certificates, '
+        '"other" for admin/scheduling/doctor messages.');
+
+    return buffer.toString();
+  }
+
+  // ── Model lifecycle ────────────────────────────────────────────────────────
 
   static const String _modelFileName = 'gemma-4-E2B-it.litertlm';
   static const String _sdcardPath = '/sdcard/Download/$_modelFileName';
 
-  /// Locates the model file, checking two paths in order:
-  ///   1. app-private filesDir/models/ (normal install / download path)
-  ///   2. /sdcard/Download/ (sideloaded for testing — used directly, not copied)
-  ///
-  /// Returns null if absent from both locations.
   static Future<String?> _getModelPath() async {
     try {
-      // Check primary path first (app-private storage, set by native layer).
       final String? nativePath =
           await _channel.invokeMethod<String>('getModelPath');
 
@@ -160,9 +279,6 @@ class AiEngineService {
         if (File(nativePath).existsSync()) return nativePath;
       }
 
-      // Check sdcard path — return directly without copying.
-      // Copying fails on Android 13+ (scoped storage) without
-      // MANAGE_EXTERNAL_STORAGE, which requires Play Store approval.
       final sdcard = File(_sdcardPath);
       if (sdcard.existsSync()) {
         try {
@@ -180,12 +296,8 @@ class AiEngineService {
     }
   }
 
-  /// Returns true if the model file is present on disk (either app-private or
-  /// sdcard path). Safe to call from any context; never throws.
   static Future<bool> isModelOnDisk() async => (await _getModelPath()) != null;
 
-  /// Deletes the on-device model file and resets the initialized flag.
-  /// Called as part of the account-deletion flow. Never throws.
   static Future<void> deleteModelFile() async {
     try {
       final String? path = await _getModelPath();
@@ -202,19 +314,11 @@ class AiEngineService {
     }
   }
 
-  /// Initializes the LiteRT-LM engine with the locally stored model file.
-  ///
-  /// Returns true if the engine loaded successfully.
-  /// Returns false gracefully if the model file has not been downloaded yet —
-  /// logs "LiteRT-LM: model not yet downloaded" and leaves the app functional
-  /// (evaluate methods return [_fallbackResponse] instead of crashing).
-  ///
-  /// Safe to call on startup — never throws.
   Future<bool> initializeModel() async {
     try {
       final String? modelPath = await _getModelPath();
       if (modelPath == null) {
-        debugPrint('LiteRT-LM: could not determine model path from native layer');
+        debugPrint('LiteRT-LM: could not determine model path');
         return false;
       }
 
@@ -236,43 +340,13 @@ class AiEngineService {
     }
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Inference
-  // ──────────────────────────────────────────────────────────────────────────
+  // ── Inference ──────────────────────────────────────────────────────────────
 
-  /// Builds the system prompt string from [customPrompt] and the patient's
-  /// local FHIR history. Called by all three evaluate methods.
-  Future<String> _buildHistoryContext(String? customPrompt) async {
-    final List<Map<String, dynamic>> patientHistory =
-        await _fhirRepository.getPatientHistory();
-    final buffer = StringBuffer();
-    if (customPrompt != null) buffer.writeln(customPrompt);
-    if (patientHistory.isNotEmpty) {
-      buffer.writeln('LOCAL PATIENT MEDICAL HISTORY (HL7 FHIR):');
-      for (final resource in patientHistory) {
-        buffer.writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
-      }
-    }
-    // Category instruction: ask AI to classify the session type.
-    // Values: "medical" (symptoms/health), "document" (prescriptions/referrals),
-    // "other" (admin/scheduling). Include as a JSON field in the response.
-    buffer.writeln(
-        'CLASSIFY: Add "category" to your JSON — "medical" for health/'
-        'symptoms, "document" for prescriptions/referrals/certificates, '
-        '"other" for admin/scheduling/doctor messages.');
-    return buffer.toString();
-  }
-
-  /// Feeds a WAV audio file to the LiteRT-LM engine for triage analysis.
-  /// Injects the patient's FHIR history as system-prompt context (local RAG).
-  /// Returns [_fallbackResponse] if the model is not yet initialized.
   Future<Map<String, dynamic>> evaluateAudio(
     File audioFile, {
     String? customPrompt,
   }) async {
-    if (!_isInitialized) {
-      return Map<String, dynamic>.from(_fallbackResponse);
-    }
+    if (!_isInitialized) return Map<String, dynamic>.from(_fallbackResponse);
 
     try {
       final String systemPrompt = await _buildHistoryContext(customPrompt);
@@ -288,14 +362,11 @@ class AiEngineService {
         return Map<String, dynamic>.from(_fallbackResponse);
       }
 
-      final Map<String, dynamic> result = _parseAndNormalize(jsonResponse);
-
+      final result = _parseAndNormalize(jsonResponse);
       if (result['emergency'] == true) {
-        final double confidence =
-            (result['confidence'] as num?)?.toDouble() ?? 0.0;
+        final double confidence = (result['confidence'] as num?)?.toDouble() ?? 0.0;
         if (confidence > 0.8) throw EmergencyFlagException(confidence);
       }
-
       return result;
     } on PlatformException catch (e) {
       debugPrint('AiEngineService.evaluateAudio PlatformException: ${e.code}');
@@ -306,15 +377,11 @@ class AiEngineService {
     }
   }
 
-  /// Evaluates a media file (image or video) via the LiteRT-LM engine.
-  /// Returns [_fallbackResponse] if the model is not yet initialized.
   Future<Map<String, dynamic>> evaluateMedia(
     File mediaFile, {
     String? customPrompt,
   }) async {
-    if (!_isInitialized) {
-      return Map<String, dynamic>.from(_fallbackResponse);
-    }
+    if (!_isInitialized) return Map<String, dynamic>.from(_fallbackResponse);
 
     try {
       final String systemPrompt = await _buildHistoryContext(customPrompt);
@@ -331,14 +398,11 @@ class AiEngineService {
         return Map<String, dynamic>.from(_fallbackResponse);
       }
 
-      final Map<String, dynamic> result = _parseAndNormalize(jsonResponse);
-
+      final result = _parseAndNormalize(jsonResponse);
       if (result['emergency'] == true) {
-        final double confidence =
-            (result['confidence'] as num?)?.toDouble() ?? 0.0;
+        final double confidence = (result['confidence'] as num?)?.toDouble() ?? 0.0;
         if (confidence > 0.8) throw EmergencyFlagException(confidence);
       }
-
       return result;
     } on PlatformException catch (e) {
       debugPrint('AiEngineService.evaluateMedia PlatformException: ${e.code}');
@@ -349,15 +413,11 @@ class AiEngineService {
     }
   }
 
-  /// Feeds a plain-text symptom description to the LiteRT-LM engine.
-  /// Returns [_fallbackResponse] if the model is not yet initialized.
   Future<Map<String, dynamic>> evaluateText(
     String text, {
     String? customPrompt,
   }) async {
-    if (!_isInitialized) {
-      return Map<String, dynamic>.from(_fallbackResponse);
-    }
+    if (!_isInitialized) return Map<String, dynamic>.from(_fallbackResponse);
 
     try {
       final String systemPrompt = await _buildHistoryContext(customPrompt);
@@ -372,14 +432,11 @@ class AiEngineService {
         return Map<String, dynamic>.from(_fallbackResponse);
       }
 
-      final Map<String, dynamic> result = _parseAndNormalize(jsonResponse);
-
+      final result = _parseAndNormalize(jsonResponse);
       if (result['emergency'] == true) {
-        final double confidence =
-            (result['confidence'] as num?)?.toDouble() ?? 0.0;
+        final double confidence = (result['confidence'] as num?)?.toDouble() ?? 0.0;
         if (confidence > 0.8) throw EmergencyFlagException(confidence);
       }
-
       return result;
     } on PlatformException catch (e) {
       debugPrint('AiEngineService.evaluateText PlatformException: ${e.code}');
