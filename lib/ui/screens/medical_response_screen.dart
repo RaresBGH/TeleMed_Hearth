@@ -342,6 +342,22 @@ class _MedicalResponseScreenState
 
   // ── Scroll ──────────────────────────────────────────────────────────────────
 
+  /// Builds a formatted string of the conversation so far, to be passed as
+  /// [customPrompt] so the AI model maintains context across turns.
+  /// Messages with non-null [attachmentType] are skipped (they carry UI
+  /// placeholder text, not patient information).
+  String _buildConversationHistory() {
+    final buffer = StringBuffer('\nCONVERSATION SO FAR:\n');
+    for (final msg in _messages) {
+      if (msg.attachmentType != null) continue; // skip media placeholders
+      final text = msg.text.trim();
+      if (text.isEmpty) continue;
+      final speaker = msg.role == 'ai' ? 'Assistant' : 'Patient';
+      buffer.writeln('$speaker: $text');
+    }
+    return buffer.toString();
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -416,7 +432,9 @@ class _MedicalResponseScreenState
         _messages.add(ChatMessage(
             role: 'patient',
             text: AppStrings.of(_lang, 'chat.voice_bubble'),
-            timestamp: DateTime.now()));
+            timestamp: DateTime.now(),
+            attachmentPath: wavPath.isNotEmpty ? wavPath : null,
+            attachmentType: wavPath.isNotEmpty ? AttachmentType.audio : null));
       });
       _scrollToBottom();
 
@@ -427,7 +445,8 @@ class _MedicalResponseScreenState
 
       try {
         final result =
-            await ref.read(aiEngineServiceProvider).evaluateAudio(File(wavPath));
+            await ref.read(aiEngineServiceProvider).evaluateAudio(
+                File(wavPath), customPrompt: _buildConversationHistory());
         audioService.deleteWavFile(wavPath);
         if (_cancelRequested) {
           if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
@@ -480,13 +499,16 @@ class _MedicalResponseScreenState
       _messages.add(ChatMessage(
           role: 'patient',
           text: AppStrings.of(_lang, 'chat.photo_bubble'),
-          timestamp: DateTime.now()));
+          timestamp: DateTime.now(),
+          attachmentPath: imagePath,
+          attachmentType: AttachmentType.image));
     });
     _scrollToBottom();
 
     try {
       final result =
-          await ref.read(aiEngineServiceProvider).evaluateMedia(File(imagePath));
+          await ref.read(aiEngineServiceProvider).evaluateMedia(
+              File(imagePath), customPrompt: _buildConversationHistory());
       cameraService.deleteTempFile(imagePath);
       if (_cancelRequested) {
         if (mounted) setState(() { _isProcessing = false; _isPhotoAnalyzing = false; _cancelRequested = false; });
@@ -521,7 +543,8 @@ class _MedicalResponseScreenState
 
     try {
       final result =
-          await ref.read(aiEngineServiceProvider).evaluateText(text);
+          await ref.read(aiEngineServiceProvider).evaluateText(
+              text, customPrompt: _buildConversationHistory());
       if (_cancelRequested) {
         if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
         return;

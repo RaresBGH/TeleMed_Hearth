@@ -99,8 +99,8 @@ class AiEngineService {
         : 'Medicul dumneavoastră va răspunde la această întrebare în cadrul consultației.';
     final emergency112 = isEn ? 'Call 112 immediately.' : 'Sunați 112 imediat.';
     final greeting   = isEn
-        ? 'Hello [name]. What brings you to the doctor today?'
-        : 'Bună ziua, [name]. Cu ce vă putem ajuta astăzi?';
+        ? 'Hello. What brings you to the doctor today?'
+        : 'Bună ziua. Cu ce vă putem ajuta astăzi?';
     final finalTurn  = isEn
         ? 'Thank you. I have recorded your symptoms. If you have anything to add, please write it now. When ready, press Finalize Dialog.'
         : 'Mulțumesc. Am înregistrat simptomele. Dacă mai aveți ceva de adăugat, scrieți acum. Când sunteți gata, apăsați Finalizează Dialog.';
