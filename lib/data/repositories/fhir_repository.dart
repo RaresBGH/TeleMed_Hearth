@@ -245,7 +245,18 @@ class FhirRepository {
   /// durationMinutes, description, status.
   Future<void> saveAppointment({required Map<String, dynamic> data}) async {
     if (_medplum != null) {
-      final fhirPayload = _buildFhirAppointmentPayload(data);
+      // Look up the patient's Medplum FHIR ID so the Appointment participant
+      // uses a direct reference (Patient/{id}) instead of a CNP identifier.
+      // Medplum does not resolve chained identifier searches on Appointment queries,
+      // so CNP-based references cause getAppointments to return empty results.
+      final cnp = data['patientId'] as String? ?? '';
+      String? medplumPatientId;
+      if (cnp.isNotEmpty) {
+        final patient = await _medplum.getPatientByCnp(cnp);
+        medplumPatientId = patient?['id'] as String?;
+      }
+      final fhirPayload = _buildFhirAppointmentPayload(
+          data, medplumPatientId: medplumPatientId);
       final result = await _medplum.saveAppointment(fhirPayload);
       if (result == null) {
         debugPrint(
@@ -325,9 +336,12 @@ class FhirRepository {
 
   /// Converts the raw appointment data map (local format) into a FHIR
   /// Appointment JSON payload suitable for posting to Medplum.
-  /// Patient is referenced by CNP identifier (Medplum resolves via chaining).
+  ///
+  /// When [medplumPatientId] is provided the patient participant uses a direct
+  /// `Patient/{id}` reference so Medplum can match it in getAppointments queries.
+  /// Falls back to the CNP identifier actor when the Medplum ID is unavailable.
   static Map<String, dynamic> _buildFhirAppointmentPayload(
-      Map<String, dynamic> data) {
+      Map<String, dynamic> data, {String? medplumPatientId}) {
     final cnp = data['patientId'] as String? ?? '';
     final practRef = data['practitionerId'] as String? ?? '';
     final dateTimeIso = data['dateTimeIso'] as String? ?? '';
@@ -360,17 +374,24 @@ class FhirRepository {
       if (start != null) 'start': start.toUtc().toIso8601String(),
       if (end != null) 'end': end.toUtc().toIso8601String(),
       'participant': [
-        // Patient referenced by CNP identifier — Medplum resolves via chained search.
-        {
-          'actor': {
-            'type': 'Patient',
-            'identifier': {
-              'system': 'urn:oid:1.2.40.0.10.1.4.3.1',
-              'value': cnp,
+        // Use a direct Patient reference when the Medplum ID is known;
+        // fall back to CNP identifier for offline / seeded patients.
+        if (medplumPatientId != null)
+          {
+            'actor': {'reference': 'Patient/$medplumPatientId'},
+            'status': 'accepted',
+          }
+        else
+          {
+            'actor': {
+              'type': 'Patient',
+              'identifier': {
+                'system': 'urn:oid:1.2.40.0.10.1.4.3.1',
+                'value': cnp,
+              },
             },
+            'status': 'accepted',
           },
-          'status': 'accepted',
-        },
         {
           'actor': {'reference': resolvedPractRef},
           'status': 'accepted',
