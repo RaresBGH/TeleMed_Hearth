@@ -107,9 +107,10 @@ Răspunsul tău JSON trebuie să conțină mereu:
 - "doctor_summary": rezumatul pentru medic (doar la final, altfel null)
         """.trimIndent()
 
-        // Active language code — "ro" (default) or "en".
+        // Active language code — "en" (default) or "ro".
+        // Must match Dart LanguageNotifier.build() which defaults to 'en'.
         // Written by setLanguage MethodChannel call, read by buildSystemPrompt().
-        @Volatile var currentLanguage = "ro"
+        @Volatile var currentLanguage = "en"
 
         fun buildSystemPrompt(): String = if (currentLanguage == "en") """
 You are a medical AI assistant in the TeleMed_K app, serving patients in rural Romania.
@@ -348,8 +349,11 @@ Răspunsul tău JSON trebuie să conțină mereu:
 
                 val response = if (isEngineReady && engine != null) {
                     Log.d(TAG, "New conversation created — evaluateAudio session isolated")
-                    val effectivePrompt = buildSystemPrompt() +
-                        if (systemPrompt.isBlank()) "" else "\n\n$systemPrompt"
+                    // Use the Dart-provided system prompt directly; it already contains the
+                    // full structured prompt built by AiEngineService.buildSystemPrompt().
+                    // Prepending buildSystemPrompt() here would send two conflicting language
+                    // instructions and cause the model to respond in the wrong language.
+                    val effectivePrompt = systemPrompt
                     // Content.AudioFile(path) — documented as supported alongside AudioBytes.
                     // Using AudioFile avoids loading ~MB of audio into JVM heap.
                     runEngineInference(
@@ -400,8 +404,8 @@ Răspunsul tău JSON trebuie să conțină mereu:
 
                 val response = if (isEngineReady && engine != null) {
                     Log.d(TAG, "New conversation created — evaluateMedia session isolated")
-                    val effectivePrompt = buildSystemPrompt() +
-                        if (systemPrompt.isBlank()) "" else "\n\n$systemPrompt"
+                    // Use the Dart-provided system prompt directly (same reason as evaluateAudio).
+                    val effectivePrompt = systemPrompt
 
                     val isVideo = filePath.endsWith(".mp4", ignoreCase = true) ||
                                   filePath.endsWith(".webm", ignoreCase = true) ||
@@ -460,8 +464,8 @@ Răspunsul tău JSON trebuie să conțină mereu:
             try {
                 val response = if (isEngineReady && engine != null) {
                     Log.d(TAG, "New conversation created — handleRunInference session isolated")
-                    val effectivePrompt = buildSystemPrompt() +
-                        if (systemPrompt.isBlank()) "" else "\n\n$systemPrompt"
+                    // Use the Dart-provided system prompt directly (same reason as evaluateAudio).
+                    val effectivePrompt = systemPrompt
                     // Mirror evaluateAudio: pass both the user text AND the system prompt
                     // as content items. Single-item Contents.of() can produce blank output
                     // in some LiteRT-LM versions; two items ensures the model has context.
