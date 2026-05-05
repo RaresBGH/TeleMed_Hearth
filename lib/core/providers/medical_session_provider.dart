@@ -6,6 +6,7 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/chat_message.dart';
 import '../services/ai_engine_service.dart';
 import '../services/audio_recording_service.dart';
@@ -32,6 +33,9 @@ class MedicalSessionState {
   /// Values: "medical" | "document" | "other"
   /// TODO(extend): expand category taxonomy as usage patterns emerge.
   final String? lastSessionCategory;
+  /// Language active when the last AI response was received ('en' or 'ro').
+  /// Used by finalizeConsultation to localise FHIR observation labels.
+  final String? lastSessionLanguage;
 
   const MedicalSessionState({
     required this.sessionState,
@@ -42,6 +46,7 @@ class MedicalSessionState {
     this.errorMessage,
     this.lastDoctorName,
     this.lastSessionCategory,
+    this.lastSessionLanguage,
   });
 
   static const idle = MedicalSessionState(sessionState: SessionState.idle);
@@ -56,6 +61,14 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   // Duplicate-entry guard: true after the first successful finalizeConsultation().
   // Reset by reset() so the next session can finalize normally.
   bool _finalized = false;
+
+  /// Active UI language — kept in sync via [setLanguage] so finalizeConsultation
+  /// can localise FHIR observation labels without reading a provider.
+  String _lang = 'ro';
+
+  /// Called by the language-aware UI layer (e.g. MedicalResponseScreen) whenever
+  /// the user switches language so FHIR notes are written in the correct language.
+  void setLanguage(String lang) => _lang = lang;
 
   AiEngineService get _aiEngineService => ref.read(aiEngineServiceProvider);
   FhirRepository  get _fhirRepository  => ref.read(fhirRepositoryProvider);
@@ -121,9 +134,13 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       final String timestamp     = DateTime.now().toIso8601String();
       final String triageResponse = state.lastAiResponse ?? 'Triaj AI';
 
+      final String sessionLang = state.lastSessionLanguage ?? 'ro';
+      final String prefixAi      = AppStrings.of(sessionLang, 'chat.prefix_ai');
+      final String prefixPatient = AppStrings.of(sessionLang, 'chat.prefix_patient');
+
       final StringBuffer noteBuffer = StringBuffer();
       for (final msg in messages) {
-        final String prefix = msg.role == 'ai' ? '[AI]' : '[Pacient]';
+        final String prefix = msg.role == 'ai' ? '[$prefixAi]' : '[$prefixPatient]';
         final String timeStr =
             DateFormatter.formatTimeOfDay(msg.timestamp.hour, msg.timestamp.minute);
         noteBuffer.writeln('$prefix $timeStr: ${msg.text}');
@@ -158,7 +175,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
               'display': 'Symptom',
             }
           ],
-          'text': 'Dialog Triaj',
+          'text': AppStrings.of(state.lastSessionLanguage ?? 'ro', 'chat.section_label'),
         },
         'subject': {
           'identifier': {
@@ -273,6 +290,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       lastIsEmergency: false,
       lastDoctorName: state.lastDoctorName,
       lastSessionCategory: category,
+      lastSessionLanguage: _lang,
     );
   }
 }

@@ -551,8 +551,10 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildStatusChip(
-                    Icons.mic,
-                    AppStrings.of(lang, 'waiting.mic_active'),
+                    _micMuted ? Icons.mic_off : Icons.mic,
+                    AppStrings.of(lang, _micMuted
+                        ? 'waiting.mic_muted'
+                        : 'waiting.mic_active'),
                   ),
                   const SizedBox(height: 6),
                   _buildStatusChip(

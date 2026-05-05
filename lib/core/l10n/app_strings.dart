@@ -32,6 +32,7 @@ class AppStrings {
     'call.mute_enable':      'Activează microfonul',
     'call.mute_disable':     'Dezactivează microfonul',
     'call.end':              'Închide consultația',
+    'call.peer_left':        'Celălalt participant a părăsit apelul.',
     'call.open_chat':        'Deschide chat și documente',
 
     // ── Attachment ────────────────────────────────────────────────────────
@@ -178,6 +179,8 @@ class AppStrings {
     'chat.followup_prompt':   'Aveți și alte simptome pe care doriți să le descrieți?',
     'chat.appbar_title':      'Asistentul tău medical',
     'chat.section_label':     'Analiza simptomelor',
+    'chat.prefix_ai':         'AI',
+    'chat.prefix_patient':    'Pacient',
     'chat.default_response':  'Simptomele dumneavoastră au fost înregistrate.',
     'chat.divider_label':     'CONTINUAȚI CONVERSAȚIA',
     'chat.finalize_btn':      'Finalizează Dialogul',
@@ -326,6 +329,7 @@ class AppStrings {
     'waiting.clinic':         'Cabinetul Medical',
     'waiting.room_title':     'Camera de Așteptare',
     'waiting.mic_active':     'Microfon: Activ',
+    'waiting.mic_muted':      'Microfon: Dezactivat',
     'waiting.internet_stable':'Internet: Stabil',
     'waiting.doctor_notified':'Dr. [name] a fost notificat(ă) și se va conecta în curând.',
     'waiting.private_space':  'Confirm că mă aflu într-un spațiu privat și liniștit, potrivit pentru consultație.',
@@ -393,6 +397,7 @@ class AppStrings {
     'call.mute_enable':      'Enable microphone',
     'call.mute_disable':     'Disable microphone',
     'call.end':              'End consultation',
+    'call.peer_left':        'The other participant has left the call.',
     'call.open_chat':        'Open chat and documents',
 
     // ── Attachment ────────────────────────────────────────────────────────
@@ -539,6 +544,8 @@ class AppStrings {
     'chat.followup_prompt':   'Do you have any other symptoms you would like to describe?',
     'chat.appbar_title':      'Your medical assistant',
     'chat.section_label':     'Symptom analysis',
+    'chat.prefix_ai':         'AI',
+    'chat.prefix_patient':    'Patient',
     'chat.default_response':  'Your symptoms have been recorded.',
     'chat.divider_label':     'CONTINUE THE CONVERSATION',
     'chat.finalize_btn':      'Finalize Dialog',
@@ -687,6 +694,7 @@ class AppStrings {
     'waiting.clinic':         'Medical Office',
     'waiting.room_title':     'Waiting Room',
     'waiting.mic_active':     'Microphone: Active',
+    'waiting.mic_muted':      'Microphone: Muted',
     'waiting.internet_stable':'Internet: Stable',
     'waiting.doctor_notified':'Dr. [name] has been notified and will connect shortly.',
     'waiting.private_space':  'I confirm I am in a private, quiet space suitable for consultation.',

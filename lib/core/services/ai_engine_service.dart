@@ -180,6 +180,11 @@ Patient: "$ex3q"
     s = s.replaceAll('```', '');
     s = s.trim();
 
+    // Filter the empty-list artifact emitted by LiteRT-LM on some turns.
+    if (s == '[]' || s == '[ ]') {
+      return Map<String, dynamic>.from(_fallbackResponse);
+    }
+
     final int start = s.indexOf('{');
     final int end   = s.lastIndexOf('}');
     if (start != -1 && end > start) {

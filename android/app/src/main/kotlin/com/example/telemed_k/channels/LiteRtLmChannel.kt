@@ -565,6 +565,10 @@ Răspunsul tău JSON trebuie să conțină mereu:
 
         // Prose path — model returned conversational text with no JSON wrapper.
         // Pass it through directly; this is expected behaviour for the a/b/c acknowledgment prompt.
+        // Filter the empty-list artifact "[]" / "[ ]" that LiteRT-LM emits on some turns;
+        // treat it as blank so the ifBlank branch returns the Romanian placeholder below.
+        @Suppress("NAME_SHADOWING")
+        val raw = if (raw.trim() == "[]" || raw.trim() == "[ ]") "" else raw
         val isUrgent = detectEmergencyKeywords(raw)
         if (raw.isBlank()) {
             Log.d(TAG, "coerceToJsonSchema: model returned blank response — using placeholder")

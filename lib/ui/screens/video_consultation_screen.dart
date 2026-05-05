@@ -79,6 +79,7 @@ class _VideoConsultationScreenState
   // ── Screen state ───────────────────────────────────────────────────────────
   bool     _isMuted      = false;
   bool     _isConnecting = true;
+  bool     _peerLeft     = false;
 
   // ── In-call chat ───────────────────────────────────────────────────────────
   final List<_CallMessage>    _callMessages  = [];
@@ -292,6 +293,16 @@ class _VideoConsultationScreenState
           msg['sdpMid']    as String?,
           msg['sdpMLineIndex'] as int?,
         ));
+        break;
+      case 'peer_joined':
+        // A new peer entered the room (doctor joined after patient).
+        // Re-send the offer so the doctor receives it and can answer.
+        await _createOffer();
+        break;
+      case 'leave':
+        // The other peer left the room — show the overlay so the patient
+        // knows the call has ended and can tap the end-call button.
+        if (mounted) setState(() => _peerLeft = true);
         break;
     }
   }
@@ -772,6 +783,42 @@ class _VideoConsultationScreenState
           // Layer 5 — Bottom control panel (glassmorphism)
           _buildBottomPanel(context),
 
+          // Layer 5.5 — Peer-left overlay (shown when remote peer disconnects)
+          if (_peerLeft)
+            Container(
+              color: Colors.black.withValues(alpha: 0.75),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.call_end, size: 48, color: Colors.white),
+                    const SizedBox(height: 16),
+                    Text(
+                      AppStrings.of(_lang, 'call.peer_left'),
+                      style: const TextStyle(
+                          fontSize: 18, color: Colors.white,
+                          fontWeight: FontWeight.w500),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    ElevatedButton(
+                      onPressed: () { _endCall(); },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF5BA4CF),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(200, 56),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(AppStrings.of(_lang, 'call.end'),
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // Layer 6 — Top header (over video, SafeArea-wrapped)
           _buildTopHeader(),
 
@@ -1017,7 +1064,10 @@ class _VideoConsultationScreenState
       button: true,
       label: AppStrings.of(_lang, 'call.end'),
       child: GestureDetector(
-        onTap: () { _endCall(); },
+        onTap: () {
+          FocusScope.of(context).unfocus();
+          _endCall();
+        },
         child: Container(
           height: 100,
           decoration: BoxDecoration(

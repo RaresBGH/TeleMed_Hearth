@@ -154,6 +154,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildVoiceConfirmDialog(BuildContext ctx, String lang) {
     return AlertDialog(
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       contentPadding: const EdgeInsets.all(24),
       content: Column(
@@ -224,13 +225,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
         title: Text(AppStrings.of(lang, 'home.dialog_title'),
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold,
+                color: _titleColor)),
         content: TextField(
           controller: controller,
           maxLines: 5,
           autofocus: true,
-          style: const TextStyle(fontSize: 18),
+          style: const TextStyle(fontSize: 18, color: _titleColor),
           decoration: InputDecoration(
             hintText: AppStrings.of(lang, 'home.dialog_hint'),
             hintStyle: const TextStyle(fontSize: 18),
@@ -290,6 +293,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final bool? choice = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
         title: Text(AppStrings.of(lang, 'chat.back_title')),
         content: Text(AppStrings.of(lang, 'chat.back_content'),
             style: const TextStyle(fontSize: 16)),
@@ -353,6 +357,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
         );
+      }
+    });
+
+    // Release microphone when the patient navigates away via bottom nav
+    // without explicitly stopping the recording first.
+    ref.listen<AppRoute>(appNavigationProvider, (prev, next) {
+      if (next != AppRoute.home && _isRecording) {
+        ref.read(audioRecordingServiceProvider).stopAndRelease();
+        setState(() => _isRecording = false);
       }
     });
 
