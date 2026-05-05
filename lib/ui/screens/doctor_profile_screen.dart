@@ -260,7 +260,7 @@ class DoctorProfileScreen extends ConsumerWidget {
               Expanded(
                 child: _ActionButton(
                   icon: Icons.chat_outlined,
-                  label: AppStrings.of(lang, 'doctor.send_message'),
+                  label: AppStrings.of(lang, 'doctor.message_btn'),
                   onTap: () {
                     final preseed =
                         AppStrings.of(lang, 'doctor.message_preseed')

@@ -103,20 +103,23 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: false,
       backgroundColor: const Color(0xFFF5F5F5),
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(AppStrings.of(lang, 'ajutor.title'),
+                    textAlign: TextAlign.center,
                     style: const TextStyle(
                         fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black)),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
                 AccessibleTouchTarget(
                   semanticLabel: AppStrings.of(lang, 'ajutor.photo_option'),
                   onTap: () { Navigator.pop(ctx); _extractViaCamera(); },
@@ -128,6 +131,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                   onTap: () { Navigator.pop(ctx); _extractViaVoice(); },
                   child: _ajutorOption(Icons.mic, AppStrings.of(lang, 'ajutor.voice_option')),
                 ),
+                const SizedBox(height: 8),
               ],
             ),
           ),

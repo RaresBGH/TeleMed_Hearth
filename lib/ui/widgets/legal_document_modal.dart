@@ -5,9 +5,11 @@
 
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../core/constants/legal_content.dart';
+import '../../core/providers/language_provider.dart';
 
 /// Which legal document to display.
 enum LegalDocumentType { terms, privacy }
@@ -19,7 +21,7 @@ enum LegalDocumentType { terms, privacy }
 ///
 /// Usage with raw strings (backward-compat — shows generic content):
 ///   LegalDocumentModal(title: 'My Title', content: 'My content...')
-class LegalDocumentModal extends StatelessWidget {
+class LegalDocumentModal extends ConsumerWidget {
   final LegalDocumentType? type;
   final String title;
   final String content;
@@ -33,17 +35,25 @@ class LegalDocumentModal extends StatelessWidget {
 
   // ── Terms of Use — rendered via WebView ──────────────────────────────────
 
-  Widget _buildTerms(BuildContext context) =>
-      _WebShell(title: 'Termeni de Utilizare', html: kTermsHtml);
+  Widget _buildTerms(String lang) {
+    final isEn   = lang == 'en';
+    final html   = isEn ? kTermsHtmlEn : kTermsHtml;
+    final pageTitle = isEn ? 'Terms of Use' : 'Termeni de Utilizare';
+    return _WebShell(title: pageTitle, html: html);
+  }
 
   // ── Privacy Policy — rendered via WebView ─────────────────────────────────
 
-  Widget _buildPrivacy(BuildContext context) =>
-      _WebShell(title: 'Politica de Confidențialitate', html: kPrivacyHtml);
+  Widget _buildPrivacy(String lang) {
+    final isEn   = lang == 'en';
+    final html   = isEn ? kPrivacyHtmlEn : kPrivacyHtml;
+    final pageTitle = isEn ? 'Privacy Policy' : 'Politica de Confidențialitate';
+    return _WebShell(title: pageTitle, html: html);
+  }
 
   // ── Generic fallback ──────────────────────────────────────────────────────
 
-  Widget _buildGeneric(BuildContext context) {
+  Widget _buildGeneric() {
     return _Shell(
       title: title,
       child: Text(
@@ -60,14 +70,15 @@ class LegalDocumentModal extends StatelessWidget {
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(languageProvider);
     switch (type) {
       case LegalDocumentType.terms:
-        return _buildTerms(context);
+        return _buildTerms(lang);
       case LegalDocumentType.privacy:
-        return _buildPrivacy(context);
+        return _buildPrivacy(lang);
       case null:
-        return _buildGeneric(context);
+        return _buildGeneric();
     }
   }
 

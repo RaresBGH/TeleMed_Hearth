@@ -331,7 +331,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final medText = med != null
         ? (med['medicationCodeableConcept']?['text'] as String? ??
            AppStrings.of(lang, 'doctor.treatment'))
-        : AppStrings.of(lang, 'dashboard.no_treatment');
+        : AppStrings.of(lang, 'dashboard.no_active_treatment');
 
     return Row(
       children: [

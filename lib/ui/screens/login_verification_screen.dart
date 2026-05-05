@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_auth/smart_auth.dart';
 import '../widgets/legal_document_modal.dart';
 import '../../core/providers/app_navigation_provider.dart';
@@ -27,13 +28,23 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
   bool _isAuthenticating = false;
   int _attempts = 0;
   bool _isLocked = false;
+  // True after the first successful OTP — changes button label to "Enter account".
+  bool _isReturningUser = false;
 
   static const _maxAttempts = 3;
+  static const _kAccountCreatedKey = 'account_created';
 
   @override
   void initState() {
     super.initState();
     _startSmsListener();
+    _loadReturningUserFlag();
+  }
+
+  Future<void> _loadReturningUserFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isReturning = prefs.getBool(_kAccountCreatedKey) ?? false;
+    if (mounted && isReturning) setState(() => _isReturningUser = true);
   }
 
   void _startSmsListener() async {
@@ -92,6 +103,11 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
       setState(() => _isAuthenticating = false);
 
       if (otp == expectedOtp) {
+        // Persist account_created so the button label switches on next launch.
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_kAccountCreatedKey, true);
+        if (!mounted) return;
+
         // Determine whether this CNP belongs to an existing registered patient.
         final isReturning =
             await ref.read(patientAuthProvider.notifier).loadPatient(cnp);
@@ -276,9 +292,11 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
                   child: _isAuthenticating
                       ? const CircularProgressIndicator(color: Colors.white)
                       : Text(
-                          AppStrings.of(lang, 'otp.confirm_btn'),
+                          AppStrings.of(lang, _isReturningUser
+                              ? 'otp.enter_account'
+                              : 'otp.confirm_btn'),
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                 ),
 

@@ -84,6 +84,7 @@ class _VideoConsultationScreenState
   final List<_CallMessage>    _callMessages  = [];
   final TextEditingController _chatController = TextEditingController();
   bool _chatOpen = false;
+  late final DraggableScrollableController _sheetController;
 
   // ── In-call audio playback ─────────────────────────────────────────────────
   late final AudioPlayer _callAudioPlayer;
@@ -104,6 +105,16 @@ class _VideoConsultationScreenState
   void initState() {
     super.initState();
     _callAudioPlayer = AudioPlayer();
+    _sheetController = DraggableScrollableController();
+    _sheetController.addListener(() {
+      // Close chat when sheet is dragged below visible threshold.
+      if (_sheetController.isAttached &&
+          _sheetController.size < 0.05 &&
+          _chatOpen &&
+          mounted) {
+        setState(() => _chatOpen = false);
+      }
+    });
     _initAnimController();
     _initWebRTC();
   }
@@ -115,6 +126,7 @@ class _VideoConsultationScreenState
     _chatController.dispose();
     _callPlayerSub?.cancel();
     _callAudioPlayer.dispose();
+    _sheetController.dispose();
     // Signal leave before closing WebSocket.
     try {
       _signalingSocket?.add(jsonEncode({
@@ -350,6 +362,13 @@ class _VideoConsultationScreenState
   // ── Chat — attach file ────────────────────────────────────────────────────────
 
   Future<void> _attachCallFile() async {
+    // Ensure the chat panel is visible before the picker appears.
+    if (!_chatOpen) {
+      setState(() => _chatOpen = true);
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
+    if (!mounted) return;
+
     final FilePickerResult? result;
     try {
       result = await FilePicker.platform.pickFiles(
@@ -498,15 +517,20 @@ class _VideoConsultationScreenState
   Widget _buildChatPanel() {
     return Positioned.fill(
       child: DraggableScrollableSheet(
+        controller: _sheetController,
         initialChildSize: 0.45,
-        minChildSize: 0.25,
+        minChildSize: 0.0,   // Allow full collapse via drag or tap-outside
         maxChildSize: 0.85,
+        snap: true,
+        snapSizes: const [0.45, 0.85],
         builder: (_, scrollController) => Container(
           decoration: const BoxDecoration(
             color: Color(0xFFF9F9F9),
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          child: Column(
+          child: SafeArea(
+            top: false,
+            child: Column(
             children: [
               // Drag handle
               Container(
@@ -577,10 +601,14 @@ class _VideoConsultationScreenState
                         minLines: 1,
                         maxLines: 4,
                         textInputAction: TextInputAction.send,
-                        style: const TextStyle(fontSize: 16),
+                        style: const TextStyle(
+                            fontSize: 16, color: Color(0xFF1a1c1c)),
                         decoration: InputDecoration(
                           hintText: AppStrings.of(_lang, 'call.chat_hint'),
-                          hintStyle: const TextStyle(color: Colors.grey),
+                          hintStyle: const TextStyle(
+                              color: Color(0xFF40484e)),
+                          filled: true,
+                          fillColor: Colors.white,
                           border: InputBorder.none,
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(
@@ -601,7 +629,8 @@ class _VideoConsultationScreenState
                 ),
               ),
             ],
-          ),
+            ), // Column
+          ), // SafeArea
         ),
       ),
     );
@@ -714,6 +743,7 @@ class _VideoConsultationScreenState
     ref.watch(languageProvider); // register watcher so _lang getter rebuilds on change
     return Scaffold(
       backgroundColor: Colors.black,
+      resizeToAvoidBottomInset: true,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -736,7 +766,19 @@ class _VideoConsultationScreenState
           _buildTopHeader(),
 
           // Layer 7 — Slide-up chat panel (toggled by chat strip tap)
-          if (_chatOpen) _buildChatPanel(),
+          if (_chatOpen) ...[
+            // Transparent overlay: tapping outside the sheet collapses it.
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _sheetController.animateTo(
+                0.0,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOut,
+              ),
+              child: const SizedBox.expand(),
+            ),
+            _buildChatPanel(),
+          ],
         ],
       ),
     );

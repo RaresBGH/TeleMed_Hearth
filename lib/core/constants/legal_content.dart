@@ -350,3 +350,167 @@ const String kPrivacyHtml = r'''<!DOCTYPE html>
 </button>
 </footer>
 </body></html>''';
+
+// ── English Terms of Use ────────────────────────────────────────────────────
+
+/// English Terms of Use — same structure as [kTermsHtml], English text.
+// ignore: non_constant_identifier_names
+const String kTermsHtmlEn = r'''<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    theme: { extend: { colors: { "primary": "#5BA4CF", "on-surface": "#1a1c1c", "on-surface-variant": "#40493d", "surface-container-low": "#f3f3f3", "surface-container-high": "#e8e8e8" }, fontFamily: { headline: ["system-ui"], body: ["system-ui"] } } }
+  }
+</script>
+<style>body { font-family: system-ui, sans-serif; min-height: 100dvh; }</style>
+</head>
+<body class="bg-[#f9f9f9] text-on-surface">
+<header class="fixed top-0 left-0 w-full z-50 bg-[#f9f9f9] flex items-center justify-center px-6 py-4">
+  <h1 class="text-[22px] font-bold text-on-surface">Terms of Use</h1>
+</header>
+<main class="pt-24 pb-32 px-6 max-w-3xl mx-auto">
+  <div class="bg-surface-container-low rounded-xl p-8 mb-10">
+    <h2 class="text-2xl font-extrabold mb-3">Terms of Use — TeleMed K</h2>
+    <p class="text-[16px] leading-relaxed text-on-surface-variant">Cabinet Medical Dr. Bogheanu · Brănești, Dâmbovița, Romania</p>
+  </div>
+  <section class="space-y-10">
+    <article>
+      <h3 class="text-xl font-bold mb-3 text-primary">1. Acceptance of Terms</h3>
+      <p class="text-[17px] leading-relaxed text-on-surface">By using this application you agree to these Terms of Use. TeleMed K is a telemedicine platform operated by Cabinet Medical Dr. Bogheanu, registered in Romania and subject to Romanian and European Union law.</p>
+    </article>
+    <article>
+      <h3 class="text-xl font-bold mb-3 text-primary">2. Medical Services</h3>
+      <p class="text-[17px] leading-relaxed text-on-surface">This application facilitates remote medical consultations. It does not replace emergency medical services. In case of a medical emergency, call 112 immediately. The medical advice provided through this platform is intended for informational and triage purposes only.</p>
+    </article>
+    <article>
+      <h3 class="text-xl font-bold mb-3 text-primary">3. User Obligations</h3>
+      <p class="text-[17px] leading-relaxed text-on-surface">You agree to provide accurate and complete information. You are responsible for maintaining the confidentiality of your account credentials. You must be at least 18 years old to create an account independently; minors may use the platform under parental or guardian supervision.</p>
+    </article>
+    <article>
+      <h3 class="text-xl font-bold mb-3 text-primary">4. Privacy and Data</h3>
+      <p class="text-[17px] leading-relaxed text-on-surface">Your personal and medical data is processed in accordance with our Privacy Policy and GDPR (EU Regulation 2016/679). Data is stored on secure servers located within the European Union. We do not sell or share your data with third parties without your explicit consent.</p>
+    </article>
+    <article>
+      <h3 class="text-xl font-bold mb-3 text-primary">5. Intellectual Property</h3>
+      <p class="text-[17px] leading-relaxed text-on-surface">All content, interfaces, and software within this application are the property of Cabinet Medical Dr. Bogheanu or its licensors. Unauthorized reproduction or distribution is prohibited.</p>
+    </article>
+    <article>
+      <h3 class="text-xl font-bold mb-3 text-primary">6. Limitation of Liability</h3>
+      <p class="text-[17px] leading-relaxed text-on-surface">To the maximum extent permitted by law, Cabinet Medical Dr. Bogheanu is not liable for indirect or consequential damages arising from the use of this platform. Our total liability shall not exceed the amount paid by you for the service in the preceding 12 months.</p>
+    </article>
+    <article>
+      <h3 class="text-xl font-bold mb-3 text-primary">7. Modifications</h3>
+      <p class="text-[17px] leading-relaxed text-on-surface">We reserve the right to modify these terms at any time. Continued use of the application after changes constitutes acceptance of the new terms. You will be notified of material changes via the application.</p>
+    </article>
+    <article>
+      <h3 class="text-xl font-bold mb-3 text-primary">8. Governing Law</h3>
+      <p class="text-[17px] leading-relaxed text-on-surface">These terms are governed by Romanian law. Any disputes shall be subject to the exclusive jurisdiction of the courts of Dâmbovița County, Romania.</p>
+    </article>
+    <div class="bg-surface-container-high rounded-xl p-6 text-[15px] text-on-surface-variant">
+      <p>Last updated: May 2026</p>
+      <p class="font-semibold mt-1">Cabinet Medical Dr. Bogheanu</p>
+      <p>Brănești, Dâmbovița, Romania</p>
+      <p>Contact: <span class="text-primary font-bold">contact@telemed-b.duckdns.org</span></p>
+    </div>
+  </section>
+</main>
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-center items-center px-6 pb-6 bg-white/85 backdrop-blur-md">
+  <button class="flex flex-row items-center justify-center bg-[#5BA4CF] text-white rounded-lg h-16 w-full mx-6 mb-6 text-[18px] font-bold border-2 border-black">
+    ← Back
+  </button>
+</nav>
+</body></html>''';
+
+// ── English Privacy Policy ──────────────────────────────────────────────────
+
+/// English Privacy Policy — same structure as [kPrivacyHtml], English text.
+// ignore: non_constant_identifier_names
+const String kPrivacyHtmlEn = r'''<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    theme: { extend: { colors: { "primary": "#5BA4CF", "on-surface": "#1a1c1c", "on-surface-variant": "#40493d", "surface-container-low": "#f3f3f3", "surface-container-high": "#e8e8e8" }, fontFamily: { headline: ["system-ui"], body: ["system-ui"] } } }
+  }
+</script>
+<style>body { font-family: system-ui, sans-serif; min-height: 100dvh; }</style>
+</head>
+<body class="bg-[#f9f9f9] text-on-surface">
+<header class="w-full top-0 sticky bg-[#f9f9f9] flex items-center justify-center h-20 px-6 z-40">
+  <h1 class="text-[#5BA4CF] font-bold text-[22px] text-center">Privacy Policy</h1>
+</header>
+<main class="max-w-[800px] mx-auto px-6 pt-4 pb-40">
+  <div class="space-y-10">
+    <p class="text-[16px] text-on-surface-variant">Cabinet Medical Dr. Bogheanu · Brănești, Dâmbovița, Romania</p>
+    <section class="space-y-4">
+      <h2 class="text-[22px] font-bold text-on-surface">1. Data Controller</h2>
+      <p class="text-[17px] leading-relaxed text-on-surface">The data controller is Cabinet Medical Dr. Bogheanu, located in Brănești, Dâmbovița County, Romania. Contact: <span class="font-bold text-primary">contact@telemed-b.duckdns.org</span></p>
+    </section>
+    <section class="bg-surface-container-low p-8 rounded-xl space-y-4">
+      <h2 class="text-[22px] font-bold text-on-surface">2. Data We Collect</h2>
+      <p class="text-[17px] leading-relaxed text-on-surface">We collect: full name, personal identification number (CNP), phone number, date of birth, medical history, symptom descriptions, consultation recordings, and documents you submit through the application.</p>
+    </section>
+    <section class="space-y-4">
+      <h2 class="text-[22px] font-bold text-on-surface">3. Legal Basis for Processing</h2>
+      <p class="text-[17px] leading-relaxed text-on-surface">We process your data based on: your explicit consent (Art. 6(1)(a) GDPR), performance of a medical contract (Art. 6(1)(b) GDPR), compliance with legal medical obligations (Art. 6(1)(c) GDPR), and vital interests protection (Art. 6(1)(d) GDPR). Medical data is processed under Art. 9(2)(h) GDPR for medical diagnosis and treatment purposes.</p>
+    </section>
+    <section class="space-y-4">
+      <h2 class="text-[22px] font-bold text-on-surface">4. How We Use Your Data</h2>
+      <p class="text-[17px] leading-relaxed text-on-surface">Your data is used to: provide telemedicine consultations, maintain your medical record, improve service quality, comply with legal obligations under Romanian medical law, and ensure patient safety.</p>
+    </section>
+    <section class="space-y-4">
+      <h2 class="text-[22px] font-bold text-on-surface">5. Data Retention</h2>
+      <p class="text-[17px] leading-relaxed text-on-surface">Medical records are retained for a minimum of 10 years as required by Romanian law (Law 46/2003 on Patient Rights). Account data is deleted upon request after the legal retention period expires.</p>
+    </section>
+    <section class="space-y-4">
+      <h2 class="text-[22px] font-bold text-on-surface">6. Your Rights</h2>
+      <div class="space-y-3">
+        <div class="border-l-4 border-primary pl-5 py-1">
+          <h4 class="font-bold">Right of access</h4>
+          <p class="text-[17px]">You may request a copy of the data we hold about you at any time.</p>
+        </div>
+        <div class="border-l-4 border-primary pl-5 py-1">
+          <h4 class="font-bold">Right to rectification</h4>
+          <p class="text-[17px]">You may correct any inaccurate information in your profile.</p>
+        </div>
+        <div class="border-l-4 border-primary pl-5 py-1">
+          <h4 class="font-bold">Right to erasure</h4>
+          <p class="text-[17px]">You may request permanent deletion of your account and associated data (where legally permitted).</p>
+        </div>
+        <div class="border-l-4 border-primary pl-5 py-1">
+          <h4 class="font-bold">Right to data portability</h4>
+          <p class="text-[17px]">You may receive your data in a structured, machine-readable format.</p>
+        </div>
+      </div>
+      <p class="text-[17px] leading-relaxed text-on-surface">To exercise these rights contact us at <span class="font-bold text-primary">contact@telemed-b.duckdns.org</span>.</p>
+    </section>
+    <section class="space-y-4">
+      <h2 class="text-[22px] font-bold text-on-surface">7. Data Security</h2>
+      <p class="text-[17px] leading-relaxed text-on-surface">We implement technical and organisational measures to protect your data including encryption at rest and in transit, access controls, and regular security audits. All AI processing occurs locally on our servers — your medical data never leaves our infrastructure.</p>
+    </section>
+    <section class="space-y-4">
+      <h2 class="text-[22px] font-bold text-on-surface">8. Cookies and Local Storage</h2>
+      <p class="text-[17px] leading-relaxed text-on-surface">This application uses local device storage solely to maintain your session and preferences. No tracking cookies or third-party analytics are used.</p>
+    </section>
+    <section class="space-y-4 pb-20">
+      <h2 class="text-[22px] font-bold text-on-surface">9. Contact and Complaints</h2>
+      <p class="text-[17px] leading-relaxed text-on-surface">For privacy concerns contact: <span class="font-bold text-primary">contact@telemed-b.duckdns.org</span><br/>You have the right to lodge a complaint with the Romanian National Supervisory Authority for Personal Data Processing (ANSPDCP) at <span class="font-bold text-primary">www.dataprotection.ro</span>.</p>
+    </section>
+    <div class="bg-surface-container-high rounded-xl p-6 text-[15px] text-on-surface-variant">
+      <p>Last updated: May 2026</p>
+      <p class="font-semibold mt-1">Cabinet Medical Dr. Bogheanu</p>
+      <p>Brănești, Dâmbovița, Romania</p>
+    </div>
+  </div>
+</main>
+<footer class="fixed bottom-0 left-0 w-full flex justify-center p-6 bg-[#ffffff]/85 backdrop-blur-md z-50">
+  <button class="bg-[#5BA4CF] text-white w-[280px] h-16 rounded-lg border-2 border-black flex items-center justify-center gap-3">
+    ← Back
+  </button>
+</footer>
+</body></html>''';
