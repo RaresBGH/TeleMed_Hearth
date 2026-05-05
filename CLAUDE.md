@@ -20,7 +20,8 @@ GCP reverse proxy VM: telemed-proxy, e2-micro, Frankfurt (34.185.191.34)
 WireGuard tunnel: GCP peer 10.0.0.1 ↔ GX10 peer 10.0.0.2 (wg-quick@wg0 on both)
 Medplum FHIR: https://telemed-medplum.duckdns.org/fhir/R4 (Medplum 5.1.10, self-hosted on GX10)
 Medplum admin: admin@telemed-bogheanu.ro / TeleMed_Sovereign_2026!
-Medplum client ID: d5d39070-c8a4-43a6-92e5-1a78b695ca72
+Medplum client ID: c18b54d9-f511-46db-903e-882b47dc3c63
+Medplum client secret: 7f86f3b5c08e94d711f61a4565c7d577cb303e78a5d57b5d340b74baf8c0b283
 Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 
 ## Working Rules (MANDATORY)
@@ -51,8 +52,15 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 
 ## Current State
 See TELEMED_CONTEXT.md for full verified/awaiting-test/broken breakdown.
-Last updated: 2026-05-03
-Medplum wiring complete (M1-M3): MedplumAuthService (OAuth2 token), MedplumRepository (9 REST FHIR methods, online-first + dual-write), real Practitioner IDs throughout. Device sync test pending.
+Last updated: 2026-05-05
+Build #64 (commit fb1a104) is the latest tested APK on Pixel 9 Pro.
+GitHub Actions secrets MEDPLUM_CLIENT_ID and MEDPLUM_CLIENT_SECRET are set correctly.
+Medplum sync confirmed working — appointments, observations, and communications reach https://telemed-medplum.duckdns.org/fhir/R4.
+WebRTC two-device video call confirmed working end-to-end (patient Pixel 9 Pro + doctor Brave browser).
+On-device AI inference confirmed working — Gemma 4 E2B responds to text and voice in correct language.
+Doctor UI at https://telemed-doctor.duckdns.org confirmed working — shows today's appointments, joins video call.
+Signaling server updated: peer_joined message triggers offer re-send when doctor joins after patient.
+Signaling server location: /home/corb_d/sovereign-factory/signaling/server.js (PID changes on restart).
 
 ## ADB Commands
 adb -s 4C041FDAP006Z1 logcat -d | grep -E "LiteRtLm|flutter|com.example.telemed_k" | tail -40
