@@ -31,18 +31,39 @@ const Color _outline    = Color(0xFF70787F);
 const Color _errorRed   = Color(0xFFAB1118);
 const Color _surfHigh   = Color(0xFFE6E8ED);
 
-// ── Hard-coded available time slots (MVP) ─────────────────────────────────────
+// ── Available time slots — 09:00 to 23:30 in 30-minute increments (30 slots) ──
+// Extended range covers evening hours for testing and flexibility.
 const List<TimeOfDay> _availableSlots = [
-  TimeOfDay(hour: 9,  minute: 0),
-  TimeOfDay(hour: 9,  minute: 30),
-  TimeOfDay(hour: 10, minute: 0),
+  TimeOfDay(hour:  9, minute:  0),
+  TimeOfDay(hour:  9, minute: 30),
+  TimeOfDay(hour: 10, minute:  0),
   TimeOfDay(hour: 10, minute: 30),
-  TimeOfDay(hour: 11, minute: 0),
-  TimeOfDay(hour: 14, minute: 0),
+  TimeOfDay(hour: 11, minute:  0),
+  TimeOfDay(hour: 11, minute: 30),
+  TimeOfDay(hour: 12, minute:  0),
+  TimeOfDay(hour: 12, minute: 30),
+  TimeOfDay(hour: 13, minute:  0),
+  TimeOfDay(hour: 13, minute: 30),
+  TimeOfDay(hour: 14, minute:  0),
   TimeOfDay(hour: 14, minute: 30),
-  TimeOfDay(hour: 15, minute: 0),
+  TimeOfDay(hour: 15, minute:  0),
   TimeOfDay(hour: 15, minute: 30),
-  TimeOfDay(hour: 16, minute: 0),
+  TimeOfDay(hour: 16, minute:  0),
+  TimeOfDay(hour: 16, minute: 30),
+  TimeOfDay(hour: 17, minute:  0),
+  TimeOfDay(hour: 17, minute: 30),
+  TimeOfDay(hour: 18, minute:  0),
+  TimeOfDay(hour: 18, minute: 30),
+  TimeOfDay(hour: 19, minute:  0),
+  TimeOfDay(hour: 19, minute: 30),
+  TimeOfDay(hour: 20, minute:  0),
+  TimeOfDay(hour: 20, minute: 30),
+  TimeOfDay(hour: 21, minute:  0),
+  TimeOfDay(hour: 21, minute: 30),
+  TimeOfDay(hour: 22, minute:  0),
+  TimeOfDay(hour: 22, minute: 30),
+  TimeOfDay(hour: 23, minute:  0),
+  TimeOfDay(hour: 23, minute: 30),
 ];
 
 class AppointmentsScreen extends ConsumerStatefulWidget {
@@ -296,7 +317,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: TableCalendar<Map<String, dynamic>>(
         locale: locale,
-        firstDay: DateTime.utc(2020, 1, 1),
+        firstDay: DateTime.now(),
         lastDay: DateTime.utc(2030, 12, 31),
         focusedDay: _focusedDay,
         calendarFormat: CalendarFormat.month,
@@ -616,39 +637,67 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          // Horizontal scrollable time slots
-          SizedBox(
-            height: 48,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _availableSlots.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                final slot     = _availableSlots[i];
-                final selected = _selectedSlot == slot;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedSlot = slot),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: selected ? _brand : _surfLow,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      _formatSlot(slot),
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: selected ? Colors.white : _onSurface,
+          // Horizontal scrollable time slots.
+          // When targetDay is today, only slots strictly after DateTime.now() are shown.
+          Builder(builder: (_) {
+            final now = DateTime.now();
+            final isToday = targetDay.year  == now.year  &&
+                            targetDay.month == now.month &&
+                            targetDay.day   == now.day;
+            final visibleSlots = isToday
+                ? _availableSlots
+                    .where((slot) => DateTime(
+                            targetDay.year, targetDay.month, targetDay.day,
+                            slot.hour, slot.minute)
+                        .isAfter(now))
+                    .toList()
+                : List<TimeOfDay>.from(_availableSlots);
+
+            if (visibleSlots.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Center(
+                  child: Text(
+                    AppStrings.of(lang, 'appointment.no_slots_today'),
+                    style: const TextStyle(fontSize: 15, color: _onSurfaceV),
+                  ),
+                ),
+              );
+            }
+
+            return SizedBox(
+              height: 48,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: visibleSlots.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) {
+                  final slot     = visibleSlots[i];
+                  final selected = _selectedSlot == slot;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedSlot = slot),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: selected ? _brand : _surfLow,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        _formatSlot(slot),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: selected ? Colors.white : _onSurface,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
-          ),
+                  );
+                },
+              ),
+            );
+          }),
           const SizedBox(height: 20),
           Row(
             children: [

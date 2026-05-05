@@ -277,6 +277,7 @@ class AppStrings {
     'appointment.booking_success': 'Programarea a fost salvată.',
     'appointment.booking_error':   'Eroare la salvarea programării.',
     'appointment.select_slot':     'Alegeți o oră.',
+    'appointment.no_slots_today':  'Nicio oră disponibilă pentru astăzi.',
     'appointment.back_sem':        'Înapoi',
 
     // ── Specialiști ────────────────────────────────────────────────────────
@@ -637,6 +638,7 @@ class AppStrings {
     'appointment.booking_success': 'Appointment saved.',
     'appointment.booking_error':   'Error saving appointment.',
     'appointment.select_slot':     'Please select a time slot.',
+    'appointment.no_slots_today':  'No available slots for today.',
     'appointment.back_sem':        'Back',
 
     // ── Specialiști ────────────────────────────────────────────────────────
