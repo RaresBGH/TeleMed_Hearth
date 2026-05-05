@@ -575,7 +575,7 @@ class _VideoConsultationScreenState
                 child: _callMessages.isEmpty
                     ? Center(
                         child: Text(
-                          AppStrings.of(_lang, 'video.chat_soon'),
+                          AppStrings.of(_lang, 'call.chat_hint'),
                           style: const TextStyle(color: Colors.grey, fontSize: 15),
                           textAlign: TextAlign.center,
                         ),
@@ -753,7 +753,7 @@ class _VideoConsultationScreenState
     ref.watch(languageProvider); // register watcher so _lang getter rebuilds on change
     return Scaffold(
       backgroundColor: Colors.black,
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -778,14 +778,22 @@ class _VideoConsultationScreenState
           // Layer 7 — Slide-up chat panel (toggled by chat strip tap)
           if (_chatOpen) ...[
             // Transparent overlay: tapping outside the sheet collapses it.
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _sheetController.animateTo(
-                0.0,
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOut,
+            // Constrained to exclude the bottom 240dp (control panel + safe area)
+            // so the end-call and mute buttons remain tappable.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 240,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _sheetController.animateTo(
+                  0.0,
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOut,
+                ),
+                child: const SizedBox.expand(),
               ),
-              child: const SizedBox.expand(),
             ),
             _buildChatPanel(),
           ],

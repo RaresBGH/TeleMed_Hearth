@@ -98,6 +98,18 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
     _initLocalCamera();
   }
 
+  void _toggleMic() {
+    final newMuted = !_micMuted;
+    _localStream?.getAudioTracks().forEach((t) => t.enabled = !newMuted);
+    setState(() => _micMuted = newMuted);
+  }
+
+  void _toggleVideo() {
+    final newOff = !_videoOff;
+    _localStream?.getVideoTracks().forEach((t) => t.enabled = !newOff);
+    setState(() => _videoOff = newOff);
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
@@ -633,13 +645,13 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
         _buildControlButton(
           icon: _micMuted ? Icons.mic_off : Icons.mic,
           label: AppStrings.of(lang, 'waiting.mute_btn'),
-          onTap: () => setState(() => _micMuted = !_micMuted),
+          onTap: _toggleMic,
         ),
         const SizedBox(width: 40),
         _buildControlButton(
           icon: _videoOff ? Icons.videocam_off : Icons.videocam,
           label: AppStrings.of(lang, 'waiting.video_off_btn'),
-          onTap: () => setState(() => _videoOff = !_videoOff),
+          onTap: _toggleVideo,
         ),
       ],
     );
