@@ -185,7 +185,13 @@ class _VideoConsultationScreenState
       final config = <String, dynamic>{
         'iceServers': [
           {'urls': 'stun:stun.l.google.com:19302'},
+          {
+            'urls':       'turn:34.185.191.34:3478',
+            'username':   'telemed',
+            'credential': 'TeleMed_TURN_2026!',
+          },
         ],
+        'iceTransportPolicy': 'all',
       };
       _peerConnection = await createPeerConnection(config);
 
