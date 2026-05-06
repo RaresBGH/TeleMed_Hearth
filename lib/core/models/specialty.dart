@@ -28,27 +28,27 @@ class Specialty {
     Specialty(
       appStringKey:    'specialist.cardiologie',
       icon:            Icons.favorite,
-      practitionerRef: 'specialist_cardio',
+      practitionerRef: Practitioners.cardioId,
     ),
     Specialty(
       appStringKey:    'specialist.neurologie',
       icon:            Icons.psychology,
-      practitionerRef: 'specialist_neuro',
+      practitionerRef: Practitioners.neuroId,
     ),
     Specialty(
       appStringKey:    'specialist.dermatologie',
       icon:            Icons.face,
-      practitionerRef: 'specialist_derm',
+      practitionerRef: Practitioners.dermId,
     ),
     Specialty(
       appStringKey:    'specialist.ortopedie',
       icon:            Icons.accessibility_new,
-      practitionerRef: 'specialist_ortho',
+      practitionerRef: Practitioners.orthoId,
     ),
     Specialty(
       appStringKey:    'specialist.oftalmologie',
       icon:            Icons.visibility,
-      practitionerRef: 'specialist_ophtha',
+      practitionerRef: Practitioners.ophthaId,
     ),
     Specialty(
       appStringKey:    'specialist.pediatrie',
@@ -58,12 +58,12 @@ class Specialty {
     Specialty(
       appStringKey:    'specialist.psihiatrie',
       icon:            Icons.self_improvement,
-      practitionerRef: 'specialist_psych',
+      practitionerRef: Practitioners.psychId,
     ),
     Specialty(
       appStringKey:    'specialist.ginecologie',
       icon:            Icons.pregnant_woman,
-      practitionerRef: 'specialist_gyne',
+      practitionerRef: Practitioners.gyneId,
     ),
   ];
 }

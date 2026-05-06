@@ -65,3 +65,12 @@ Signaling server location: /home/corb_d/sovereign-factory/signaling/server.js (P
 ## ADB Commands
 adb -s 4C041FDAP006Z1 logcat -d | grep -E "LiteRtLm|flutter|com.example.telemed_k" | tail -40
 adb -s 4C041FDAP006Z1 shell pm clear com.example.telemed_k && adb -s 4C041FDAP006Z1 uninstall com.example.telemed_k
+
+## Doctor UI
+The doctor UI is a static HTML file served by Caddy.
+- Source (edit this): `doctor-ui/index.html` inside this repository
+- Deployed location (Caddy serves this): `/home/corb_d/sovereign-factory/doctor-ui/index.html`
+- After every edit to `doctor-ui/index.html`, deployment is done manually with:
+  `cp /home/corb_d/sovereign-factory/mobile-workspace/TeleMed_K/doctor-ui/index.html /home/corb_d/sovereign-factory/doctor-ui/index.html`
+- NEVER edit files directly in `/home/corb_d/sovereign-factory/doctor-ui/` — that folder is deploy-only.
+- NEVER create or edit any doctor UI files outside the repository.
