@@ -1,10 +1,13 @@
 // Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
 // You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
 
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/fhir_repository.dart';
+import 'medplum_auth_provider.dart';
 
 /// Temporarily stores the CNP entered on the Identity Screen
 /// so it can be used on the Verification Screen.
@@ -38,7 +41,10 @@ class PatientAuthNotifier extends Notifier<PatientAuthState> {
   /// Returns true (returning user, name loaded into state) or false (new user).
   Future<bool> loadPatient(String cnp) async {
     try {
-      final patient = await FhirRepository().getPatientByCnp(cnp);
+      // Cannot use fhirRepositoryProvider here: medical_session_provider imports
+      // auth_provider, so the reverse import would create a circular dependency.
+      // Equivalent: FhirRepository with medplum sync layer injected directly.
+      final patient = await FhirRepository(medplum: ref.read(medplumRepositoryProvider)).getPatientByCnp(cnp);
       if (patient != null) {
         final nameList = patient['name'] as List?;
         String? firstName;
@@ -73,7 +79,7 @@ class PatientAuthNotifier extends Notifier<PatientAuthState> {
     required String lastName,
     required String phone,
   }) async {
-    await FhirRepository().savePatient({
+    await FhirRepository(medplum: ref.read(medplumRepositoryProvider)).savePatient({
       'resourceType': 'Patient',
       'identifier': [
         {'system': 'urn:oid:1.2.40.0.10.1.4.3.1', 'value': cnp}
@@ -92,3 +98,14 @@ class PatientAuthNotifier extends Notifier<PatientAuthState> {
 final patientAuthProvider =
     NotifierProvider<PatientAuthNotifier, PatientAuthState>(
         PatientAuthNotifier.new);
+
+/// Holds the patient's decoded avatar image bytes so dashboard can display it
+/// without re-reading from FHIR on every navigation.
+class _AvatarNotifier extends Notifier<Uint8List?> {
+  @override
+  Uint8List? build() => null;
+  void set(Uint8List? bytes) => state = bytes;
+}
+
+final patientAvatarProvider =
+    NotifierProvider<_AvatarNotifier, Uint8List?>(_AvatarNotifier.new);

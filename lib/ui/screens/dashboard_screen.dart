@@ -3,10 +3,13 @@
 //
 // TeleMed_K: Offline-first telemedicine app for seniors
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/constants/practitioner_constants.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/ai_ready_provider.dart';
@@ -166,6 +169,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   // ── Header ───────────────────────────────────────────────────────────────
 
   Widget _buildHeader(String lang, String? firstName, bool aiReady) {
+    final Uint8List? avatarBytes = ref.watch(patientAvatarProvider);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -182,7 +186,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 color: Color(0xFFD0D3D8),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.person, size: 26, color: Color(0xFF8A8E95)),
+              clipBehavior: Clip.antiAlias,
+              child: avatarBytes != null
+                  ? Image.memory(avatarBytes, fit: BoxFit.cover)
+                  : const Icon(Icons.person, size: 26, color: Color(0xFF8A8E95)),
             ),
           ),
         ),
@@ -308,22 +315,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Divider(color: Color(0xFFE0E2E7), thickness: 1, height: 1),
           ),
-          Row(
-            children: [
-              const Icon(Icons.medical_services, color: _onSurfaceV, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '${AppStrings.of(lang, 'dashboard.doctor_label')} ${AppStrings.of(lang, 'dashboard.doctor_name')}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: _onSurface,
+          GestureDetector(
+            onTap: () => ref.read(appNavigationProvider.notifier)
+                .navigateTo(AppRoute.myDoctor),
+            child: Row(
+              children: [
+                const Icon(Icons.medical_services, color: _onSurfaceV, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '${AppStrings.of(lang, 'dashboard.doctor_label')} ${Practitioners.familyDoctorName}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: _onSurface,
+                    ),
                   ),
                 ),
-              ),
-              _GreenChip(label: AppStrings.of(lang, 'doctor.available')),
-            ],
+                _GreenChip(label: AppStrings.of(lang, 'doctor.available')),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right, color: _onSurfaceV, size: 18),
+              ],
+            ),
           ),
         ],
       ),

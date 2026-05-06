@@ -58,10 +58,17 @@ class _SpecialistsScreenState extends ConsumerState<SpecialistsScreen> {
   // ── Doctor name resolution ────────────────────────────────────────────────
 
   String _doctorNameFor(Specialty s, String lang) {
-    if (s.appStringKey == 'specialist.pediatrie') {
-      return Practitioners.bogheanuName;
+    switch (s.appStringKey) {
+      case 'specialist.cardiologie':  return Practitioners.cardioName;
+      case 'specialist.neurologie':   return Practitioners.neuroName;
+      case 'specialist.dermatologie': return Practitioners.dermName;
+      case 'specialist.ortopedie':    return Practitioners.orthoName;
+      case 'specialist.oftalmologie': return Practitioners.ophthaName;
+      case 'specialist.pediatrie':    return Practitioners.bogheanuName;
+      case 'specialist.psihiatrie':   return Practitioners.psychName;
+      case 'specialist.ginecologie':  return Practitioners.gyneName;
+      default: return '';
     }
-    return 'Specialist ${AppStrings.of(lang, s.appStringKey)}';
   }
 
   // ── Filtered list ─────────────────────────────────────────────────────────
@@ -138,7 +145,7 @@ class _SpecialistsScreenState extends ConsumerState<SpecialistsScreen> {
           child: const SizedBox(
             width: 64,
             height: 64,
-            child: Icon(Icons.arrow_back, color: _onSurface, size: 26),
+            child: Icon(Icons.arrow_back, color: _brand, size: 26),
           ),
         ),
       ),

@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/practitioner_constants.dart';
 import '../../core/l10n/app_strings.dart';
-import '../../core/models/chat_message.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
@@ -121,7 +120,7 @@ class DoctorProfileScreen extends ConsumerWidget {
                 child: const SizedBox(
                   width: 64,
                   height: 64,
-                  child: Icon(Icons.arrow_back, color: _onSurface, size: 26),
+                  child: Icon(Icons.arrow_back, color: _brand, size: 26),
                 ),
               ),
             )
@@ -267,16 +266,10 @@ class DoctorProfileScreen extends ConsumerWidget {
                             .replaceAll('[name]', doctorName);
                     if (showBackButton) {
                       // Specialist sub-screen: push so back returns here.
-                      // TODO(medplum): scope thread to practitionerRef
                       if (!context.mounted) return;
-                      // Set doctorName in state for finalizeConsultation attribution.
+                      // Store doctor attribution without pre-seeding a message.
                       ref.read(medicalSessionProvider.notifier)
-                          .startWithPreseed(preseed, doctorName: doctorName);
-                      final msg = ChatMessage(
-                        role: 'patient',
-                        text: preseed,
-                        timestamp: DateTime.now(),
-                      );
+                          .setDoctorContext(doctorName, practitionerRef: practitionerRef);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -284,16 +277,15 @@ class DoctorProfileScreen extends ConsumerWidget {
                             initialResponse: AppStrings.of(
                                 lang, 'chat.default_response'),
                             isEmergency: false,
-                            initialMessages: [msg],
+                            initialPrompt: preseed,
                           ),
                         ),
                       );
                     } else {
                       // Family doctor tab: push via Navigator so back returns
                       // here; initialPrompt auto-triggers AI inference.
-                      ref
-                          .read(medicalSessionProvider.notifier)
-                          .startWithPreseed(preseed, doctorName: doctorName);
+                      ref.read(medicalSessionProvider.notifier)
+                          .setDoctorContext(doctorName, practitionerRef: practitionerRef);
                       if (!context.mounted) return;
                       Navigator.push(
                         context,

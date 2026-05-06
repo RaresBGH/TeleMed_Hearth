@@ -25,6 +25,7 @@ class AppStrings {
     'error.generic':          'A apărut o eroare. Încercați din nou.',
     'assistant.title':        'Asistent Medical',
     'assistant.subtitle':     'Descrieți simptomele și voi pregăti un raport pentru medicul dvs.',
+    'chat.doctor_message_subtitle': 'Scrieți mesajul dvs. mai jos.',
 
     // ── In-call chat ──────────────────────────────────────────────────────
     'call.chat_hint':        'Scrieți un mesaj...',
@@ -34,6 +35,14 @@ class AppStrings {
     'call.end':              'Închide consultația',
     'call.peer_left':        'Celălalt participant a părăsit apelul.',
     'call.open_chat':        'Deschide chat și documente',
+    'call.tab_chat':              'Chat',
+    'call.tab_activity':          'Activitate',
+    'call.activity_empty':        'Nicio activitate recentă.',
+    'call.activity_medical':      'Medical',
+    'call.activity_other':        'Altele',
+    'call.summary_label_patient': 'Pacient',
+    'call.summary_label_doctor':  'Doctor',
+    'call.summary_prompt':        'Rezumă această conversație medicală în 3-5 propoziții clare. Evidențiază simptomele menționate, recomandările medicului și orice acțiuni urmărite. Conversație:',
 
     // ── Attachment ────────────────────────────────────────────────────────
     'attachment.pdf_label':      'Document PDF',
@@ -255,7 +264,7 @@ class AppStrings {
     'profil.delete_confirm_body':    'Toate datele medicale și modelul AI vor fi șterse permanent.',
     'profil.delete_confirm_yes':     'Da, șterge',
     'profil.delete_confirm_no':      'Anulează',
-    'profil.save_success':           'Modificările au fost salvate.',
+    'profil.save_success':           'Profil salvat',
     'profil.save_error':             'Eroare la salvare.',
     'profil.photo_picker_error':     'Nu s-a putut încărca fotografia.',
     'profil.unsaved_title':          'Modificări nesalvate',
@@ -335,7 +344,13 @@ class AppStrings {
     'waiting.private_space':  'Confirm că mă aflu într-un spațiu privat și liniștit, potrivit pentru consultație.',
     'waiting.mute_btn':       'Fără sunet',
     'waiting.video_off_btn':  'Oprește video',
-    'waiting.enter_call_btn': 'Intră în apel',
+    'waiting.enter_call_btn':  'Intră în apel',
+    'waiting.activity_btn':    'Vezi activitatea recentă',
+    'waiting.activity_title':  'Activitate recentă',
+    'waiting.activity_empty':  'Nicio activitate recentă înregistrată.',
+    'waiting.activity_footer': 'Istoricul complet este disponibil în Dosarul Medical.',
+    'waiting.activity_medical':'Medical',
+    'waiting.activity_other':  'Altele',
 
     // ── Video consultation ────────────────────────────────────────────────
     'video.header':           'CONSULTĂ DR. BOGHEANU',
@@ -357,7 +372,7 @@ class AppStrings {
     'dashboard.no_condition':     'Nicio condiție înregistrată',
     'dashboard.last_dialog':      'Ultimul dialog:',
     'dashboard.no_dialog':        'Niciun dialog anterior',
-    'dashboard.doctor_label':     'Medicul tău:',
+    'dashboard.doctor_label':     'Medic de Familie:',
     'dashboard.doctor_name':      'Dr. Andrei Popescu',
     'dashboard.appointments_title': 'Programări',
     'dashboard.next_appt':        'Următoarea programare',
@@ -390,6 +405,7 @@ class AppStrings {
     'error.generic':          'An error occurred. Please try again.',
     'assistant.title':        'Medical Assistant',
     'assistant.subtitle':     'Describe your symptoms and I will prepare a report for your doctor.',
+    'chat.doctor_message_subtitle': 'Write your message below.',
 
     // ── In-call chat ──────────────────────────────────────────────────────
     'call.chat_hint':        'Type a message...',
@@ -399,6 +415,14 @@ class AppStrings {
     'call.end':              'End consultation',
     'call.peer_left':        'The other participant has left the call.',
     'call.open_chat':        'Open chat and documents',
+    'call.tab_chat':              'Chat',
+    'call.tab_activity':          'Activity',
+    'call.activity_empty':        'No recent triage activity.',
+    'call.activity_medical':      'Medical',
+    'call.activity_other':        'Other',
+    'call.summary_label_patient': 'Patient',
+    'call.summary_label_doctor':  'Doctor',
+    'call.summary_prompt':        'Summarize this medical conversation in 3-5 clear sentences. Highlight the symptoms mentioned, the doctor\'s recommendations, and any follow-up actions. Conversation:',
 
     // ── Attachment ────────────────────────────────────────────────────────
     'attachment.pdf_label':      'PDF Document',
@@ -620,7 +644,7 @@ class AppStrings {
     'profil.delete_confirm_body':    'All medical data and the AI model will be permanently deleted.',
     'profil.delete_confirm_yes':     'Yes, delete',
     'profil.delete_confirm_no':      'Cancel',
-    'profil.save_success':           'Changes saved successfully.',
+    'profil.save_success':           'Profile saved',
     'profil.save_error':             'Save failed.',
     'profil.photo_picker_error':     'Could not load the photo.',
     'profil.unsaved_title':          'Unsaved changes',
@@ -700,7 +724,13 @@ class AppStrings {
     'waiting.private_space':  'I confirm I am in a private, quiet space suitable for consultation.',
     'waiting.mute_btn':       'Mute',
     'waiting.video_off_btn':  'Stop video',
-    'waiting.enter_call_btn': 'Enter call',
+    'waiting.enter_call_btn':  'Enter call',
+    'waiting.activity_btn':    'See my recent activity',
+    'waiting.activity_title':  'Recent Health Activity',
+    'waiting.activity_empty':  'No recent triage activity recorded.',
+    'waiting.activity_footer': 'Full history available in Medical Dossier.',
+    'waiting.activity_medical':'Medical',
+    'waiting.activity_other':  'Other',
 
     // ── Video consultation ────────────────────────────────────────────────
     'video.header':           'CONSULT DR. BOGHEANU',
@@ -722,7 +752,7 @@ class AppStrings {
     'dashboard.no_condition':     'No condition recorded',
     'dashboard.last_dialog':      'Last dialog:',
     'dashboard.no_dialog':        'No previous dialog',
-    'dashboard.doctor_label':     'Your doctor:',
+    'dashboard.doctor_label':     'Family Doctor:',
     'dashboard.doctor_name':      'Dr. Andrei Popescu',
     'dashboard.appointments_title': 'Appointments',
     'dashboard.next_appt':        'Next appointment',

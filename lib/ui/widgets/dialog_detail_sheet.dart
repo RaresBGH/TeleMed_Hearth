@@ -299,9 +299,51 @@ class DialogDetailSheet {
           final isAi = line.startsWith('[AI]');
           final text = line
               .replaceFirst(
-                  RegExp(r'^\[(AI|Pacient)\]\s*\d+:\d+:\s*'), '')
+                  RegExp(r'^\[(AI|Pacient|Patient)\]\s*\d+:\d+:\s*'), '')
               .trim();
           if (text.isEmpty) return null;
+
+          // Reconstruct attachment markers embedded during finalizeConsultation.
+          if (!isAi && text.startsWith('[Voice:') && text.endsWith(']')) {
+            final path = text.substring('[Voice:'.length, text.length - 1);
+            return ChatMessage(
+              role: 'patient',
+              text: '[Voice message]',
+              timestamp: DateTime.now(),
+              attachmentType: AttachmentType.audio,
+              attachmentPath: path.isEmpty ? null : path,
+            );
+          }
+          if (!isAi && text.startsWith('[Photo:') && text.endsWith(']')) {
+            final path = text.substring('[Photo:'.length, text.length - 1);
+            return ChatMessage(
+              role: 'patient',
+              text: '[Photo]',
+              timestamp: DateTime.now(),
+              attachmentType: AttachmentType.image,
+              attachmentPath: path.isEmpty ? null : path,
+            );
+          }
+          // Legacy markers saved before path encoding was introduced.
+          if (!isAi && text == '[Voice message]') {
+            return ChatMessage(
+              role: 'patient',
+              text: '[Voice message]',
+              timestamp: DateTime.now(),
+              attachmentType: AttachmentType.audio,
+              attachmentPath: null,
+            );
+          }
+          if (!isAi && text == '[Photo]') {
+            return ChatMessage(
+              role: 'patient',
+              text: '[Photo]',
+              timestamp: DateTime.now(),
+              attachmentType: AttachmentType.image,
+              attachmentPath: null,
+            );
+          }
+
           return ChatMessage(
             role: isAi ? 'ai' : 'patient',
             text: text,

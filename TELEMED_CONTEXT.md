@@ -89,6 +89,23 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **AI conversation context** — conversation history passed as `customPrompt` to every `evaluateText`/`evaluateAudio`/`evaluateMedia` call; AI no longer repeats Turn 1 greeting
 - **On-device AI inference** — Gemma 4 E2B confirmed responding on device; text inference working; voice inference working (returns response); `[name]` placeholder removed from system prompt
 - **GitHub Actions secrets** — `MEDPLUM_CLIENT_ID` and `MEDPLUM_CLIENT_SECRET` confirmed set with correct values; build #60+ have working Medplum credentials
+- **Doctor UI rewrite** — English interface confirmed loading at telemed-doctor.duckdns.org; doctor dropdown with 9 practitioners; appointment join window -21min to +30min; chat panel present; peer-left overlay present
+- **Practitioner names** — all mock names confirmed in Medplum and Flutter constants; 9 real Medplum Practitioner UUIDs in practitioner_constants.dart
+- **Dashboard doctor card** — label "Family Doctor:", taps to Medic tab; real name from `Practitioners.familyDoctorName`
+- **Specialist screens** — all 8 specialties show real doctor names from Practitioners constants via `_doctorNameFor()`
+- **My Profile** — save button shows success SnackBar (brand blue); back button primary blue; profile photo propagates to dashboard avatar via `patientAvatarProvider`
+- **Triage chat** — first patient message + AI first response seeded as bubbles on `MedicalResponseScreen` entry (build #67)
+- **Doctor message flow** — clean entry with no pre-populated bubble; AppBar shows doctor name; welcome card shows neutral message context
+- **Dosar Medical** — audio and photo attachment paths serialized into FHIR note text; restored as playable/tappable bubbles on replay
+- **Doctor UI join window** — widened to -60min / +120min from appointment start
+- **Doctor UI sliding panel** — deployed and functional at telemed-doctor.duckdns.org; 3-state panel (Appointments / Patient Report / In-Call) confirmed loading
+- **Doctor UI patient report** — Conditions and triage Observations load from Medplum; Mark reviewed PATCHes reviewed-by extension; Finalize PATCHes status:final
+- **Dashboard doctor card** — tappable; "Family Doctor:" label; navigates to Medic tab
+- **Specialist screens** — all 8 specialties show real doctor names from Practitioners constants
+- **My Profile** — save SnackBar (brand blue); blue back button; avatar sync to dashboard via patientAvatarProvider
+- **Triage chat** — first patient message + AI first response seeded as bubbles on MedicalResponseScreen entry
+- **Doctor message flow** — clean entry with no pre-populated bubble; AppBar shows doctor name; welcome card shows neutral context
+- **Dosar Medical** — audio and photo attachment paths serialized into FHIR note text; restored as playable/tappable bubbles on replay
 
 ### BUILT — AWAITING DEVICE TEST
 
@@ -112,7 +129,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **PatientProfileScreen (Profil Pacient)** — FHIR Patient read (CNP + name read-only, phone + email editable); photo picker (image_picker, 200×200 compressed to FHIR Patient.photo); account deletion wipes FHIR DB (Patient + Observations + Conditions + Encounters + Appointments) + model file; phone-change blocked with dialog (B0 pending); email saves to FHIR Patient.telecom; accessible from Dashboard avatar tap
 - **DoctorProfileScreen (reusable template)** — parametrized widget (showBackButton, showSpecialtyPicker, doctorName, practitionerRef); family doctor variant wraps MyDoctorScreen; specialist variant used by SpecialistsScreen; "Trimite mesaj" → MedicalResponseScreen with AI-preseeded prompt ("Bună ziua, am o întrebare pentru Dr. [name]."); "Programare" → AppointmentsScreen; FHIR info rows (last consult, active prescription)
 - **AppointmentsScreen (Programări)** — table_calendar 3.2.0, ro_RO locale; FHIR Appointment CRUD (saveAppointment / getAppointments scoped by Patient CNP); inline booking panel (hardcoded slots MVP); appointment cards with status chips (Confirmată/Finalizată/Anulată); "Intră în consultație" → WaitingRoomScreen with appointmentId; "Solicită programare nouă" → inline panel; real Practitioner IDs from `Practitioners` constants (M3)
-- **SpecialistsScreen (Specialiști)** — 8 specialties (Cardiologie, Neurologie, Dermatologie, Ortopedie, Oftalmologie, Pediatrie, Psihiatrie, Ginecologie); diacritic-insensitive search filter; 2-column grid; taps → DoctorProfileScreen(specialist variant); Dr. Adriana Bogheanu hardcoded for Pediatrie; other specialties use placeholder name pending Medplum Practitioner data
+- **SpecialistsScreen (Specialiști)** — 8 specialties (Cardiologie, Neurologie, Dermatologie, Ortopedie, Oftalmologie, Pediatrie, Psihiatrie, Ginecologie); diacritic-insensitive search filter; 2-column grid; taps → DoctorProfileScreen(specialist variant); Dr. Andrei Popescu hardcoded for Pediatrie; other specialties use placeholder name pending Medplum Practitioner data
 - **WaitingRoomScreen (compound — A5)** — replaces stub; two-state AnimatedSwitcher (consent → buffer); STATE A: consent card, "Sunt de acord" → STATE B; STATE B: video preview (local only, no signaling), mic/video toggle, private-space checkbox, "Intră în apel" → VideoConsultationScreen; "Anulează" exits; doctorName param replaces hardcoded name; appointmentId param wired from AppointmentsScreen
 - **Device bug fixes (F1–F6, G1–G5)** — i18n badges translated (RO/EN); navigation routing fixed (specialists, specialist doctor sub-screens, footer link); Dosar Medical refreshes post-finalize without login; appointments scoped per Practitioner; doctor name + specialty on appointment cards; calendar starts Monday; language toggle on profile completion screen; message categorization by doctor + AI category chip (medical/document/other); WaitingRoom button swap fixed; in-call chat local state wired
 - **MedplumAuthService (M1)** — OAuth2 client_credentials token fetch against `https://telemed-medplum.duckdns.org/oauth2/token`; 3-tier resolution (in-memory cache → flutter_secure_storage → POST to token endpoint); 60-second expiry buffer; `clearToken()`; `isOnline()` via connectivity_plus; `medplumAuthServiceProvider` singleton Provider
@@ -203,7 +220,9 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 | lib/core/services/medplum_repository.dart | Medplum REST FHIR client — 9 methods, online-first reads, dual-write (M2) |
 | lib/core/providers/medplum_auth_provider.dart | medplumAuthServiceProvider + medplumRepositoryProvider (M1/M2) |
 | lib/core/constants/practitioner_constants.dart | Real Medplum Practitioner IDs + display names (M3) |
+| lib/core/providers/auth_provider.dart | patientAuthProvider + patientAvatarProvider (NotifierProvider<Uint8List?>) — in-memory avatar bytes, never persisted to disk |
 | DESIGN.md | The Dignified Guardian design system (permanent reference) |
+| doctor-ui/index.html | Full doctor interface: sliding panel (Appointments / Patient Report / In-Call), patient triage report with Mark reviewed + Finalize, in-call Chat + Activity tabs |
 
 ### Kotlin / Android
 | File | Role |
@@ -309,10 +328,10 @@ Conditions:
   Boală pulmonară obstructivă → Condition/e7161115 → Ana Constantin
 
 Practitioners:
-  Dr. Mariana Andronescu  Family Doctor (Medic de Familie)  Practitioner/733e1972-b42d-4bd0-82c7-66db72b2d311
-  Dr. Adriana Bogheanu    Pediatrician specialist (Pediatrie)  Practitioner/474f526b-7919-48dd-9528-3c0eaff80cb6
-Note: Dr. Andronescu is the family doctor shown in the Medic tab (MyDoctorScreen).
-      Dr. Bogheanu is the pediatric specialist shown in SpecialistsScreen → Pediatrie.
+  Dr. Elena Ionescu   Family Doctor (Medic de Familie)        Practitioner/733e1972-b42d-4bd0-82c7-66db72b2d311
+  Dr. Andrei Popescu  Pediatrician specialist (Pediatrie)     Practitioner/474f526b-7919-48dd-9528-3c0eaff80cb6
+Note: Dr. Elena Ionescu is the family doctor shown in the Medic tab (MyDoctorScreen).
+      Dr. Andrei Popescu is the pediatric specialist shown in SpecialistsScreen → Pediatrie.
       Both roles are correctly set in `lib/core/constants/practitioner_constants.dart`.
 
 FHIR search patterns:
@@ -338,12 +357,19 @@ FHIR search patterns:
 - **Medplum sync layer (M2)** — `FhirRepository` is the single access point. When online, reads go to Medplum first and fall back to local FHIR SDK. Writes always hit both (dual-write). Method signatures unchanged; all existing callers are unaffected.
 - **WaitingRoomScreen is compound** — consent state + buffer state in one screen, switched by AnimatedSwitcher. Entry: AppointmentsScreen "Intră în consultație". Exit chain: → VideoConsultationScreen.
 - **Phone change blocked pending B0** — PatientProfileScreen allows typing a new phone number but blocks save with a dialog. Full device-transfer flow requires new Stitch screens and is tracked as B0.
+- **patientAvatarProvider** (`NotifierProvider<_AvatarNotifier, Uint8List?>`) in auth_provider.dart — in-memory only; shared between PatientProfileScreen and DashboardScreen for live avatar propagation without touching PatientAuthState; bytes are never written to SharedPreferences or plain files.
+- **MedicalSessionState.lastPractitionerRef** — tracks which practitioner a session is routed to; written as `reviewed-by-target` FHIR extension on `finalizeConsultation`; defaults to `Practitioners.familyDoctorId` if null; propagated through all 5 state copy sites.
+- **session-category canonical extension URL:** `https://telemed-bogheanu.ro/fhir/ext/session-category` — all FHIR extension reads use `endsWith`/`contains` matching for URL resilience.
+- **Doctor UI sliding panel** — 3 states (Appointments / Patient Report / In-Call); Mark reviewed → PATCH `reviewed-by` extension; Finalize → PATCH `status:final` on all reviewed Observations in session; responsive design (320px desktop, 280px tablet overlay, full-width mobile).
+- **WaitingRoomScreen STATE B activity panel** — "See my recent activity" button shows last 5 Observations from local FHIR SDK; read-only; shows date, category chip (session-category extension), and AI summary excerpt.
+- **VideoConsultationScreen Activity tab** — alongside Chat tab in DraggableScrollableSheet; last 5 Observations loaded on `initState` via `_loadActivityData()`; read-only cards; fail-silent with `debugPrint`.
 
 ---
 
 ## Code Quality
 
-Three full audit cycles completed (2026-05-02, 2026-05-04, 2026-05-05). All findings resolved: audit round 3 found 4 critical + 9 high + 5 medium + 1 low — all fixed. Current state: **0 critical, 0 high, 0 medium, 0 low** open issues.
+Four full audit cycles completed (2026-05-02, 2026-05-04, 2026-05-05, 2026-05-06). All findings resolved: audit round 4 found 0 critical + 1 high + 11 medium + 5 low — all fixed. Current state: **0 critical, 0 high, 0 medium, 0 low** open issues.
+Post-hackathon deferred: duplicate Observation schema between `finalizeConsultation()` and `VideoConsultationScreen._saveCallSummary()` (refactor to shared factory method).
 
 Refactoring completed during audit:
 - Dead code removed — 3 dead service files, 2 dead screens/routes, 1 unused Gradle dependency

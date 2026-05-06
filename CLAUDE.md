@@ -49,11 +49,17 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 - Shared bottom nav widget: AppBottomNavBar (Acasă / Dosar Medical / Medic)
 - Medplum sync layer: FhirRepository online-first reads + dual-write; local FHIR SDK is offline cache
 - Practitioner IDs in lib/core/constants/practitioner_constants.dart — never hardcode
+- patientAvatarProvider (NotifierProvider<Uint8List?>) in auth_provider.dart — shared between PatientProfileScreen and DashboardScreen for live avatar propagation; in-memory only, never persisted to disk
+- lastPractitionerRef in MedicalSessionState — tracks doctor context across all 5 state copy sites; written as reviewed-by-target FHIR extension on finalizeConsultation; defaults to Practitioners.familyDoctorId
+- session-category canonical extension URL: https://telemed-bogheanu.ro/fhir/ext/session-category — all FHIR extension reads use suffix/contains matching
+- Doctor UI sliding panel — 3 states (Appointments / Patient Report / In-Call); Mark reviewed → PATCH reviewed-by; Finalize → PATCH status:final; responsive
+- WaitingRoomScreen STATE B: "See my recent activity" button → bottom sheet with last 5 Observations (date, category chip, excerpt)
+- VideoConsultationScreen: Activity tab in DraggableScrollableSheet alongside Chat tab; loaded on initState, read-only
 
 ## Current State
 See TELEMED_CONTEXT.md for full verified/awaiting-test/broken breakdown.
-Last updated: 2026-05-05
-Build #64 (commit fb1a104) is the latest tested APK on Pixel 9 Pro.
+Last updated: 2026-05-06
+Build #68 — pending CI. Last tested build: #67.
 GitHub Actions secrets MEDPLUM_CLIENT_ID and MEDPLUM_CLIENT_SECRET are set correctly.
 Medplum sync confirmed working — appointments, observations, and communications reach https://telemed-medplum.duckdns.org/fhir/R4.
 WebRTC two-device video call confirmed working end-to-end (patient Pixel 9 Pro + doctor Brave browser).
@@ -74,3 +80,7 @@ The doctor UI is a static HTML file served by Caddy.
   `cp /home/corb_d/sovereign-factory/mobile-workspace/TeleMed_K/doctor-ui/index.html /home/corb_d/sovereign-factory/doctor-ui/index.html`
 - NEVER edit files directly in `/home/corb_d/sovereign-factory/doctor-ui/` — that folder is deploy-only.
 - NEVER create or edit any doctor UI files outside the repository.
+
+## Claude Code Custom Commands
+Location: .claude/commands/
+  audit.md — full codebase audit (trigger with /audit)

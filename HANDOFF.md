@@ -2,7 +2,7 @@
 **Date:** 2026-05-05  
 **Deadline:** May 18, 2026 — **12 days remaining**  
 **Repo:** https://github.com/RaresBGH/TeleMed_K (PRIVATE — must go public before deadline)  
-**Latest commit:** fb1a104 (build #64 — tested on Pixel 9 Pro 2026-05-05)
+**Latest commit:** build #68 — pending (CI not yet triggered). Last tested build: #67.
 
 ---
 
@@ -75,6 +75,14 @@ FHIR backend: Google Android FHIR SDK (local encrypted SQLite) + Medplum 5.1.10 
 - AI conversation context maintained across turns (history passed as customPrompt)
 - On-device AI inference confirmed working — Gemma 4 E2B responds in correct language
 - GitHub Actions secrets MEDPLUM_CLIENT_ID and MEDPLUM_CLIENT_SECRET confirmed set and working
+- Doctor UI sliding panel deployed at https://telemed-doctor.duckdns.org: 3-state panel (Appointments / Patient Report / In-Call); patient triage report with chronic conditions, unreviewed dialogues, Mark reviewed → PATCH reviewed-by extension, Finalize → PATCH status:final; In-Call panel: Chat tab + Activity tab (last 5 Observations); responsive 320px desktop / 280px tablet overlay / full-width mobile; join window -60min to +120min
+- All practitioner names replaced with approved mock names throughout app and Medplum
+- All 9 specialist Practitioner resources created in Medplum with real UUIDs
+- Appointment join grace window: joinable from 60 minutes before to 120 minutes after scheduled time
+- Doctor UI deployment: source at doctor-ui/index.html in repo; Caddy serves from /home/corb_d/sovereign-factory/doctor-ui/index.html; deploy with cp command documented in CLAUDE.md
+- WaitingRoomScreen STATE B: "See my recent activity" button → bottom sheet with last 5 Observation summaries (date, category chip, AI summary excerpt)
+- VideoConsultationScreen: Activity tab alongside Chat tab in DraggableScrollableSheet; last 5 Observations loaded on initState; read-only cards with category chip
+- MedicalSessionState.lastPractitionerRef: propagated through all 5 state copy sites (clearPreseed, clearPatientMessage, prepareResume, setDoctorContext, _handleResult); written as reviewed-by-target FHIR extension on finalizeConsultation
 
 ---
 
@@ -104,26 +112,34 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 
 ## Outstanding Bugs — Priority Order
 
+### P1 — ALL FIXED this session. No open P1 items.
 
-### P0 (Blocking demo)
-1. **Repo is PRIVATE** — must be made public before May 18 for hackathon submission.
-2. **Demo video not recorded** — patient story: Maria, 72, Brănești, chest pain, no car → voice triage → 112 or teleconsult.
+### P2 — FIXED this session:
+- Dashboard doctor card: "Family Doctor:" label, tap → Medic tab
+- Specialist screens: real doctor names from Practitioners constants
+- My Profile: save SnackBar feedback, blue back button, avatar propagates to dashboard via patientAvatarProvider
+- White backgrounds: photo picker, triage body, back buttons
+- Doctor UI join window: -60min to +120min
+- Triage chat: patient first message + AI response seeded on entry
+- Doctor message flow: clean entry, doctor name in AppBar, neutral welcome card
+- Dosar Medical replay: attachment paths serialized and restored
+- MedicalSessionState.lastPractitionerRef added and propagated through all 5 state copy sites
+- session-category extension URL standardised to https://telemed-bogheanu.ro/fhir/ext/session-category
+- FhirRepository() direct instantiation replaced with fhirRepositoryProvider at all valid call sites
+- Video call activity chips and summarization prompt localised
+- TextEditingController leak fixed in home_screen._showTextDialog
+- telemedicine_service.dart dead file deleted
+- VIBRATE permission removed from AndroidManifest.xml
 
+### POST-HACKATHON TRACKER:
+- F: Duplicate Observation schema between finalizeConsultation() and VideoConsultationScreen._saveCallSummary() — refactor to shared factory method
+- WiFi-triggered background sync via ConnectivityListener + FhirRepository.syncFromMedplum()
+- main.dart and auth_provider.dart: direct FhirRepository() kept intentionally (startup context / circular import)
 
-### P1 (Important before demo)
-3. **Symptom analysis card shows `[]`** — `initialResponse` passed to MedicalResponseScreen is empty or unparsed. The triage card shows the raw fallback instead of the AI's first response.
-4. **Multiple Dosar Medical entries per session** — each video call or triage attempt creates a new entry; language in entries is Romanian regardless of toggle.
-5. **Microphone not released after voice message** — mic appears to remain active after voice bubble is saved and patient leaves triage screen.
-6. **End call first tap has no effect when keyboard is open** — keyboard must be dismissed first.
-7. **"Microphone: Active" chip does not update when muted in waiting room** — track is correctly muted but label stays "Active".
-
-
-### P2 (Polish)
-8. **Black placeholder text in input panels** — hint text is black instead of muted grey throughout app.
-9. **Consultation agreement text** — shows clinic name instead of generic text; does not show appointment/doctor details.
-10. **"Your doctor: Dr. Adriana Bogheanu" hardcoded on dashboard** — should be removed or replaced with dynamic data.
-11. **First patient message missing from triage chat** — the message typed on dashboard before entering MedicalResponseScreen is not shown in the chat history.
-12. **Voice/photo attachments lost on dialogue rejoin** — saved dialogues in Dosar Medical show voice/photo bubbles as text only.
+### PENDING TEST (requires two-way video call):
+- P1-5: Microphone not released after voice message
+- P1-6: End call first tap no effect when keyboard open
+- P1-7: Microphone Active chip stays after muting in waiting room
 
 ---
 
@@ -168,8 +184,8 @@ To make it persistent: `sudo cp /tmp/telemed-signaling.service /etc/systemd/syst
 
 ### Practitioner Roles (important — commonly confused)
 
-- **Dr. Mariana Andronescu** = Family doctor (Medic de Familie) → shown in Medic tab → `Practitioners.familyDoctorId`
-- **Dr. Adriana Bogheanu** = Pediatric specialist → shown in Specialiști → Pediatrie → `Practitioners.bogheanuId`
+- **Dr. Elena Ionescu** = Family doctor (Medic de Familie) → shown in Medic tab → `Practitioners.familyDoctorId`
+- **Dr. Andrei Popescu** = Pediatric specialist → shown in Specialiști → Pediatrie → `Practitioners.bogheanuId`
 
 ---
 

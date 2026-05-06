@@ -200,7 +200,11 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     final iso = appt['start'] as String? ?? '';
     if (iso.isEmpty) return false;
     final startTime = DateTime.tryParse(iso)?.toLocal();
-    return startTime != null && startTime.isAfter(DateTime.now());
+    if (startTime == null) return false;
+    final now = DateTime.now();
+    // Allow joining 21 minutes before scheduled time and up to 30 minutes after.
+    return startTime.isAfter(now.subtract(const Duration(minutes: 30))) &&
+           startTime.isBefore(now.add(const Duration(minutes: 21)));
   }
 
   String _formatSlot(TimeOfDay slot) => DateFormatter.formatTime(slot);

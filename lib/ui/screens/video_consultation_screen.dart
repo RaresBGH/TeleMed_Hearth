@@ -87,6 +87,11 @@ class _VideoConsultationScreenState
   bool _chatOpen = false;
   late final DraggableScrollableController _sheetController;
 
+  // ── Activity tab ───────────────────────────────────────────────────────────
+  String _activeTab = 'chat';
+  List<Map<String, dynamic>> _activityObservations = [];
+  bool _activityLoaded = false;
+
   // ── In-call audio playback ─────────────────────────────────────────────────
   late final AudioPlayer _callAudioPlayer;
   StreamSubscription<PlayerState>? _callPlayerSub;
@@ -118,6 +123,34 @@ class _VideoConsultationScreenState
     });
     _initAnimController();
     _initWebRTC();
+    _loadActivityData();
+  }
+
+  Future<void> _loadActivityData() async {
+    try {
+      final cnp = ref.read(loginCnpProvider);
+      final all = await ref.read(fhirRepositoryProvider).getPatientHistory(cnp: cnp);
+      if (!mounted) return;
+      final obs = all
+          .where((o) =>
+              (o['resourceType'] as String?) == 'Observation' &&
+              o['effectiveDateTime'] != null)
+          .toList()
+        ..sort((a, b) {
+          final aD = DateTime.tryParse(a['effectiveDateTime'] as String? ?? '') ??
+              DateTime(0);
+          final bD = DateTime.tryParse(b['effectiveDateTime'] as String? ?? '') ??
+              DateTime(0);
+          return bD.compareTo(aD);
+        });
+      setState(() {
+        _activityObservations = obs.length > 5 ? obs.sublist(0, 5) : obs;
+        _activityLoaded = true;
+      });
+    } catch (e) {
+      debugPrint('VideoConsultationScreen._loadActivityData error: $e');
+      if (mounted) setState(() => _activityLoaded = true);
+    }
   }
 
   @override
@@ -449,16 +482,15 @@ class _VideoConsultationScreenState
 
   Future<void> _saveCallSummary() async {
     try {
+      final patientLabel = AppStrings.of(_lang, 'call.summary_label_patient');
+      final doctorLabel  = AppStrings.of(_lang, 'call.summary_label_doctor');
       final transcript = _callMessages.map((m) {
         final h   = m.timestamp.hour.toString().padLeft(2, '0');
         final min = m.timestamp.minute.toString().padLeft(2, '0');
-        return '${m.isPatient ? "Pacient" : "Doctor"} [$h:$min]: ${m.text}';
+        return '${m.isPatient ? patientLabel : doctorLabel} [$h:$min]: ${m.text}';
       }).join('\n');
 
-      const prompt =
-          'Rezumă această conversație medicală în 3-5 propoziții clare. '
-          'Evidențiază simptomele menționate, recomandările medicului '
-          'și orice acțiuni urmărite. Conversație:\n';
+      final prompt = '${AppStrings.of(_lang, 'call.summary_prompt')}\n';
 
       String summaryText;
       try {
@@ -477,7 +509,7 @@ class _VideoConsultationScreenState
         'resourceType': 'Observation',
         'status': 'final',
         'category': [{'coding': [{'code': 'consultation-summary'}]}],
-        'code': {'text': 'Rezumat consultație video'},
+        'code': {'text': 'Rezumat consultație video'}, // FHIR internal label — not localised, stored server-side
         'subject': {
           'identifier': {
             'system': 'urn:oid:1.2.40.0.10.1.4.3.1',
@@ -562,16 +594,14 @@ class _VideoConsultationScreenState
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              // Header
+              // Header with Chat / Activity tab bar
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 8, 4),
+                padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),
                 child: Row(
                   children: [
-                    Text(
-                      AppStrings.of(_lang, 'call.chat_hint').split('.').first,
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
+                    _buildPanelTab('chat',     AppStrings.of(_lang, 'call.tab_chat')),
+                    const SizedBox(width: 4),
+                    _buildPanelTab('activity', AppStrings.of(_lang, 'call.tab_activity')),
                     const Spacer(),
                     IconButton(
                       icon: const Icon(Icons.close),
@@ -581,22 +611,25 @@ class _VideoConsultationScreenState
                 ),
               ),
               const Divider(height: 1),
-              // Message list
+              // Chat or Activity content
               Expanded(
-                child: _callMessages.isEmpty
-                    ? Center(
-                        child: Text(
-                          AppStrings.of(_lang, 'call.chat_hint'),
-                          style: const TextStyle(color: Colors.grey, fontSize: 15),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: scrollController,
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _callMessages.length,
-                        itemBuilder: (_, i) => _buildCallMessageBubble(_callMessages[i]),
-                      ),
+                child: _activeTab == 'activity'
+                    ? _buildActivityTab()
+                    : (_callMessages.isEmpty
+                        ? Center(
+                            child: Text(
+                              AppStrings.of(_lang, 'call.chat_hint'),
+                              style: const TextStyle(color: Colors.grey, fontSize: 15),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: scrollController,
+                            padding: const EdgeInsets.all(12),
+                            itemCount: _callMessages.length,
+                            itemBuilder: (_, i) =>
+                                _buildCallMessageBubble(_callMessages[i]),
+                          )),
               ),
               // Input row (48dp buttons — constrained video overlay space)
               Container(
@@ -653,6 +686,141 @@ class _VideoConsultationScreenState
             ), // Column
           ), // SafeArea
         ),
+      ),
+    );
+  }
+
+  // ── Panel tab button ──────────────────────────────────────────────────────
+  Widget _buildPanelTab(String tab, String label) {
+    final isActive = _activeTab == tab;
+    return TextButton(
+      onPressed: () => setState(() => _activeTab = tab),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+              color: isActive ? const Color(0xFF5BA4CF) : Colors.grey,
+            ),
+          ),
+          Container(
+            height: 2,
+            width: label.length * 8.0,
+            color: isActive ? const Color(0xFF5BA4CF) : Colors.transparent,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Activity tab content ───────────────────────────────────────────────────
+  Widget _buildActivityTab() {
+    if (!_activityLoaded) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF5BA4CF)),
+      );
+    }
+    if (_activityObservations.isEmpty) {
+      return Center(
+        child: Text(
+          AppStrings.of(_lang, 'call.activity_empty'),
+          style: const TextStyle(
+            color: Colors.grey,
+            fontSize: 14,
+            fontStyle: FontStyle.italic,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: _activityObservations.length,
+      itemBuilder: (_, i) => _buildActivityObsCard(_activityObservations[i]),
+    );
+  }
+
+  Widget _buildActivityObsCard(Map<String, dynamic> obs) {
+    final isoDate   = obs['effectiveDateTime'] as String? ?? '';
+    final dateLabel = isoDate.isNotEmpty ? DateFormatter.format(isoDate) : '';
+    final val       = obs['valueString'] as String? ?? '';
+    final summary   = val.length > 180 ? '${val.substring(0, 180)}…' : val;
+
+    final exts = (obs['extension'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    final catExt = exts
+        .where((e) => (e['url'] as String? ?? '').contains('session-category'))
+        .firstOrNull;
+    final cat       = catExt?['valueString'] as String?;
+    final isMedical = cat == 'medical';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 4,
+            spreadRadius: -1,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                dateLabel,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isMedical
+                      ? const Color(0xFFEBF4FB)
+                      : const Color(0xFFF2F4F8),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  isMedical ? AppStrings.of(_lang, 'call.activity_medical') : AppStrings.of(_lang, 'call.activity_other'),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isMedical
+                        ? const Color(0xFF5BA4CF)
+                        : const Color(0xFF40484E),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (summary.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              summary,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF191C1F),
+                height: 1.4,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

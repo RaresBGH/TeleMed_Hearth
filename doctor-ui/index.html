@@ -6,467 +6,482 @@
 <title>TeleMed_K — Doctor Interface</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   body {
     font-family: system-ui, -apple-system, sans-serif;
     background: #f9f9f9;
     color: #1a1c1c;
     min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* ── SIDE PANEL ───────────────────────────────────────────── */
+  #sidePanel {
+    position: fixed;
+    top: 0; right: 0;
+    width: 360px; height: 100dvh;
+    background: #fff;
+    border-left: 1px solid #e0e0e0;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    display: flex; flex-direction: column;
+    z-index: 200;
+  }
+  #sidePanel.open { transform: translateX(0); }
+  @media (max-width: 1023px) { #sidePanel { width: 300px; } }
+  @media (max-width: 767px)  { #sidePanel { width: 100%; } }
+
+  #panelHeader {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e8e8e8;
+    background: #f9f9f9; flex-shrink: 0;
+  }
+  #panelTitle { font-size: 15px; font-weight: 700; color: #1a1c1c; }
+  #panelCloseBtn {
+    background: none; border: none; cursor: pointer;
+    font-size: 20px; color: #40484e; padding: 4px; line-height: 1;
+  }
+  #panelCloseBtn:hover { color: #1a1c1c; }
+
+  #panelContent {
+    flex: 1; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+
+  .panel-state {
+    display: none; flex: 1;
+    flex-direction: column; overflow: hidden;
+  }
+  .panel-state.active { display: flex; }
+
+  /* ── PANEL TOGGLE BUTTON ─────────────────────────────────── */
+  #panelToggleBtn {
+    position: fixed;
+    top: 50%; right: 0;
+    transform: translateY(-50%);
+    background: #5BA4CF; color: #fff;
+    border: none; border-radius: 8px 0 0 8px;
+    width: 36px; height: 80px;
+    cursor: pointer; z-index: 201;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px;
+    transition: right 0.28s cubic-bezier(0.4,0,0.2,1), background 0.15s;
+    box-shadow: -2px 0 8px rgba(0,0,0,0.15);
+  }
+  #panelToggleBtn:hover { background: #3a82aa; }
+  #panelToggleBtn.panel-open { right: 360px; }
+  @media (max-width: 1023px) { #panelToggleBtn.panel-open { right: 300px; } }
+  @media (max-width: 767px)  { #panelToggleBtn.panel-open { right: 100%; } }
+  #toggleIcon { font-size: 16px; }
+  #toggleLabel {
+    font-size: 9px; font-weight: 700;
+    writing-mode: vertical-rl; text-orientation: mixed;
+    transform: rotate(180deg); letter-spacing: 0.06em;
+  }
+
+  /* ── MAIN CONTENT ────────────────────────────────────────── */
+  #mainContent {
+    width: 100%; min-height: 100dvh;
+    transition: padding-right 0.28s cubic-bezier(0.4,0,0.2,1);
+  }
+  @media (min-width: 1024px) {
+    #mainContent.panel-open { padding-right: 360px; }
   }
 
   /* ── JOIN SCREEN ─────────────────────────────────────────── */
   #joinScreen {
-    display: flex;
-    align-items: flex-start;
+    display: flex; align-items: flex-start;
     justify-content: center;
-    min-height: 100dvh;
-    padding: 32px 24px;
+    min-height: 100dvh; padding: 32px 24px;
   }
-
   .card {
-    background: #fff;
-    border-radius: 12px;
-    padding: 32px 28px;
-    width: 100%;
-    max-width: 520px;
+    background: #fff; border-radius: 12px;
+    padding: 32px 28px; width: 100%; max-width: 540px;
     box-shadow: 0 4px 40px rgba(26,28,28,0.08);
   }
-
-  .card-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: #1a1c1c;
-    margin-bottom: 4px;
-  }
-
-  .card-subtitle {
-    font-size: 15px;
-    color: #40484e;
-    margin-bottom: 24px;
-  }
-
+  .card-title { font-size: 22px; font-weight: 700; color: #1a1c1c; margin-bottom: 4px; }
+  .card-subtitle { font-size: 15px; color: #40484e; margin-bottom: 24px; }
   .field-label {
-    font-size: 13px;
-    color: #40484e;
-    font-weight: 600;
-    margin-bottom: 8px;
-    display: block;
+    font-size: 13px; color: #40484e; font-weight: 600;
+    margin-bottom: 8px; display: block;
   }
-
   select {
-    width: 100%;
-    height: 48px;
-    font-size: 15px;
-    border: 2px solid #5BA4CF;
-    border-radius: 8px;
-    padding: 0 12px;
-    background: #f9f9f9;
-    color: #1a1c1c;
-    outline: none;
-    cursor: pointer;
-    margin-bottom: 16px;
+    width: 100%; height: 48px; font-size: 15px;
+    border: 2px solid #5BA4CF; border-radius: 8px;
+    padding: 0 12px; background: #f9f9f9; color: #1a1c1c;
+    outline: none; cursor: pointer; margin-bottom: 16px;
   }
   select:focus { border-color: #3a82aa; background: #fff; }
-
   #todayDate {
-    font-size: 13px;
-    font-weight: 600;
-    color: #5BA4CF;
-    margin-bottom: 20px;
-    letter-spacing: 0.02em;
+    font-size: 13px; font-weight: 600; color: #5BA4CF;
+    margin-bottom: 20px; letter-spacing: 0.02em;
   }
-
   .section-label {
-    font-size: 12px;
-    font-weight: 700;
-    color: #40484e;
-    letter-spacing: 0.06em;
-    margin-bottom: 10px;
+    font-size: 12px; font-weight: 700; color: #40484e;
+    letter-spacing: 0.06em; margin-bottom: 10px;
   }
-
   .appt-card {
-    background: #f3f3f3;
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    background: #f3f3f3; border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 10px;
+    display: flex; align-items: center;
+    justify-content: space-between; gap: 12px;
   }
-
-  .appt-patient {
-    font-weight: 700;
-    font-size: 15px;
-    color: #1a1c1c;
-  }
-
-  .appt-time {
-    font-size: 13px;
-    color: #40484e;
-    margin-top: 2px;
-  }
-
+  .appt-patient { font-weight: 700; font-size: 15px; color: #1a1c1c; }
+  .appt-time { font-size: 13px; color: #40484e; margin-top: 2px; }
+  .appt-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
   .join-btn {
-    background: #5BA4CF;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s;
+    background: #5BA4CF; color: #fff;
+    border: none; border-radius: 8px;
+    padding: 8px 14px; font-size: 13px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; transition: background 0.15s;
   }
   .join-btn:hover:not(:disabled) { background: #3a82aa; }
-  .join-btn:disabled {
-    background: #c4c4c4;
-    color: #888;
-    cursor: not-allowed;
+  .join-btn:disabled { background: #c4c4c4; color: #888; cursor: not-allowed; }
+  .view-report-btn {
+    background: none; border: 1.5px solid #5BA4CF; color: #5BA4CF;
+    border-radius: 8px; padding: 6px 12px;
+    font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
   }
-
-  .empty-state {
-    font-size: 14px;
-    color: #40484e;
-    padding: 16px 0;
-    text-align: center;
-  }
-
-  details {
-    margin-top: 24px;
-    border-top: 1px solid #e8e8e8;
-    padding-top: 16px;
-  }
-
-  summary {
-    cursor: pointer;
-    font-size: 13px;
-    color: #40484e;
-    font-weight: 600;
-    margin-bottom: 12px;
-  }
-
+  .view-report-btn:hover { background: #eaf2f9; }
+  .empty-state { font-size: 14px; color: #40484e; padding: 16px 0; text-align: center; }
+  details { margin-top: 24px; border-top: 1px solid #e8e8e8; padding-top: 16px; }
+  summary { cursor: pointer; font-size: 13px; color: #40484e; font-weight: 600; margin-bottom: 12px; }
   #appointmentInput {
-    width: 100%;
-    height: 48px;
-    font-size: 15px;
-    border: 2px solid #5BA4CF;
-    border-radius: 8px;
-    padding: 0 12px;
-    outline: none;
-    background: #f9f9f9;
-    color: #1a1c1c;
-    margin-bottom: 10px;
+    width: 100%; height: 48px; font-size: 15px;
+    border: 2px solid #5BA4CF; border-radius: 8px;
+    padding: 0 12px; outline: none;
+    background: #f9f9f9; color: #1a1c1c; margin-bottom: 10px;
   }
   #appointmentInput:focus { border-color: #3a82aa; background: #fff; }
-
   #joinBtn {
-    width: 100%;
-    height: 52px;
-    background: #5BA4CF;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 700;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.15s;
+    width: 100%; height: 52px;
+    background: #5BA4CF; color: #fff;
+    font-size: 16px; font-weight: 700; border: none;
+    border-radius: 8px; cursor: pointer; transition: background 0.15s;
   }
   #joinBtn:hover { background: #3a82aa; }
-
-  #statusText {
-    margin-top: 12px;
-    font-size: 14px;
-    color: #40484e;
-    min-height: 20px;
-    text-align: center;
-  }
+  #statusText { margin-top: 12px; font-size: 14px; color: #40484e; min-height: 20px; text-align: center; }
 
   /* ── CALL SCREEN ─────────────────────────────────────────── */
   #callScreen {
-    display: none;
-    position: relative;
-    width: 100%;
-    height: 100dvh;
-    background: #000;
-    overflow: hidden;
+    display: none; position: relative;
+    width: 100%; height: 100dvh;
+    background: #000; overflow: hidden;
   }
-
   #remoteVideo {
-    width: calc(100% - 320px);
-    height: 100%;
-    background: #111;
-    display: block;
-    object-fit: cover;
+    width: 100%; height: 100%;
+    background: #111; display: block; object-fit: cover;
   }
-
   #localVideo {
-    position: fixed;
-    bottom: 128px;
-    left: 16px;
-    width: 160px;
-    height: 120px;
-    background: #222;
-    border-radius: 8px;
-    object-fit: cover;
-    z-index: 10;
+    position: fixed; bottom: 128px; left: 16px;
+    width: 160px; height: 120px;
+    background: #222; border-radius: 8px;
+    object-fit: cover; z-index: 10;
     box-shadow: 0 2px 12px rgba(0,0,0,0.5);
   }
-
-  /* ── CALL STATUS ─────────────────────────────────────────── */
   #callStatus {
-    position: fixed;
-    top: 16px;
-    left: calc(50% - 160px);
+    position: fixed; top: 16px; left: 50%;
     transform: translateX(-50%);
-    background: rgba(26,28,28,0.75);
-    color: #fff;
-    font-size: 14px;
-    padding: 8px 20px;
-    border-radius: 999px;
-    z-index: 30;
+    background: rgba(26,28,28,0.75); color: #fff;
+    font-size: 14px; padding: 8px 20px;
+    border-radius: 999px; z-index: 30;
   }
-
-  /* ── CONTROL BAR ─────────────────────────────────────────── */
   #controlBar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 320px;
+    position: fixed; bottom: 0; left: 0; right: 0;
     height: 112px;
     background: rgba(249,249,249,0.95);
     backdrop-filter: blur(20px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 32px;
-    z-index: 20;
+    display: flex; align-items: center;
+    justify-content: center; gap: 32px; z-index: 20;
+    transition: right 0.28s cubic-bezier(0.4,0,0.2,1);
   }
-
+  @media (min-width: 1024px) {
+    body.panel-open #controlBar { right: 360px; }
+  }
   .ctrl-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    background: none;
-    border: none;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 6px;
+    cursor: pointer; background: none; border: none;
   }
-
   .ctrl-circle {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    transition: background 0.15s, transform 0.1s;
+    width: 64px; height: 64px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; transition: background 0.15s, transform 0.1s;
   }
   .ctrl-circle:active { transform: scale(0.92); }
-
-  .ctrl-label {
-    font-size: 12px;
-    color: #40484e;
-    font-weight: 500;
-  }
-
+  .ctrl-label { font-size: 12px; color: #40484e; font-weight: 500; }
   #muteBtn   .ctrl-circle { background: #f3f3f3; }
   #cameraBtn .ctrl-circle { background: #f3f3f3; }
   #endBtn    .ctrl-circle { background: #ab1118; color: #fff; }
   #endBtn    .ctrl-label  { color: #ab1118; font-weight: 700; }
-
-  /* ── CHAT PANEL ──────────────────────────────────────────── */
-  #chatPanel {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 320px;
-    height: 100dvh;
-    background: #fff;
-    border-left: 1px solid #e0e0e0;
-    display: flex;
-    flex-direction: column;
-    z-index: 25;
-  }
-
-  #chatHeader {
-    padding: 16px 20px;
-    font-size: 15px;
-    font-weight: 700;
-    color: #1a1c1c;
-    border-bottom: 1px solid #e8e8e8;
-    background: #f9f9f9;
-    flex-shrink: 0;
-  }
-
-  #chatMessages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .chat-msg {
-    max-width: 90%;
-    padding: 8px 12px;
-    border-radius: 10px;
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  .chat-msg.doctor {
-    background: #E8F4FC;
-    align-self: flex-end;
-    color: #1a1c1c;
-  }
-
-  .chat-msg.patient {
-    background: #f3f3f3;
-    align-self: flex-start;
-    color: #1a1c1c;
-  }
-
-  .chat-msg-label {
-    font-size: 11px;
-    font-weight: 700;
-    margin-bottom: 3px;
-  }
-
-  .chat-msg.doctor .chat-msg-label { color: #5BA4CF; }
-  .chat-msg.patient .chat-msg-label { color: #40484e; }
-
-  #chatInputRow {
-    display: flex;
-    gap: 8px;
-    padding: 12px 16px;
-    border-top: 1px solid #e8e8e8;
-    background: #f9f9f9;
-    flex-shrink: 0;
-  }
-
-  #chatInput {
-    flex: 1;
-    height: 40px;
-    border: 1.5px solid #d0d0d0;
-    border-radius: 8px;
-    padding: 0 12px;
-    font-size: 14px;
-    outline: none;
-    background: #fff;
-    color: #1a1c1c;
-  }
-  #chatInput:focus { border-color: #5BA4CF; }
-
-  #chatSendBtn {
-    height: 40px;
-    padding: 0 16px;
-    background: #5BA4CF;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-  }
-  #chatSendBtn:hover { background: #3a82aa; }
+  #panelBtn  .ctrl-circle { background: #f3f3f3; }
 
   /* ── PEER LEFT OVERLAY ───────────────────────────────────── */
   #peerLeftOverlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.78);
-    z-index: 50;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    color: #fff;
-    text-align: center;
-    padding: 32px;
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.78); z-index: 50;
+    flex-direction: column; align-items: center;
+    justify-content: center; gap: 16px;
+    color: #fff; text-align: center; padding: 32px;
   }
-
-  #peerLeftOverlay p {
-    font-size: 20px;
-    font-weight: 600;
-    max-width: 320px;
-  }
-
+  #peerLeftOverlay p { font-size: 20px; font-weight: 600; max-width: 320px; }
   #peerLeftEndBtn {
-    margin-top: 16px;
-    padding: 14px 32px;
-    background: #ab1118;
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
+    margin-top: 16px; padding: 14px 32px;
+    background: #ab1118; color: #fff; border: none;
+    border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer;
   }
+
+  /* ── PANEL: APPOINTMENTS STATE ───────────────────────────── */
+  #stateAppointments { overflow-y: auto; }
+  #panelTodayDate {
+    font-size: 12px; font-weight: 600; color: #5BA4CF;
+    padding: 12px 16px 0;
+  }
+  #panelApptList { padding: 8px 16px 16px; }
+  .panel-appt-card {
+    background: #f3f3f3; border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 10px;
+    border: 1.5px solid transparent;
+  }
+  .panel-appt-name { font-weight: 700; font-size: 14px; color: #1a1c1c; }
+  .panel-appt-time { font-size: 12px; color: #40484e; margin-top: 2px; }
+  .panel-appt-row { display: flex; gap: 6px; margin-top: 8px; }
+  .panel-join-btn {
+    flex: 1; background: #5BA4CF; color: #fff;
+    border: none; border-radius: 6px;
+    padding: 7px 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .panel-join-btn:hover:not(:disabled) { background: #3a82aa; }
+  .panel-join-btn:disabled { background: #c4c4c4; color: #888; cursor: not-allowed; }
+  .panel-report-btn {
+    flex: 1; background: none; border: 1.5px solid #5BA4CF;
+    color: #5BA4CF; border-radius: 6px;
+    padding: 6px 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .panel-report-btn:hover { background: #eaf2f9; }
+
+  /* ── PANEL: PATIENT REPORT STATE ────────────────────────── */
+  #stateReport { overflow-y: auto; }
+  #reportInner { padding: 16px; }
+  .btn-back-appts {
+    background: none; border: 1.5px solid #5BA4CF; color: #5BA4CF;
+    border-radius: 8px; padding: 8px 12px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    width: 100%; margin-bottom: 14px;
+  }
+  .btn-back-appts:hover { background: #eaf2f9; }
+  #reportPatientName { font-size: 18px; font-weight: 700; color: #1a1c1c; margin-bottom: 4px; }
+  #reportPatientMeta { font-size: 13px; color: #40484e; margin-bottom: 12px; }
+  .report-section-title {
+    font-size: 11px; font-weight: 700; color: #40484e;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    margin: 14px 0 8px;
+  }
+  .condition-chip {
+    display: inline-block; background: #E8F4FC; color: #1a6495;
+    border-radius: 16px; padding: 4px 12px;
+    font-size: 12px; font-weight: 600; margin: 0 4px 6px 0;
+  }
+  .observation-entry {
+    background: #f3f3f3; border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 8px;
+    font-size: 13px; color: #1a1c1c; line-height: 1.5;
+  }
+  .observation-entry.reviewed {
+    opacity: 0.6; border-left: 3px solid #c4c4c4; padding-left: 10px;
+  }
+  .observation-date { font-size: 11px; color: #40484e; margin-top: 4px; }
+  .btn-mark-reviewed {
+    width: 100%; margin-top: 8px; padding: 8px;
+    background: #f3f3f3; color: #1a1c1c;
+    border: 1px solid #d0d0d0; border-radius: 6px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .btn-mark-reviewed:hover { background: #e0e0e0; }
+  .btn-finalize {
+    width: 100%; padding: 12px; margin-top: 16px;
+    background: #5BA4CF; color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-finalize:hover:not(:disabled) { background: #3a82aa; }
+  .btn-finalize:disabled { background: #c4c4c4; color: #888; cursor: not-allowed; }
+
+  /* ── PANEL: IN-CALL STATE ────────────────────────────────── */
+  #incallTabs { display: flex; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
+  .incall-tab {
+    flex: 1; padding: 12px; background: none; border: none;
+    font-size: 13px; font-weight: 600; color: #40484e; cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .incall-tab.active { color: #5BA4CF; border-bottom-color: #5BA4CF; }
+  .incall-pane {
+    display: none; flex: 1; flex-direction: column; overflow: hidden;
+  }
+  .incall-pane.active { display: flex; }
+
+  #chatMessages {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .chat-msg {
+    max-width: 90%; padding: 8px 12px;
+    border-radius: 10px; font-size: 14px; line-height: 1.5;
+  }
+  .chat-msg.doctor { background: #E8F4FC; align-self: flex-end; color: #1a1c1c; }
+  .chat-msg.patient { background: #f3f3f3; align-self: flex-start; color: #1a1c1c; }
+  .chat-msg-label { font-size: 11px; font-weight: 700; margin-bottom: 3px; }
+  .chat-msg.doctor .chat-msg-label { color: #5BA4CF; }
+  .chat-msg.patient .chat-msg-label { color: #40484e; }
+  #chatInputRow {
+    display: flex; gap: 8px; padding: 12px 16px;
+    border-top: 1px solid #e8e8e8; background: #f9f9f9; flex-shrink: 0;
+  }
+  #chatInput {
+    flex: 1; height: 40px; border: 1.5px solid #d0d0d0;
+    border-radius: 8px; padding: 0 12px; font-size: 14px;
+    outline: none; background: #fff; color: #1a1c1c;
+  }
+  #chatInput:focus { border-color: #5BA4CF; }
+  #chatSendBtn {
+    height: 40px; padding: 0 16px;
+    background: #5BA4CF; color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  #chatSendBtn:hover { background: #3a82aa; }
+
+  #activityPane { overflow-y: auto; padding: 12px 16px; }
+  .activity-entry {
+    display: flex; gap: 10px; padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0; font-size: 13px;
+  }
+  .activity-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #5BA4CF; margin-top: 5px; flex-shrink: 0;
+  }
+  .activity-text { color: #1a1c1c; line-height: 1.4; }
+  .activity-time { font-size: 11px; color: #40484e; margin-top: 2px; }
 </style>
 </head>
 <body>
 
-<!-- ── JOIN SCREEN ─────────────────────────────────────── -->
-<div id="joinScreen">
-  <div class="card">
-    <p class="card-title">TeleMed_K — Doctor Interface</p>
-    <p class="card-subtitle">Video consultation management</p>
+<!-- ── SIDE PANEL ─────────────────────────────────────────── -->
+<div id="sidePanel">
+  <div id="panelHeader">
+    <span id="panelTitle">Appointments</span>
+    <button id="panelCloseBtn" title="Close panel">✕</button>
+  </div>
+  <div id="panelContent">
 
-    <label class="field-label" for="doctorSelect">Select doctor:</label>
-    <select id="doctorSelect"></select>
-
-    <p id="todayDate"></p>
-
-    <div id="appointmentsList">
-      <p id="apptLoadingMsg" class="empty-state">Loading today's appointments...</p>
+    <!-- State 1: Appointments -->
+    <div id="stateAppointments" class="panel-state active">
+      <p id="panelTodayDate"></p>
+      <div id="panelApptList">
+        <p class="empty-state">Loading appointments...</p>
+      </div>
     </div>
 
-    <details>
-      <summary>Or enter appointment code manually</summary>
-      <div style="margin-top:12px;">
-        <label class="field-label" for="appointmentInput">Appointment code</label>
-        <input id="appointmentInput" type="text" placeholder="e.g. appt-12345" autocomplete="off" />
-        <button id="joinBtn">Join</button>
+    <!-- State 2: Patient Triage Report -->
+    <div id="stateReport" class="panel-state">
+      <div id="reportInner">
+        <button class="btn-back-appts" id="reportBackBtn">← Back to Appointments</button>
+        <div id="reportPatientName">Patient</div>
+        <div id="reportPatientMeta"></div>
+        <div id="reportConditions"></div>
+        <div id="reportObservations"></div>
+        <div id="reportActions"></div>
       </div>
-    </details>
-    <p id="statusText"></p>
+    </div>
+
+    <!-- State 3: In-Call (Chat + Activity tabs) -->
+    <div id="stateInCall" class="panel-state">
+      <div id="incallTabs">
+        <button class="incall-tab active" data-tab="chat">Chat</button>
+        <button class="incall-tab" data-tab="activity">Activity</button>
+      </div>
+      <div id="chatPane" class="incall-pane active">
+        <div id="chatMessages"></div>
+        <div id="chatInputRow">
+          <input id="chatInput" type="text" placeholder="Type a message..." />
+          <button id="chatSendBtn">Send</button>
+        </div>
+      </div>
+      <div id="activityPane" class="incall-pane">
+        <div id="activityList"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
-<!-- ── CALL SCREEN ─────────────────────────────────────── -->
-<div id="callScreen">
-  <video id="remoteVideo" autoplay playsinline></video>
-  <video id="localVideo"  autoplay playsinline muted></video>
-  <div id="callStatus">Waiting for patient...</div>
+<!-- ── PANEL TOGGLE BUTTON ───────────────────────────────── -->
+<button id="panelToggleBtn" title="Toggle panel">
+  <span id="toggleIcon">☰</span>
+  <span id="toggleLabel">PANEL</span>
+</button>
 
-  <div id="controlBar">
-    <button class="ctrl-btn" id="muteBtn">
-      <div class="ctrl-circle">🎤</div>
-      <span class="ctrl-label">Mute</span>
-    </button>
-    <button class="ctrl-btn" id="endBtn">
-      <div class="ctrl-circle">■</div>
-      <span class="ctrl-label">End call</span>
-    </button>
-    <button class="ctrl-btn" id="cameraBtn">
-      <div class="ctrl-circle">📷</div>
-      <span class="ctrl-label">Stop video</span>
-    </button>
-  </div>
+<!-- ── MAIN CONTENT ──────────────────────────────────────── -->
+<div id="mainContent">
 
-  <div id="chatPanel">
-    <div id="chatHeader">Chat</div>
-    <div id="chatMessages"></div>
-    <div id="chatInputRow">
-      <input id="chatInput" type="text" placeholder="Type a message..." />
-      <button id="chatSendBtn">Send</button>
+  <!-- JOIN SCREEN -->
+  <div id="joinScreen">
+    <div class="card">
+      <p class="card-title">TeleMed_K — Doctor Interface</p>
+      <p class="card-subtitle">Video consultation management</p>
+
+      <label class="field-label" for="doctorSelect">Select doctor:</label>
+      <select id="doctorSelect"></select>
+
+      <p id="todayDate"></p>
+
+      <div id="appointmentsList">
+        <p class="empty-state">Loading today's appointments...</p>
+      </div>
+
+      <details>
+        <summary>Or enter appointment code manually</summary>
+        <div style="margin-top:12px;">
+          <label class="field-label" for="appointmentInput">Appointment code</label>
+          <input id="appointmentInput" type="text" placeholder="e.g. appt-12345" autocomplete="off" />
+          <button id="joinBtn">Join</button>
+        </div>
+      </details>
+      <p id="statusText"></p>
     </div>
   </div>
+
+  <!-- CALL SCREEN -->
+  <div id="callScreen">
+    <video id="remoteVideo" autoplay playsinline></video>
+    <video id="localVideo"  autoplay playsinline muted></video>
+    <div id="callStatus">Waiting for patient...</div>
+
+    <div id="controlBar">
+      <button class="ctrl-btn" id="muteBtn">
+        <div class="ctrl-circle">🎤</div>
+        <span class="ctrl-label">Mute</span>
+      </button>
+      <button class="ctrl-btn" id="endBtn">
+        <div class="ctrl-circle">■</div>
+        <span class="ctrl-label">End call</span>
+      </button>
+      <button class="ctrl-btn" id="cameraBtn">
+        <div class="ctrl-circle">📷</div>
+        <span class="ctrl-label">Stop video</span>
+      </button>
+      <button class="ctrl-btn" id="panelBtn">
+        <div class="ctrl-circle">💬</div>
+        <span class="ctrl-label">Panel</span>
+      </button>
+    </div>
+  </div>
+
 </div>
 
 <!-- ── PEER LEFT OVERLAY ───────────────────────────────── -->
@@ -503,7 +518,89 @@
   let isMuted         = false;
   let isCameraOff     = false;
   let medplumToken    = null;
+  let panelOpen       = false;
+  let currentPanelState = 'appointments';
+  let allAppointments   = [];
+  let allPatients       = {};
+  let reviewedInSession = new Set();
+  let fetchedObservations = [];
 
+  function esc(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ── Panel ─────────────────────────────────────────────────────────────────────
+  function togglePanel() {
+    panelOpen = !panelOpen;
+    document.getElementById('sidePanel').classList.toggle('open', panelOpen);
+    document.getElementById('panelToggleBtn').classList.toggle('panel-open', panelOpen);
+    document.getElementById('mainContent').classList.toggle('panel-open', panelOpen);
+    document.body.classList.toggle('panel-open', panelOpen);
+    document.getElementById('toggleIcon').textContent = panelOpen ? '✕' : '☰';
+  }
+
+  function openPanel() { if (!panelOpen) togglePanel(); }
+
+  function showPanelState(state) {
+    currentPanelState = state;
+    document.querySelectorAll('.panel-state').forEach(el => el.classList.remove('active'));
+    const id = 'state' + state.charAt(0).toUpperCase() + state.slice(1);
+    document.getElementById(id).classList.add('active');
+    const titles = { appointments: 'Appointments', report: 'Patient Report', incall: 'In-Call' };
+    document.getElementById('panelTitle').textContent = titles[state] || 'Panel';
+    openPanel();
+  }
+
+  function switchIncallTab(tab) {
+    document.querySelectorAll('.incall-tab').forEach(el => {
+      el.classList.toggle('active', el.dataset.tab === tab);
+    });
+    document.getElementById('chatPane').classList.toggle('active', tab === 'chat');
+    document.getElementById('activityPane').classList.toggle('active', tab === 'activity');
+    if (tab === 'activity') renderActivityTab();
+  }
+
+  // ── Activity tab: patient observation summaries ───────────────────────────────
+  function renderActivityTab() {
+    const container = document.getElementById('activityList');
+    container.innerHTML = '';
+    if (fetchedObservations.length === 0) {
+      container.innerHTML = '<p style="font-size:14px;color:#40484e;font-style:italic;padding:16px 0;">No recent triage activity.</p>';
+      return;
+    }
+    fetchedObservations.slice(0, 5).forEach(obs => {
+      const card = document.createElement('div');
+      card.style.cssText = 'background:#f3f3f3;border-radius:8px;padding:10px 12px;margin-bottom:8px;';
+      const date = obs.effectiveDateTime
+        ? new Date(obs.effectiveDateTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        : '';
+      const catExt = (obs.extension || []).find(e => e.url?.endsWith('session-category'));
+      const cat    = catExt?.valueString;
+      let chipHtml = '';
+      if (cat === 'medical') {
+        chipHtml = '<span style="display:inline-block;background:#E8F4FC;color:#1a6495;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700;margin-bottom:6px;">Medical</span>';
+      } else if (cat) {
+        chipHtml = '<span style="display:inline-block;background:#f0f0f0;color:#40484e;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700;margin-bottom:6px;">' + esc(cat) + '</span>';
+      }
+      const summary = obs.valueString || '';
+      card.innerHTML =
+        '<div style="font-size:11px;font-weight:600;color:#40484e;margin-bottom:4px;">' + esc(date) + '</div>' +
+        chipHtml +
+        '<div style="font-size:13px;color:#1a1c1c;line-height:1.4;">' + esc(summary.substring(0, 200)) + (summary.length > 200 ? '…' : '') + '</div>';
+      container.appendChild(card);
+    });
+  }
+
+  function updateFinalizeButton() {
+    const finBtn = document.getElementById('finalizeBtn');
+    if (!finBtn) return;
+    finBtn.disabled = reviewedInSession.size === 0;
+  }
+
+  // ── Doctor dropdown & date ────────────────────────────────────────────────────
   function populateDoctorDropdown() {
     const sel = document.getElementById('doctorSelect');
     DOCTORS.forEach(d => {
@@ -515,19 +612,21 @@
   }
 
   function showTodayDate() {
-    const now = new Date();
-    const formatted = now.toLocaleDateString('en-GB', {
+    const formatted = new Date().toLocaleDateString('en-GB', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     });
-    document.getElementById('todayDate').textContent = 'Appointments for: ' + formatted;
+    const txt = 'Appointments for: ' + formatted;
+    document.getElementById('todayDate').textContent = txt;
+    document.getElementById('panelTodayDate').textContent = txt;
   }
 
   function isJoinable(startISO) {
     const start = new Date(startISO).getTime();
     const now   = Date.now();
-    return start >= now - 30 * 60 * 1000 && start <= now + 21 * 60 * 1000;
+    return now >= start - 60 * 60 * 1000 && now <= start + 2 * 60 * 60 * 1000;
   }
 
+  // ── Medplum auth ─────────────────────────────────────────────────────────────
   async function fetchMedplumToken() {
     try {
       const res = await fetch(MEDPLUM_BASE + '/oauth2/token', {
@@ -544,16 +643,24 @@
     }
   }
 
-  async function loadAppointments() {
-    const listEl     = document.getElementById('appointmentsList');
-    const loadingEl  = document.getElementById('apptLoadingMsg');
-    const doctorId   = document.getElementById('doctorSelect').value;
+  async function ensureToken() {
+    if (!medplumToken) medplumToken = await fetchMedplumToken();
+    return medplumToken;
+  }
 
-    listEl.innerHTML = '<p id="apptLoadingMsg" class="empty-state">Loading today\'s appointments...</p>';
+  // ── Appointments ─────────────────────────────────────────────────────────────
+  async function loadAppointments() {
+    const listEl    = document.getElementById('appointmentsList');
+    const panelList = document.getElementById('panelApptList');
+    const doctorId  = document.getElementById('doctorSelect').value;
+
+    listEl.innerHTML  = '<p class="empty-state">Loading today\'s appointments...</p>';
+    panelList.innerHTML = '<p class="empty-state">Loading...</p>';
 
     medplumToken = await fetchMedplumToken();
     if (!medplumToken) {
-      listEl.innerHTML = '<p class="empty-state">Could not load appointments (authentication error).</p>';
+      listEl.innerHTML  = '<p class="empty-state">Could not load appointments (auth error).</p>';
+      panelList.innerHTML = '<p class="empty-state">Auth error.</p>';
       return;
     }
 
@@ -563,7 +670,7 @@
       const url = MEDPLUM_BASE + '/fhir/R4/Appointment' +
         '?date=ge' + today + 'T00:00:00Z' +
         '&date=lt' + tomorrow + 'T00:00:00Z' +
-        '&status=booked&_include=Appointment:patient&_count=50';
+        '&status=booked&_include=Appointment:actor&_count=50';
 
       const res = await fetch(url, {
         headers: { 'Authorization': 'Bearer ' + medplumToken, 'Accept': 'application/fhir+json' }
@@ -571,70 +678,277 @@
       if (!res.ok) throw new Error('Appointment fetch failed: ' + res.status);
       const bundle = await res.json();
 
-      const patients = {};
+      allPatients = {};
       (bundle.entry || []).forEach(e => {
         if (e.resource?.resourceType === 'Patient') {
           const n = e.resource.name?.[0];
-          patients[e.resource.id] = n
-            ? ((n.given || []).join(' ') + ' ' + (n.family || '')).trim()
-            : 'Patient';
+          allPatients[e.resource.id] = {
+            name: n ? ((n.given || []).join(' ') + ' ' + (n.family || '')).trim() : 'Patient',
+            resource: e.resource,
+          };
         }
       });
 
-      const appointments = (bundle.entry || [])
+      allAppointments = (bundle.entry || [])
         .map(e => e.resource)
         .filter(r => {
           if (r?.resourceType !== 'Appointment') return false;
           return (r.participant || []).some(p =>
             p.actor?.reference === 'Practitioner/' + doctorId
           );
-        });
+        })
+        .sort((a, b) => new Date(a.start) - new Date(b.start));
 
-      listEl.innerHTML = '';
+      renderAppointments(listEl, panelList);
 
-      if (appointments.length === 0) {
-        listEl.innerHTML = '<p class="empty-state">No appointments for today.</p>';
-        return;
-      }
-
-      const header = document.createElement('p');
-      header.className = 'section-label';
-      header.textContent = 'TODAY\'S APPOINTMENTS';
-      listEl.appendChild(header);
-
-      appointments
-        .sort((a, b) => new Date(a.start) - new Date(b.start))
-        .forEach(appt => {
-          const apptId  = appt.id || '';
-          const start   = appt.start ? new Date(appt.start) : null;
-          const timeStr = start
-            ? start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-            : '--:--';
-          const patRef  = (appt.participant || []).find(p =>
-            p.actor?.reference?.startsWith('Patient/'));
-          const patId   = patRef?.actor?.reference?.replace('Patient/', '') || '';
-          const patName = patients[patId] || 'Patient';
-          const joinable = start ? isJoinable(appt.start) : false;
-
-          const card = document.createElement('div');
-          card.className = 'appt-card';
-          card.innerHTML =
-            '<div>' +
-              '<div class="appt-patient">' + patName + '</div>' +
-              '<div class="appt-time">&#128336; ' + timeStr + '</div>' +
-            '</div>' +
-            '<button class="join-btn"' + (joinable ? '' : ' disabled') +
-              ' onclick="joinWithId(\'' + apptId + '\')">' +
-              'Join consultation' +
-            '</button>';
-          listEl.appendChild(card);
-        });
     } catch(e) {
       console.error('Appointment load error:', e);
-      listEl.innerHTML = '<p class="empty-state">Error loading appointments. Use manual code below.</p>';
+      listEl.innerHTML  = '<p class="empty-state">Error loading appointments. Use manual code below.</p>';
+      panelList.innerHTML = '<p class="empty-state">Error loading appointments.</p>';
     }
   }
 
+  function renderAppointments(listEl, panelList) {
+    listEl.innerHTML  = '';
+    panelList.innerHTML = '';
+
+    if (allAppointments.length === 0) {
+      listEl.innerHTML  = '<p class="empty-state">No appointments for today.</p>';
+      panelList.innerHTML = '<p class="empty-state">No appointments for today.</p>';
+      return;
+    }
+
+    const header = document.createElement('p');
+    header.className = 'section-label';
+    header.textContent = 'TODAY\'S APPOINTMENTS';
+    listEl.appendChild(header);
+
+    allAppointments.forEach(appt => {
+      const apptId  = appt.id || '';
+      const start   = appt.start ? new Date(appt.start) : null;
+      const timeStr = start
+        ? start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+        : '--:--';
+      const patRef  = (appt.participant || []).find(p =>
+        p.actor?.reference?.startsWith('Patient/'));
+      const patId   = patRef?.actor?.reference?.replace('Patient/', '') || '';
+      const patName = (allPatients[patId] || {}).name || 'Patient';
+      const joinable = start ? isJoinable(appt.start) : false;
+
+      // Main list card
+      const card = document.createElement('div');
+      card.className = 'appt-card';
+      card.innerHTML =
+        '<div style="flex:1;">' +
+          '<div class="appt-patient">' + esc(patName) + '</div>' +
+          '<div class="appt-time">&#128336; ' + timeStr + '</div>' +
+        '</div>' +
+        '<div class="appt-actions">' +
+          '<button class="join-btn"' + (joinable ? '' : ' disabled') + '>Join consultation</button>' +
+          '<button class="view-report-btn">View report</button>' +
+        '</div>';
+      card.querySelector('.join-btn').addEventListener('click', e => {
+        e.stopPropagation(); joinWithId(apptId);
+      });
+      card.querySelector('.view-report-btn').addEventListener('click', e => {
+        e.stopPropagation(); viewPatientReport(patId, patName);
+      });
+      listEl.appendChild(card);
+
+      // Panel card
+      const pCard = document.createElement('div');
+      pCard.className = 'panel-appt-card';
+      pCard.innerHTML =
+        '<div class="panel-appt-name">' + esc(patName) + '</div>' +
+        '<div class="panel-appt-time">&#128336; ' + timeStr + '</div>' +
+        '<div class="panel-appt-row">' +
+          '<button class="panel-join-btn"' + (joinable ? '' : ' disabled') + '>Join</button>' +
+          '<button class="panel-report-btn">Report</button>' +
+        '</div>';
+      pCard.querySelector('.panel-join-btn').addEventListener('click', e => {
+        e.stopPropagation(); joinWithId(apptId);
+      });
+      pCard.querySelector('.panel-report-btn').addEventListener('click', e => {
+        e.stopPropagation(); viewPatientReport(patId, patName);
+      });
+      panelList.appendChild(pCard);
+    });
+  }
+
+  // ── Patient report ────────────────────────────────────────────────────────────
+  async function viewPatientReport(patientId, patientName) {
+    reviewedInSession   = new Set();
+    fetchedObservations = [];
+    document.getElementById('reportPatientName').textContent = patientName;
+    document.getElementById('reportPatientMeta').textContent = 'Loading clinical data...';
+    document.getElementById('reportConditions').innerHTML   = '';
+    document.getElementById('reportObservations').innerHTML = '';
+    document.getElementById('reportActions').innerHTML      = '';
+    showPanelState('report');
+
+    const token = await ensureToken();
+    if (!token) {
+      document.getElementById('reportPatientMeta').textContent = 'Auth error — cannot load data.';
+      return;
+    }
+
+    try {
+      const headers = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' };
+      const [condRes, obsRes] = await Promise.all([
+        fetch(MEDPLUM_BASE + '/fhir/R4/Condition?patient=' + patientId + '&_count=20', { headers }),
+        fetch(MEDPLUM_BASE + '/fhir/R4/Observation?patient=' + patientId + '&_sort=-date&_count=10', { headers }),
+      ]);
+
+      const conditions   = condRes.ok ? (await condRes.json()).entry?.map(e => e.resource).filter(Boolean) || [] : [];
+      const observations = obsRes.ok  ? (await obsRes.json()).entry?.map(e => e.resource).filter(Boolean) || []  : [];
+      fetchedObservations = observations;
+
+      // Meta
+      const patInfo = allPatients[patientId];
+      if (patInfo?.resource) {
+        const dob    = patInfo.resource.birthDate || '';
+        const gender = patInfo.resource.gender    || '';
+        document.getElementById('reportPatientMeta').textContent =
+          [gender, dob ? 'DOB: ' + dob : ''].filter(Boolean).join(' · ') || '';
+      } else {
+        document.getElementById('reportPatientMeta').textContent = '';
+      }
+
+      // Conditions
+      const condEl = document.getElementById('reportConditions');
+      if (conditions.length > 0) {
+        condEl.innerHTML = '<div class="report-section-title">Active Conditions</div>';
+        conditions.forEach(c => {
+          const label = c.code?.text || c.code?.coding?.[0]?.display || 'Unknown';
+          const chip = document.createElement('span');
+          chip.className = 'condition-chip';
+          chip.textContent = label;
+          condEl.appendChild(chip);
+        });
+      }
+
+      // Observations
+      const obsEl = document.getElementById('reportObservations');
+      obsEl.innerHTML = '<div class="report-section-title">Triage Observations</div>';
+      if (observations.length > 0) {
+        observations.forEach(obs => {
+          const entry    = document.createElement('div');
+          const reviewed = obs.status === 'final';
+          entry.className = 'observation-entry' + (reviewed ? ' reviewed' : '');
+          const val  = obs.valueString || '';
+          const date = obs.effectiveDateTime
+            ? new Date(obs.effectiveDateTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '';
+          entry.innerHTML =
+            '<div>' + esc(val.substring(0, 160)) + (val.length > 160 ? '…' : '') + '</div>' +
+            '<div class="observation-date">' + esc(date) + (reviewed ? ' · Reviewed' : '') + '</div>';
+          if (!reviewed) {
+            const btn = document.createElement('button');
+            btn.className = 'btn-mark-reviewed';
+            btn.textContent = 'Mark as reviewed';
+            btn.addEventListener('click', () => markReviewed(obs.id, btn, entry));
+            entry.appendChild(btn);
+          }
+          obsEl.appendChild(entry);
+        });
+      } else {
+        obsEl.innerHTML += '<p class="empty-state" style="text-align:left;">No observations recorded.</p>';
+      }
+
+      // Finalize button
+      const actEl  = document.getElementById('reportActions');
+      const finBtn = document.createElement('button');
+      finBtn.id        = 'finalizeBtn';
+      finBtn.className = 'btn-finalize';
+      finBtn.textContent = 'Finalize consultation report';
+      finBtn.addEventListener('click', () => finalizeReport(finBtn));
+      actEl.appendChild(finBtn);
+      updateFinalizeButton();
+
+    } catch(e) {
+      console.error('Report load error:', e);
+      document.getElementById('reportPatientMeta').textContent = 'Error loading clinical data.';
+    }
+  }
+
+  async function markReviewed(obsId, btn, entryEl) {
+    if (!obsId) return;
+    btn.disabled = true;
+    btn.textContent = 'Marking...';
+    const token = await ensureToken();
+    if (!token) { btn.disabled = false; btn.textContent = 'Mark as reviewed'; return; }
+    try {
+      const getRes = await fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, {
+        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' }
+      });
+      if (!getRes.ok) throw new Error('GET failed: ' + getRes.status);
+      const obs = await getRes.json();
+
+      const currentDoctorId   = document.getElementById('doctorSelect').value;
+      const updatedExtensions = [
+        ...(obs.extension || []),
+        { url: 'https://telemed-bogheanu.ro/fhir/ext/reviewed-by', valueString: 'Practitioner/' + currentDoctorId },
+      ];
+
+      const patchRes = await fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/merge-patch+json',
+          'Accept': 'application/fhir+json',
+        },
+        body: JSON.stringify({ extension: updatedExtensions }),
+      });
+
+      if (patchRes.ok) {
+        entryEl.classList.add('reviewed');
+        btn.textContent = 'Reviewed ✓';
+        btn.style.cssText = 'width:100%;margin-top:8px;padding:8px;background:#16A34A;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:default;';
+        btn.disabled = true;
+        reviewedInSession.add(obsId);
+        updateFinalizeButton();
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Mark as reviewed';
+        console.error('Mark reviewed patch failed:', patchRes.status);
+      }
+    } catch(e) {
+      btn.disabled = false;
+      btn.textContent = 'Mark as reviewed';
+      console.error('Mark reviewed error:', e);
+    }
+  }
+
+  async function finalizeReport(btn) {
+    if (reviewedInSession.size === 0) return;
+    btn.disabled = true;
+    btn.textContent = 'Finalizing...';
+    const token = await ensureToken();
+    if (!token) { btn.disabled = false; btn.textContent = 'Finalize consultation report'; return; }
+    try {
+      await Promise.all([...reviewedInSession].map(obsId =>
+        fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/merge-patch+json',
+            'Accept': 'application/fhir+json',
+          },
+          body: JSON.stringify({ status: 'final' }),
+        }).then(r => { if (!r.ok) throw new Error('PATCH ' + obsId + ' failed: ' + r.status); })
+      ));
+      btn.textContent = 'Report finalized ✓';
+      btn.style.background = '#16A34A';
+      btn.disabled = true;
+      reviewedInSession.clear();
+    } catch(e) {
+      btn.disabled = false;
+      btn.textContent = 'Finalize consultation report';
+      console.error('Finalize error:', e);
+    }
+  }
+
+  // ── WebRTC / signaling ────────────────────────────────────────────────────────
   function joinWithId(appointmentId) {
     document.getElementById('appointmentInput').value = appointmentId;
     joinCall();
@@ -676,6 +990,7 @@
         setJoinStatus('');
         showCallUI();
         setCallStatus('Waiting for patient...');
+        showPanelState('incall');
       };
 
       signalingSocket.onmessage = async (event) => {
@@ -704,7 +1019,7 @@
         }
 
         if (msg.type === 'leave') {
-          showPeerLeftOverlay();
+          document.getElementById('peerLeftOverlay').style.display = 'flex';
         }
 
         // peer_joined: doctor is always the answerer — no action needed
@@ -762,15 +1077,19 @@
     const div  = document.createElement('div');
     div.className = 'chat-msg ' + (sender === 'Doctor' ? 'doctor' : 'patient');
     div.innerHTML =
-      '<div class="chat-msg-label">' + sender + '</div>' +
-      '<div>' + text + '</div>';
+      '<div class="chat-msg-label">' + esc(sender) + '</div>' +
+      '<div>' + esc(text) + '</div>';
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
+    if (sender === 'Patient') {
+      openPanel();
+      switchIncallTab('chat');
+    }
   }
 
-  function showPeerLeftOverlay() {
-    const overlay = document.getElementById('peerLeftOverlay');
-    overlay.style.display = 'flex';
+  function showCallUI() {
+    document.getElementById('joinScreen').style.display = 'none';
+    document.getElementById('callScreen').style.display = 'block';
   }
 
   function safeSend(obj) {
@@ -779,19 +1098,10 @@
     }
   }
 
-  function setJoinStatus(msg) {
-    document.getElementById('statusText').textContent = msg;
-  }
+  function setJoinStatus(msg) { document.getElementById('statusText').textContent = msg; }
+  function setCallStatus(msg)  { document.getElementById('callStatus').textContent = msg; }
 
-  function setCallStatus(msg) {
-    document.getElementById('callStatus').textContent = msg;
-  }
-
-  function showCallUI() {
-    document.getElementById('joinScreen').style.display = 'none';
-    document.getElementById('callScreen').style.display = 'block';
-  }
-
+  // ── Init ──────────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     populateDoctorDropdown();
     showTodayDate();
@@ -802,6 +1112,14 @@
     document.getElementById('endBtn').addEventListener('click', endCall);
     document.getElementById('muteBtn').addEventListener('click', toggleMute);
     document.getElementById('cameraBtn').addEventListener('click', toggleCamera);
+    document.getElementById('panelBtn').addEventListener('click', togglePanel);
+    document.getElementById('panelToggleBtn').addEventListener('click', togglePanel);
+    document.getElementById('panelCloseBtn').addEventListener('click', () => {
+      if (panelOpen) togglePanel();
+    });
+    document.getElementById('reportBackBtn').addEventListener('click', () => {
+      showPanelState('appointments');
+    });
     document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
     document.getElementById('peerLeftEndBtn').addEventListener('click', endCall);
     document.getElementById('appointmentInput').addEventListener('keydown', e => {
@@ -809,6 +1127,9 @@
     });
     document.getElementById('chatInput').addEventListener('keydown', e => {
       if (e.key === 'Enter') sendChatMessage();
+    });
+    document.querySelectorAll('.incall-tab').forEach(tab => {
+      tab.addEventListener('click', () => switchIncallTab(tab.dataset.tab));
     });
   });
 </script>

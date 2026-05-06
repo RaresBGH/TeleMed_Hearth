@@ -19,6 +19,10 @@ When auditing the TeleMed_K codebase, check these in order:
    - Hardcoded secrets or credentials in Dart files (client secrets, passwords, API keys)
    - Any token or credential logged via print() or log() calls
    - flutter_secure_storage used correctly for all sensitive values (tokens, secrets never in SharedPreferences)
+   
+   - Check that patientAvatarProvider (NotifierProvider<Uint8List?>) never 
+     persists avatar bytes to disk unencrypted — bytes must live in memory 
+     only, never written to SharedPreferences or plain files.
 
 9. RESOURCE DISPOSAL — Check for:
    - AnimationController, TextEditingController, ScrollController, StreamSubscription declared in State classes but missing dispose() calls
@@ -37,6 +41,19 @@ When auditing the TeleMed_K codebase, check these in order:
     - network_security_config.xml exists and restricts cleartext traffic
     - Only explicitly allowed domains permit cleartext (none should — all three endpoints use HTTPS)
     - usesCleartextTraffic in manifest is false or absent
+    
+12. FHIR EXTENSION URL CONSISTENCY — Verify that extension URLs written 
+    by Flutter (finalizeConsultation, setDoctorContext) match exactly 
+    what the doctor UI JavaScript reads in doctor-ui/index.html. 
+    Specifically check these three URLs for exact string match between 
+    writer and reader:
+      - https://telemed-bogheanu.ro/fhir/ext/reviewed-by-target
+      - https://telemed-bogheanu.ro/fhir/ext/reviewed-by
+      - https://telemed-bogheanu.ro/fhir/ext/session-category
+    Also verify the audio/photo attachment serialization format written 
+    by finalizeConsultation ([Voice:/path] and [Photo:/path]) matches 
+    exactly what _parseNoteToMessages in dialog_detail_sheet.dart expects.
+    Report any mismatch as CRITICAL.
 
 Report findings as a numbered list per category. Severity: CRITICAL (breaks build or crashes), HIGH (data loss or wrong behavior), MEDIUM (code smell), LOW (style). Fix nothing — report only.
 

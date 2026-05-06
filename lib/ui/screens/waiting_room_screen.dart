@@ -3,6 +3,8 @@
 //
 // TeleMed_K: Offline-first telemedicine app for seniors
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -10,7 +12,10 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../core/constants/practitioner_constants.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
+import '../../core/providers/medical_session_provider.dart';
+import '../../core/utils/date_formatter.dart';
 import 'video_consultation_screen.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -473,6 +478,8 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
                   const SizedBox(height: 20),
                   _buildEnterCallButton(lang),
                   const SizedBox(height: 12),
+                  _buildActivityButton(lang),
+                  const SizedBox(height: 12),
                   _buildWaitingCancelButton(context, lang),
                 ],
               ),
@@ -726,6 +733,215 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
+      ),
+    );
+  }
+
+  // "See my recent activity" button — STATE B only
+  Widget _buildActivityButton(String lang) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton.icon(
+        onPressed: () => unawaited(_showActivitySheet(lang)),
+        icon: const Icon(Icons.history, color: _brand),
+        label: Text(
+          AppStrings.of(lang, 'waiting.activity_btn'),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: _brand,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: _brand, width: 1.5),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showActivitySheet(String lang) async {
+    final cnp = ref.read(loginCnpProvider);
+    List<Map<String, dynamic>> observations;
+    try {
+      final all = await ref.read(fhirRepositoryProvider).getPatientHistory(cnp: cnp);
+      observations = all
+          .where((o) =>
+              (o['resourceType'] as String?) == 'Observation' &&
+              o['effectiveDateTime'] != null)
+          .toList()
+        ..sort((a, b) {
+          final aD = DateTime.tryParse(a['effectiveDateTime'] as String? ?? '') ??
+              DateTime(0);
+          final bD = DateTime.tryParse(b['effectiveDateTime'] as String? ?? '') ??
+              DateTime(0);
+          return bD.compareTo(aD);
+        });
+      if (observations.length > 5) observations = observations.sublist(0, 5);
+    } catch (_) {
+      observations = [];
+    }
+
+    if (!mounted) return;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (ctx) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.62,
+        child: Column(
+          children: [
+            // Drag handle
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Title
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  AppStrings.of(lang, 'waiting.activity_title'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: _onSurface,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Divider(height: 1),
+            // Content
+            observations.isEmpty
+                ? Expanded(
+                    child: Center(
+                      child: Text(
+                        AppStrings.of(lang, 'waiting.activity_empty'),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: _onSurfaceV,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                : Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      itemCount: observations.length,
+                      itemBuilder: (_, i) =>
+                          _buildActivityCard(observations[i], lang),
+                    ),
+                  ),
+            const Divider(height: 1),
+            // Footer
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                AppStrings.of(lang, 'waiting.activity_footer'),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: _onSurfaceV,
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActivityCard(Map<String, dynamic> obs, String lang) {
+    final isoDate   = obs['effectiveDateTime'] as String? ?? '';
+    final dateLabel = isoDate.isNotEmpty ? DateFormatter.format(isoDate) : '';
+    final val       = obs['valueString'] as String? ?? '';
+    final summary   = val.length > 200 ? '${val.substring(0, 200)}…' : val;
+
+    final exts = (obs['extension'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    final catExt = exts.where(
+      (e) => (e['url'] as String? ?? '').endsWith('session-category'),
+    ).firstOrNull;
+    final cat = catExt?['valueString'] as String?;
+    final isMedical = cat == 'medical';
+
+    final chipBg   = isMedical ? const Color(0xFFEBF4FB) : const Color(0xFFF2F4F8);
+    final chipFg   = isMedical ? _brand : _onSurfaceV;
+    final chipText = isMedical
+        ? AppStrings.of(lang, 'waiting.activity_medical')
+        : AppStrings.of(lang, 'waiting.activity_other');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F000000),
+            blurRadius: 8,
+            spreadRadius: -2,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                dateLabel,
+                style: const TextStyle(fontSize: 13, color: _onSurfaceV),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: chipBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  chipText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: chipFg,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (summary.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              summary,
+              style: const TextStyle(
+                fontSize: 14,
+                color: _onSurface,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

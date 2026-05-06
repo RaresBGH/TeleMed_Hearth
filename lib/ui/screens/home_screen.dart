@@ -220,44 +220,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   // ── Text triage ────────────────────────────────────────────────────────────
 
-  void _showTextDialog(String lang) {
+  Future<void> _showTextDialog(String lang) async {
     final controller = TextEditingController();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: Text(AppStrings.of(lang, 'home.dialog_title'),
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold,
-                color: _titleColor)),
-        content: TextField(
-          controller: controller,
-          maxLines: 5,
-          autofocus: true,
-          style: const TextStyle(fontSize: 18, color: _titleColor),
-          decoration: InputDecoration(
-            hintText: AppStrings.of(lang, 'home.dialog_hint'),
-            hintStyle: const TextStyle(fontSize: 18),
-            border: const OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(AppStrings.of(lang, 'home.dialog_cancel'),
-                style: const TextStyle(fontSize: 18)),
-          ),
-          ElevatedButton(
-            onPressed: () => _onTextSubmit(controller.text, ctx),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _iconColor,
-              foregroundColor: Colors.white,
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.white,
+          title: Text(AppStrings.of(lang, 'home.dialog_title'),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold,
+                  color: _titleColor)),
+          content: TextField(
+            controller: controller,
+            maxLines: 5,
+            autofocus: true,
+            style: const TextStyle(fontSize: 18, color: _titleColor),
+            decoration: InputDecoration(
+              hintText: AppStrings.of(lang, 'home.dialog_hint'),
+              hintStyle: const TextStyle(fontSize: 18),
+              border: const OutlineInputBorder(),
             ),
-            child: Text(AppStrings.of(lang, 'home.dialog_send'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ),
-        ],
-      ),
-    );
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(AppStrings.of(lang, 'home.dialog_cancel'),
+                  style: const TextStyle(fontSize: 18)),
+            ),
+            ElevatedButton(
+              onPressed: () => _onTextSubmit(controller.text, ctx),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _iconColor,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(AppStrings.of(lang, 'home.dialog_send'),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
   }
 
   Future<void> _onTextSubmit(String text, BuildContext dialogCtx) async {

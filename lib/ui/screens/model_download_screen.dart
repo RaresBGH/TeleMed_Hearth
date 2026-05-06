@@ -13,8 +13,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/language_provider.dart';
+import '../../core/providers/medical_session_provider.dart';
 import '../../core/services/ai_engine_service.dart';
-import '../../data/repositories/fhir_repository.dart';
 
 enum _DownloadState { idle, downloading, success, error }
 
@@ -171,7 +171,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
   Future<void> _onDownloadComplete() async {
     // Kick off model init in the background — the AI status indicator on the
     // dashboard handles the not-ready → ready transition independently.
-    unawaited(AiEngineService(FhirRepository()).initializeModel());
+    unawaited(AiEngineService(ref.read(fhirRepositoryProvider)).initializeModel());
     // Navigate within 2 s of STATUS_SUCCESS landing on the Dart side.
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;

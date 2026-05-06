@@ -39,6 +39,8 @@ Future<void> main() async {
   // Initialize the local FHIR engine (encrypted SQLite) and seed mock data
   // before the widget tree renders. Must run after ensureInitialized() because
   // it uses a MethodChannel to talk to the native Android FHIR SDK.
+  // Direct instantiation is intentional here: ProviderScope does not yet exist
+  // at this point in main(), so ref.read(fhirRepositoryProvider) is unavailable.
   final fhirRepo = FhirRepository();
   try {
     await fhirRepo.initialize();

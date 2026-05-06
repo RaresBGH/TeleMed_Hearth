@@ -19,7 +19,7 @@ import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/patient_history_provider.dart';
 import '../../core/services/ai_engine_service.dart';
 import '../../core/utils/date_formatter.dart';
-import '../../data/repositories/fhir_repository.dart';
+
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const Color _bg         = Color(0xFFF5F7FA);
@@ -78,7 +78,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
   Future<void> _loadPatientData() async {
     final cnp = ref.read(loginCnpProvider);
     try {
-      final data = await FhirRepository().getPatientByCnp(cnp);
+      final data = await ref.read(fhirRepositoryProvider).getPatientByCnp(cnp);
       if (!mounted) return;
       setState(() {
         _patientData    = data;
@@ -128,6 +128,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
       if (photoData != null) {
         try {
           _avatarBytes = base64Decode(photoData);
+          ref.read(patientAvatarProvider.notifier).set(_avatarBytes);
         } catch (_) {}
       }
     }
@@ -186,6 +187,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
     final ImageSource? source = await showDialog<ImageSource>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
         title: const Text('Alegeți sursa', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         actions: [
           TextButton(
@@ -218,11 +220,12 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
         updated['photo'] = [
           {'contentType': 'image/jpeg', 'data': base64Data}
         ];
-        await FhirRepository().updatePatient(updated);
+        await ref.read(fhirRepositoryProvider).updatePatient(updated);
         _patientData = updated;
       }
       if (!mounted) return;
       setState(() => _avatarBytes = bytes);
+      ref.read(patientAvatarProvider.notifier).set(bytes);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -287,8 +290,8 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
       _originalEmail = email;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(AppStrings.of(_lang, 'profil.save_success'),
-            style: const TextStyle(fontSize: 16)),
-        backgroundColor: const Color(0xFF2E7D32),
+            style: const TextStyle(fontSize: 16, color: Colors.white)),
+        backgroundColor: _brand,
         duration: const Duration(seconds: 2),
       ));
     } catch (_) {
@@ -315,7 +318,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
       telecoms.add(entry);
     }
     updated['telecom'] = telecoms;
-    await FhirRepository().updatePatient(updated);
+    await ref.read(fhirRepositoryProvider).updatePatient(updated);
     _patientData = updated;
   }
 
@@ -351,7 +354,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
       final cnp = ref.read(loginCnpProvider);
 
       // (i) Delete FHIR records — must run before auth clear
-      await FhirRepository().deleteAllForPatient(cnp);
+      await ref.read(fhirRepositoryProvider).deleteAllForPatient(cnp);
 
       // (ii) Delete model file — before auth clear
       await AiEngineService.deleteModelFile();
@@ -445,7 +448,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           child: const SizedBox(
             width: 64,
             height: 64,
-            child: Icon(Icons.arrow_back, color: _onSurface, size: 26),
+            child: Icon(Icons.arrow_back, color: _brand, size: 26),
           ),
         ),
       ),

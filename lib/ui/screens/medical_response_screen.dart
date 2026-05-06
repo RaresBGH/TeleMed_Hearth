@@ -29,7 +29,6 @@ import '../widgets/image_preview_screen.dart';
 // ── Design tokens (matches Stitch palette from code.html) ─────────────────────
 
 const Color _brandBlue    = Color(0xFF5BA4CF);
-const Color _bgPage       = Color(0xFFF5F7FA);
 const Color _onSurface    = Color(0xFF191C1F);
 const Color _muted        = Color(0xFF70787F);
 const Color _outlineVar   = Color(0xFFBFC7CF);
@@ -133,13 +132,35 @@ class _MedicalResponseScreenState
         if (mounted) ref.read(medicalSessionProvider.notifier).clearPreseed();
       });
     } else {
-      // Fresh triage entry — show welcome card; do NOT seed a default message.
-      // The triage card appears only after the first AI response.
-      _messages.add(ChatMessage(
-        role: 'ai',
-        text: AppStrings.of(_lang, 'chat.followup_prompt'),
-        timestamp: DateTime.now(),
-      ));
+      // Fresh triage entry: if there is a patient message + AI response from the
+      // home-screen triage, seed both bubbles immediately so the chat is populated.
+      final session = ref.read(medicalSessionProvider);
+      if (widget.initialResponse.isNotEmpty &&
+          session.lastPatientMessage != null) {
+        _messages.add(ChatMessage(
+          role: 'patient',
+          text: session.lastPatientMessage!,
+          timestamp: DateTime.now(),
+        ));
+        _messages.add(ChatMessage(
+          role: 'ai',
+          text: widget.initialResponse,
+          timestamp: DateTime.now(),
+        ));
+        _hasFirstAiResponse = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ref.read(medicalSessionProvider.notifier).clearPatientMessage();
+          }
+        });
+      } else {
+        // No prior exchange — show welcome card and default AI prompt.
+        _messages.add(ChatMessage(
+          role: 'ai',
+          text: AppStrings.of(_lang, 'chat.followup_prompt'),
+          timestamp: DateTime.now(),
+        ));
+      }
     }
     _textController.addListener(() => setState(() {}));
   }
@@ -640,7 +661,7 @@ class _MedicalResponseScreenState
         if (!didPop) _onBack();
       },
       child: Scaffold(
-        backgroundColor: _bgPage,
+        backgroundColor: Colors.white,
         resizeToAvoidBottomInset: true,
         appBar: _buildAppBar(),
         body: Column(
@@ -695,20 +716,28 @@ class _MedicalResponseScreenState
         ),
       ),
       titleSpacing: 0,
-      title: Text(
-        AppStrings.of(_lang, 'chat.appbar_title'),
-        style: const TextStyle(
-          color: _brandBlue,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      title: Builder(builder: (_) {
+        final doctorName = ref.read(medicalSessionProvider).lastDoctorName;
+        final title = (doctorName != null && doctorName.isNotEmpty)
+            ? doctorName
+            : AppStrings.of(_lang, 'chat.appbar_title');
+        return Text(
+          title,
+          style: const TextStyle(
+            color: _brandBlue,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+      }),
     );
   }
 
   // ── Welcome card (shown before first AI response) ─────────────────────────────
 
   Widget _buildWelcomeCard() {
+    final doctorName = ref.read(medicalSessionProvider).lastDoctorName;
+    final isDoctorContext = doctorName != null && doctorName.isNotEmpty;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -722,17 +751,21 @@ class _MedicalResponseScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.health_and_safety, color: _brandBlue, size: 48),
+          Icon(
+            isDoctorContext ? Icons.chat_bubble_outline : Icons.health_and_safety,
+            color: _brandBlue, size: 48),
           const SizedBox(height: 16),
           Text(
-            AppStrings.of(_lang, 'assistant.title'),
+            isDoctorContext ? doctorName : AppStrings.of(_lang, 'assistant.title'),
             style: const TextStyle(
               fontSize: 20, fontWeight: FontWeight.bold, color: _onSurface),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
-            AppStrings.of(_lang, 'assistant.subtitle'),
+            isDoctorContext
+                ? AppStrings.of(_lang, 'chat.doctor_message_subtitle')
+                : AppStrings.of(_lang, 'assistant.subtitle'),
             style: const TextStyle(fontSize: 16, color: _muted, height: 1.5),
             textAlign: TextAlign.center,
           ),
