@@ -4,6 +4,7 @@
 // TeleMed_K: Offline-first telemedicine app for seniors
 
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../constants/practitioner_constants.dart';
@@ -138,6 +139,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
     // Guard: prevent duplicate FHIR writes if called more than once per session.
     if (_finalized) return;
     _finalized = true;
+    debugPrint('finalizeConsultation: _finalized=$_finalized, messages=${messages.length}');
     try {
       final String cnp           = ref.read(loginCnpProvider);
       final String timestamp     = DateTime.now().toIso8601String();
@@ -225,8 +227,10 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       }
       // Invalidate AFTER the FHIR write completes so the history screen
       // re-fetches the updated list, not the pre-write snapshot.
-      ref.invalidate(patientHistoryProvider);
+      try { ref.invalidate(patientHistoryProvider); } catch (_) {}
+      debugPrint('finalizeConsultation: FHIR write complete');
     } catch (e) {
+      debugPrint('finalizeConsultation: FHIR write FAILED: $e');
       throw Exception('Failed to save consultation to local FHIR database: $e');
     }
   }
@@ -318,10 +322,10 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   }
 
   Future<void> reset() async {
+    _finalized = false; // FIRST: reset guard before any cleanup that could throw
     await ref.read(audioRecordingServiceProvider).stopAndRelease();
     // Reset session isolation so next session injects fresh FHIR history.
     ref.read(aiEngineServiceProvider).resetSession();
-    _finalized = false; // allow finalization in the next session
     state = MedicalSessionState.idle;
   }
 

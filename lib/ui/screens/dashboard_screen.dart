@@ -3,8 +3,6 @@
 //
 // TeleMed_K: Offline-first telemedicine app for seniors
 
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -169,29 +167,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   // ── Header ───────────────────────────────────────────────────────────────
 
   Widget _buildHeader(String lang, String? firstName, bool aiReady) {
-    final Uint8List? avatarBytes = ref.watch(patientAvatarProvider);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Semantics(
-          button: true,
-          label: 'Profilul Meu',
-          child: GestureDetector(
-            onTap: () => ref.read(appNavigationProvider.notifier)
-                .navigateTo(AppRoute.patientProfile),
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: const BoxDecoration(
-                color: Color(0xFFD0D3D8),
-                shape: BoxShape.circle,
+        Consumer(
+          builder: (context, ref, _) {
+            final avatarBytes = ref.watch(patientAvatarProvider);
+            return Semantics(
+              button: true,
+              label: 'Profilul Meu',
+              child: GestureDetector(
+                onTap: () => ref.read(appNavigationProvider.notifier)
+                    .navigateTo(AppRoute.patientProfile),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFD0D3D8),
+                    shape: BoxShape.circle,
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: avatarBytes != null
+                      ? Image.memory(avatarBytes, fit: BoxFit.cover)
+                      : const Icon(Icons.person, size: 26,
+                          color: Color(0xFF8A8E95)),
+                ),
               ),
-              clipBehavior: Clip.antiAlias,
-              child: avatarBytes != null
-                  ? Image.memory(avatarBytes, fit: BoxFit.cover)
-                  : const Icon(Icons.person, size: 26, color: Color(0xFF8A8E95)),
-            ),
-          ),
+            );
+          },
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -332,8 +335,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                   ),
                 ),
-                _GreenChip(label: AppStrings.of(lang, 'doctor.available')),
-                const SizedBox(width: 4),
                 const Icon(Icons.chevron_right, color: _onSurfaceV, size: 18),
               ],
             ),

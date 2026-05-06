@@ -219,38 +219,6 @@ class DoctorProfileScreen extends ConsumerWidget {
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 14),
-
-          // "Disponibil acum" chip — stays GREEN (availability status, not validation)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade600,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  AppStrings.of(lang, 'doctor.available_now'),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.green.shade700,
-                  ),
-                ),
-              ],
-            ),
-          ),
           const SizedBox(height: 20),
 
           // Action buttons — DESIGN.md: min 64dp height, 12dp radius, NOT pill-shaped
@@ -261,9 +229,6 @@ class DoctorProfileScreen extends ConsumerWidget {
                   icon: Icons.chat_outlined,
                   label: AppStrings.of(lang, 'doctor.message_btn'),
                   onTap: () {
-                    final preseed =
-                        AppStrings.of(lang, 'doctor.message_preseed')
-                            .replaceAll('[name]', doctorName);
                     if (showBackButton) {
                       // Specialist sub-screen: push so back returns here.
                       if (!context.mounted) return;
@@ -277,13 +242,14 @@ class DoctorProfileScreen extends ConsumerWidget {
                             initialResponse: AppStrings.of(
                                 lang, 'chat.default_response'),
                             isEmergency: false,
-                            initialPrompt: preseed,
+                            initialPrompt: null,
                           ),
                         ),
                       );
                     } else {
-                      // Family doctor tab: push via Navigator so back returns
-                      // here; initialPrompt auto-triggers AI inference.
+                      // Family doctor tab: push via Navigator so back returns here.
+                      // No initialPrompt — doctor context set via setDoctorContext;
+                      // patient starts the conversation.
                       ref.read(medicalSessionProvider.notifier)
                           .setDoctorContext(doctorName, practitionerRef: practitionerRef);
                       if (!context.mounted) return;
@@ -294,7 +260,7 @@ class DoctorProfileScreen extends ConsumerWidget {
                             initialResponse: AppStrings.of(
                                 lang, 'chat.default_response'),
                             isEmergency: false,
-                            initialPrompt: preseed,
+                            initialPrompt: null,
                           ),
                         ),
                       );

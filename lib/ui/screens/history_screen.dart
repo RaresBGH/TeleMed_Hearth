@@ -81,7 +81,7 @@ class HistoryScreen extends ConsumerWidget {
                         final String label =
                             item['resourceType'] == 'Observation'
                                 ? AppStrings.of(lang, 'dashboard.triage_dialog')
-                                : (code['text'] as String? ?? _getFallbackText(item));
+                                : (code['text'] as String? ?? _getFallbackText(item, lang));
                         final String? valueString =
                             item['valueString'] as String?;
                         final String? status = item['status'] as String?;
@@ -117,7 +117,7 @@ class HistoryScreen extends ConsumerWidget {
                           child: Material(
                             color: Colors.transparent,
                             child: AccessibleTouchTarget(
-                              semanticLabel: 'Deschide detalii raport',
+                              semanticLabel: AppStrings.of(lang, 'history.open_details'),
                               onTap: () => DialogDetailSheet.show(
                                 context,
                                 ref,
@@ -288,10 +288,12 @@ class HistoryScreen extends ConsumerWidget {
     );
   }
 
-  String _getFallbackText(Map<String, dynamic> item) {
-    if (item['resourceType'] == 'Observation') return 'Observație Medicală';
-    if (item['resourceType'] == 'Condition') return 'Condiție Medicală';
-    return 'Înregistrare Medicală';
+  String _getFallbackText(Map<String, dynamic> item, String lang) {
+    if (item['resourceType'] == 'Observation')
+      return AppStrings.of(lang, 'history.fallback_observation');
+    if (item['resourceType'] == 'Condition')
+      return AppStrings.of(lang, 'history.fallback_condition');
+    return AppStrings.of(lang, 'history.fallback_generic');
   }
 
 

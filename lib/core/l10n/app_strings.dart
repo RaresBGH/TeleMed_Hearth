@@ -99,7 +99,11 @@ class AppStrings {
     'history.cat_document':   'Document',
     'history.cat_other':      'Altele',
     'history.doctor_attr':    'Medic:',
-    'history.open_details':   'Deschide detalii raport',
+    'history.open_details':          'Deschide detalii raport',
+    'history.fallback_observation':  'Observație Medicală',
+    'history.fallback_condition':    'Condiție Medicală',
+    'history.fallback_generic':      'Înregistrare Medicală',
+    'history.finalized_label':       'Finalizat de medic',
 
     // ── Doctor / Medic ─────────────────────────────────────────────────────
     'doctor.screen_title':    'Medicul Meu',
@@ -389,6 +393,7 @@ class AppStrings {
 
     // ── Shared / nav ──────────────────────────────────────────────────────
     'nav.home':               'Acasă',
+    'nav.dossier':            'Dosar Medical',
     'nav.history':            'Dosar Medical',
     'nav.doctor':             'Medic',
     'lang.switch_sem':        'Schimbă Limba / Change Language',
@@ -479,7 +484,11 @@ class AppStrings {
     'history.cat_document':   'Document',
     'history.cat_other':      'Other',
     'history.doctor_attr':    'Doctor:',
-    'history.open_details':   'Open report details',
+    'history.open_details':          'Open report details',
+    'history.fallback_observation':  'Medical Record',
+    'history.fallback_condition':    'Medical Condition',
+    'history.fallback_generic':      'Health Record',
+    'history.finalized_label':       'Finalized by doctor',
 
     // ── Doctor / Medic ─────────────────────────────────────────────────────
     'doctor.screen_title':    'My Doctor',
@@ -769,6 +778,7 @@ class AppStrings {
 
     // ── Shared / nav ──────────────────────────────────────────────────────
     'nav.home':               'Home',
+    'nav.dossier':            'Medical Dossier',
     'nav.history':            'Medical Record',
     'nav.doctor':             'Doctor',
     'lang.switch_sem':        'Change Language / Schimbă Limba',

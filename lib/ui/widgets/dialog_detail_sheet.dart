@@ -225,62 +225,92 @@ class DialogDetailSheet {
                   ],
                 ),
               ),
-              // "Continuă conversația" button
+              // Bottom action: continue (non-final) or finalized lock (final)
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 60,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.chat_bubble_outline),
-                    label: Text(
-                      AppStrings.of(lang, 'history.continue_btn'),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF5BA4CF),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    onPressed: () {
-                      // Close the bottom sheet first using its own context.
-                      Navigator.of(context).pop();
-                      try {
-                        final messages = _parseNoteToMessages(noteText ?? '');
-                        final obsId    = item['id'] as String?;
-                        // Navigator.push bypasses the flat-nav session guard,
-                        // preventing the idle-state → dashboard race condition.
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => MedicalResponseScreen(
-                              initialResponse: valueString ?? '',
-                              isEmergency: false,
-                              initialMessages: messages,
+                child: status == 'final'
+                    ? Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF2F4F8),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.lock_outline,
+                                color: Color(0xFF40484E), size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                AppStrings.of(lang, 'history.finalized_label'),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF40484E),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : SizedBox(
+                        width: double.infinity,
+                        height: 60,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.chat_bubble_outline),
+                          label: Text(
+                            AppStrings.of(lang, 'history.continue_btn'),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        );
-                        // Persist the observationId so finalizeConsultation
-                        // calls updateObservation (not saveObservation).
-                        if (obsId != null && obsId.isNotEmpty) {
-                          ref.read(medicalSessionProvider.notifier).prepareResume(
-                            aiResponse: valueString ?? '',
-                            messages: messages,
-                            existingObservationId: obsId,
-                          );
-                        }
-                      } catch (e) {
-                        debugPrint('DialogDetailSheet: continue conversation error: $e');
-                      }
-                    },
-                  ),
-                ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF5BA4CF),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          onPressed: () {
+                            // Close the bottom sheet first using its own context.
+                            Navigator.of(context).pop();
+                            try {
+                              final messages =
+                                  _parseNoteToMessages(noteText ?? '');
+                              final obsId = item['id'] as String?;
+                              // Navigator.push bypasses the flat-nav session guard,
+                              // preventing the idle-state → dashboard race condition.
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MedicalResponseScreen(
+                                    initialResponse: valueString ?? '',
+                                    isEmergency: false,
+                                    initialMessages: messages,
+                                  ),
+                                ),
+                              );
+                              // Persist the observationId so finalizeConsultation
+                              // calls updateObservation (not saveObservation).
+                              if (obsId != null && obsId.isNotEmpty) {
+                                ref
+                                    .read(medicalSessionProvider.notifier)
+                                    .prepareResume(
+                                      aiResponse: valueString ?? '',
+                                      messages: messages,
+                                      existingObservationId: obsId,
+                                    );
+                              }
+                            } catch (e) {
+                              debugPrint(
+                                  'DialogDetailSheet: continue conversation error: $e');
+                            }
+                          },
+                        ),
+                      ),
               ),
             ],
           ),

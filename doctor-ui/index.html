@@ -894,10 +894,12 @@
         method: 'PATCH',
         headers: {
           'Authorization': 'Bearer ' + token,
-          'Content-Type': 'application/merge-patch+json',
+          'Content-Type': 'application/json-patch+json',
           'Accept': 'application/fhir+json',
         },
-        body: JSON.stringify({ extension: updatedExtensions }),
+        body: JSON.stringify([
+          { op: 'replace', path: '/extension', value: updatedExtensions }
+        ]),
       });
 
       if (patchRes.ok) {
@@ -931,10 +933,12 @@
           method: 'PATCH',
           headers: {
             'Authorization': 'Bearer ' + token,
-            'Content-Type': 'application/merge-patch+json',
+            'Content-Type': 'application/json-patch+json',
             'Accept': 'application/fhir+json',
           },
-          body: JSON.stringify({ status: 'final' }),
+          body: JSON.stringify([
+            { op: 'replace', path: '/status', value: 'final' }
+          ]),
         }).then(r => { if (!r.ok) throw new Error('PATCH ' + obsId + ' failed: ' + r.status); })
       ));
       btn.textContent = 'Report finalized ✓';

@@ -202,9 +202,10 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     final startTime = DateTime.tryParse(iso)?.toLocal();
     if (startTime == null) return false;
     final now = DateTime.now();
-    // Allow joining 21 minutes before scheduled time and up to 30 minutes after.
-    return startTime.isAfter(now.subtract(const Duration(minutes: 30))) &&
-           startTime.isBefore(now.add(const Duration(minutes: 21)));
+    // Allow joining 60 minutes before and up to 120 minutes after scheduled time.
+    // Matches the doctor UI join window exactly.
+    return startTime.isAfter(now.subtract(const Duration(hours: 2))) &&
+           startTime.isBefore(now.add(const Duration(hours: 1)));
   }
 
   String _formatSlot(TimeOfDay slot) => DateFormatter.formatTime(slot);
@@ -244,11 +245,13 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                         ),
                         ..._buildAppointmentCards(lang),
                         const SizedBox(height: 16),
-                        _buildCTAButton(lang),
-                        const SizedBox(height: 16),
                       ],
                     ),
                   ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: _buildCTAButton(lang),
           ),
           // Inline booking panel slides up from bottom
           AnimatedContainer(

@@ -8,7 +8,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../core/providers/app_navigation_provider.dart';
+import '../../core/providers/language_provider.dart';
 
 // ── Design tokens — must match home_screen.dart ───────────────────────────────
 const Color _navActive   = Color(0xFF5BA4CF);
@@ -20,13 +22,14 @@ const Color _navInactive = Color(0xFF6B7280);
 /// via the notifier.  Screens host it as the last child of a [Column] inside
 /// [Scaffold.body], mirroring the home-screen layout pattern.
 ///
-/// Labels (canonical, never vary): "Acasă" | "Dosar Medical" | "Medic"
+/// Labels are localised via AppStrings: nav.home / nav.dossier / nav.doctor
 class AppBottomNavBar extends ConsumerWidget {
   const AppBottomNavBar({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentRoute = ref.watch(appNavigationProvider);
+    final lang         = ref.watch(languageProvider);
 
     void go(AppRoute route) =>
         ref.read(appNavigationProvider.notifier).navigateTo(route);
@@ -50,19 +53,19 @@ class AppBottomNavBar extends ConsumerWidget {
                 children: [
                   _NavTab(
                     icon: Icons.home,
-                    label: 'Acasă',
+                    label: AppStrings.of(lang, 'nav.home'),
                     active: currentRoute == AppRoute.dashboard,
                     onTap: () => go(AppRoute.dashboard),
                   ),
                   _NavTab(
                     icon: Icons.folder_shared,
-                    label: 'Dosar Medical',
+                    label: AppStrings.of(lang, 'nav.dossier'),
                     active: currentRoute == AppRoute.history,
                     onTap: () => go(AppRoute.history),
                   ),
                   _NavTab(
                     icon: Icons.medical_services,
-                    label: 'Medic',
+                    label: AppStrings.of(lang, 'nav.doctor'),
                     active: currentRoute == AppRoute.myDoctor,
                     onTap: () => go(AppRoute.myDoctor),
                   ),
