@@ -1,5 +1,5 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-05-05
+Last updated: 2026-05-07
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
@@ -99,7 +99,11 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Dosar Medical** — audio and photo attachment paths serialized into FHIR note text; restored as playable/tappable bubbles on replay
 - **Doctor UI join window** — widened to -60min / +120min from appointment start
 - **Doctor UI sliding panel** — deployed and functional at telemed-doctor.duckdns.org; 3-state panel (Appointments / Patient Report / In-Call) confirmed loading
-- **Doctor UI patient report** — Conditions and triage Observations load from Medplum; Mark reviewed PATCHes reviewed-by extension; Finalize PATCHes status:final
+- **Doctor UI patient report** — Conditions and triage Observations load from Medplum; Mark reviewed PATCHes reviewed-by extension (application/json-patch+json); Finalize PATCHes status:final
+- **Appointments join window** — -60min / +120min confirmed working; matches doctor UI
+- **WaitingRoom activity panel** — "See my recent activity" bottom sheet loads; category chips, date, summary display correctly (build #68 verified)
+- **Bottom nav localised** — nav.home / nav.dossier / nav.doctor react to language toggle (build #69 pending device test)
+- **finalizeConsultation** — FHIR write confirmed reaching local SDK; _finalized reset bug fixed (build #69 pending device test)
 - **Dashboard doctor card** — tappable; "Family Doctor:" label; navigates to Medic tab
 - **Specialist screens** — all 8 specialties show real doctor names from Practitioners constants
 - **My Profile** — save SnackBar (brand blue); blue back button; avatar sync to dashboard via patientAvatarProvider
@@ -321,11 +325,15 @@ Demo OTPs (last 6 digits of each CNP):
   Ana Constantin:   150058
 
 Conditions:
-  Hipertensiune arterială     → Condition/36d3b343 → Maria Ionescu
-  Diabet zaharat tip 2        → Condition/1b02b21e → Ion Popescu
+  Arterial Hypertension       → Condition/36d3b343-a8e9-4b7b-bcfc-52dfe5c51073 → Maria Ionescu (patched to EN 2026-05-07)
+  Type 2 Diabetes             → Condition/1b02b21e-e6ae-4723-961b-cecd4cb2085e → Ion Popescu (patched to EN 2026-05-07)
   Artrită reumatoidă          → Condition/59f9db2b → Elena Dumitrescu
   Insuficiență cardiacă       → Condition/9feb7821 → Gheorghe Stan
   Boală pulmonară obstructivă → Condition/e7161115 → Ana Constantin
+
+Rich test data (Ion Popescu and Maria Ionescu):
+  Ion Popescu   — 8 Appointments (4 fulfilled, 3 booked today, 1 future); 6 Observations (1 final+reviewed, 5 preliminary)
+  Maria Ionescu — 7 Appointments (3 fulfilled, 3 booked today, 1 future); 6 Observations (2 final+reviewed, 4 preliminary)
 
 Practitioners:
   Dr. Elena Ionescu   Family Doctor (Medic de Familie)        Practitioner/733e1972-b42d-4bd0-82c7-66db72b2d311
@@ -363,13 +371,23 @@ FHIR search patterns:
 - **Doctor UI sliding panel** — 3 states (Appointments / Patient Report / In-Call); Mark reviewed → PATCH `reviewed-by` extension; Finalize → PATCH `status:final` on all reviewed Observations in session; responsive design (320px desktop, 280px tablet overlay, full-width mobile).
 - **WaitingRoomScreen STATE B activity panel** — "See my recent activity" button shows last 5 Observations from local FHIR SDK; read-only; shows date, category chip (session-category extension), and AI summary excerpt.
 - **VideoConsultationScreen Activity tab** — alongside Chat tab in DraggableScrollableSheet; last 5 Observations loaded on `initState` via `_loadActivityData()`; read-only cards; fail-silent with `debugPrint`.
+- **FHIR PATCH format** — Medplum 5.1.10 requires `application/json-patch+json` (RFC 6902 array body). `application/merge-patch+json` returns HTTP 400 "Patch body must be an array".
+- **finalizeConsultation `_finalized` guard** — `_finalized = false` must be the FIRST statement in `reset()`, before `stopAndRelease()`. If audio cleanup throws, the guard would permanently block FHIR writes in subsequent sessions of the same app run.
+- **patientHistoryProvider invalidation** — called inside `finalizeConsultation()` after successful FHIR write, wrapped in `try { ref.invalidate(...); } catch (_) {}` to prevent invalidation errors from masking a successful write.
+- **Bottom nav labels** — localised via `languageProvider` + AppStrings keys `nav.home` / `nav.dossier` / `nav.doctor`; reactive to EN/RO toggle without restart.
 
 ---
 
 ## Code Quality
 
-Four full audit cycles completed (2026-05-02, 2026-05-04, 2026-05-05, 2026-05-06). All findings resolved: audit round 4 found 0 critical + 1 high + 11 medium + 5 low — all fixed. Current state: **0 critical, 0 high, 0 medium, 0 low** open issues.
+Four full audit cycles completed (2026-05-02, 2026-05-04, 2026-05-05, 2026-05-06). All findings resolved: audit round 4 found 0 critical + 1 high + 11 medium + 5 low — all fixed. Build #69 batch: 6 fix groups applied, 0 analyze errors. Current state: **0 critical, 0 high, 0 medium, 0 low** open issues.
 Post-hackathon deferred: duplicate Observation schema between `finalizeConsultation()` and `VideoConsultationScreen._saveCallSummary()` (refactor to shared factory method).
+
+FHIR extension URL consistency (all confirmed matching Flutter writer ↔ doctor UI JavaScript reader):
+  https://telemed-bogheanu.ro/fhir/ext/reviewed-by-target  (Flutter writes on finalizeConsultation)
+  https://telemed-bogheanu.ro/fhir/ext/reviewed-by         (doctor UI writes on Mark reviewed)
+  https://telemed-bogheanu.ro/fhir/ext/session-category    (Flutter writes; readers use endsWith/contains)
+PATCH format confirmed: application/json-patch+json (RFC 6902). Medplum 5.1.10 rejects merge-patch with HTTP 400.
 
 Refactoring completed during audit:
 - Dead code removed — 3 dead service files, 2 dead screens/routes, 1 unused Gradle dependency

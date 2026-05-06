@@ -204,7 +204,7 @@ Răspunsul tău JSON trebuie să conțină mereu:
             //   3. sdcard Downloads — sideloaded for testing
             // Returns null if absent from all locations.
             "getModelPath" -> {
-                val fileName = "gemma-4-E2B-it.litertlm"
+                val fileName = "gemma-4-E4B-it.litertlm"
 
                 val filesPath   = context.filesDir.absolutePath + "/models/$fileName"
                 val flutterPath = context.filesDir.parent + "/app_flutter/models/$fileName"
@@ -259,7 +259,7 @@ Răspunsul tău JSON trebuie să conțină mereu:
     private fun handleLoadModel(call: MethodCall, result: MethodChannel.Result) {
         // Dart sends 'modelPath' for both loadModel and initializeModel
         val modelPath = call.argument<String>("modelPath")
-            ?: "${context.filesDir}/models/gemma-4-E2B-it.litertlm"
+            ?: "${context.filesDir}/models/gemma-4-E4B-it.litertlm"
 
         scope.launch {
             try {

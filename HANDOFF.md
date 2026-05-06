@@ -2,7 +2,7 @@
 **Date:** 2026-05-05  
 **Deadline:** May 18, 2026 — **12 days remaining**  
 **Repo:** https://github.com/RaresBGH/TeleMed_K (PRIVATE — must go public before deadline)  
-**Latest commit:** build #68 — pending (CI not yet triggered). Last tested build: #67.
+**Latest commit:** build #69 — downloading on device. All changes committed and pushed to main.
 
 ---
 
@@ -112,34 +112,36 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 
 ## Outstanding Bugs — Priority Order
 
-### P1 — ALL FIXED this session. No open P1 items.
+### P1 — ALL FIXED. No open P1 items.
 
-### P2 — FIXED this session:
-- Dashboard doctor card: "Family Doctor:" label, tap → Medic tab
-- Specialist screens: real doctor names from Practitioners constants
-- My Profile: save SnackBar feedback, blue back button, avatar propagates to dashboard via patientAvatarProvider
-- White backgrounds: photo picker, triage body, back buttons
-- Doctor UI join window: -60min to +120min
-- Triage chat: patient first message + AI response seeded on entry
-- Doctor message flow: clean entry, doctor name in AppBar, neutral welcome card
-- Dosar Medical replay: attachment paths serialized and restored
-- MedicalSessionState.lastPractitionerRef added and propagated through all 5 state copy sites
-- session-category extension URL standardised to https://telemed-bogheanu.ro/fhir/ext/session-category
-- FhirRepository() direct instantiation replaced with fhirRepositoryProvider at all valid call sites
-- Video call activity chips and summarization prompt localised
-- TextEditingController leak fixed in home_screen._showTextDialog
-- telemedicine_service.dart dead file deleted
-- VIBRATE permission removed from AndroidManifest.xml
+### P2 — FIXED in build #69 batch:
+- Appointments join window: -60min / +120min (matches doctor UI)
+- "Request new appointment" button fixed at bottom of screen, outside scrollable area
+- Dashboard "Available now" green chip removed from health card
+- Dashboard "Available now" pill removed from DoctorProfileScreen
+- patientAvatarProvider watch isolated in Consumer widget in _buildHeader() — fixes intermittent _dependents.isEmpty crash
+- Doctor message flow: initialPrompt set to null — no AI inference triggered on entry, no pre-populated bubble
+- Bottom nav labels localised via AppStrings + languageProvider: nav.home / nav.dossier / nav.doctor
+- DialogDetailSheet: "Continue conversation" hidden for status=final observations; replaced with locked indicator
+- history_screen _getFallbackText: hardcoded Romanian strings replaced with AppStrings keys
+- history_screen Semantics label localised via AppStrings
+- finalizeConsultation _finalized reset bug fixed: _finalized=false moved to first line of reset() so stopAndRelease() exceptions no longer permanently block FHIR writes in subsequent sessions
+- ref.invalidate(patientHistoryProvider) added after successful FHIR write in finalizeConsultation()
+- debugPrint tracing added to finalizeConsultation()
+- Medplum conditions patched to English via REST: Ion Popescu → "Type 2 Diabetes", Maria Ionescu → "Arterial Hypertension"
+
+### OPEN BUGS — carry to build #70:
+- T3: AI resets to "Hello. What brings you to the doctor today?" mid-conversation (context lost between turns)
+- T4: Triage back button still not white background
+- D3: "Could not load photo" error on profile photo upload
+- C1: _dependents.isEmpty crash — reduced severity after Consumer fix but not eliminated; intermittent
+- Appointments: WaitingRoomScreen doctor name resolution shows Practitioners.bogheanuName for all non-family-doctor appointments instead of correct specialist name
+- P1-5/6/7: Microphone release, end call keyboard, mute chip — pending two-way video call test
 
 ### POST-HACKATHON TRACKER:
-- F: Duplicate Observation schema between finalizeConsultation() and VideoConsultationScreen._saveCallSummary() — refactor to shared factory method
-- WiFi-triggered background sync via ConnectivityListener + FhirRepository.syncFromMedplum()
-- main.dart and auth_provider.dart: direct FhirRepository() kept intentionally (startup context / circular import)
-
-### PENDING TEST (requires two-way video call):
-- P1-5: Microphone not released after voice message
-- P1-6: End call first tap no effect when keyboard open
-- P1-7: Microphone Active chip stays after muting in waiting room
+- Duplicate Observation schema (finalizeConsultation vs _saveCallSummary) — refactor to shared factory
+- WiFi-triggered background sync via ConnectivityListener
+- main.dart and auth_provider.dart direct FhirRepository() kept intentionally (startup / circular import)
 
 ---
 
@@ -171,6 +173,26 @@ To make it persistent: `sudo cp /tmp/telemed-signaling.service /etc/systemd/syst
 - Client credentials: ID `c18b54d9-f511-46db-903e-882b47dc3c63` / Secret `7f86f3b5c08e94d711f61a4565c7d577cb303e78a5d57b5d340b74baf8c0b283`
 - **In-app credentials are dart-define** — not hardcoded in source (R1 fix)
 - GitHub Actions CI builds with empty credentials unless secrets are added
+
+**Rich test data (Ion Popescu, Maria Ionescu — patched to English):**
+
+Ion Popescu (Patient/118149bf-26e0-46e1-87de-7149e8066284)
+  CNP: 1490815150027 | OTP: 150027
+  Condition: Type 2 Diabetes (ID: 1b02b21e-e6ae-4723-961b-cecd4cb2085e)
+  Appointments: 8 (4 past fulfilled, 3 today booked, 1 future)
+  Observations: 6 (1 final+reviewed, 5 preliminary unreviewed)
+
+Maria Ionescu (Patient/a0e44abc-acc5-442e-a316-be70192fc72b)
+  CNP: 2540203150013 | OTP: 150013
+  Condition: Arterial Hypertension (ID: 36d3b343-a8e9-4b7b-bcfc-52dfe5c51073)
+  Appointments: 7 (3 past fulfilled, 3 today booked, 1 future)
+  Observations: 6 (2 final+reviewed, 4 preliminary unreviewed)
+
+**FHIR extension URL consistency (all confirmed matching Flutter ↔ doctor UI):**
+  https://telemed-bogheanu.ro/fhir/ext/reviewed-by-target
+  https://telemed-bogheanu.ro/fhir/ext/reviewed-by
+  https://telemed-bogheanu.ro/fhir/ext/session-category
+PATCH format confirmed: application/json-patch+json (not merge-patch — Medplum 5.1.10 rejects merge-patch with 400)
 
 ### Demo Login Credentials
 

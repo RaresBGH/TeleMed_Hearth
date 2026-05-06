@@ -516,39 +516,6 @@ class _AiStatusPill extends StatelessWidget {
   }
 }
 
-class _GreenChip extends StatelessWidget {
-  final String label;
-
-  const _GreenChip({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: _greenBg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('●',
-              style: TextStyle(fontSize: 10, color: _greenFg)),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: _greenFg,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _StatusCard extends StatelessWidget {
   final IconData icon;
   final String label;

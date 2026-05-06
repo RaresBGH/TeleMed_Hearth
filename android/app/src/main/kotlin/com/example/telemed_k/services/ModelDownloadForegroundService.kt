@@ -51,8 +51,8 @@ class ModelDownloadForegroundService : Service() {
         private const val CHANNEL_ID     = "model_download_channel"
         private const val TAG            = "ModelDownloadFS"
 
-        private const val MODEL_URL      = "https://telemed-b.duckdns.org/gemma-4-E2B-it.litertlm"
-        private const val MODEL_FILENAME = "gemma-4-E2B-it.litertlm"
+        private const val MODEL_URL      = "https://telemed-b.duckdns.org/gemma-4-E4B-it.litertlm"
+        private const val MODEL_FILENAME = "gemma-4-E4B-it.litertlm"
         private const val MODEL_SUBDIR   = "models"
         private const val CHUNK_BYTES    = 64 * 1024
         private const val MAX_FAILURES   = 3
