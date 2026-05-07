@@ -234,7 +234,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: Text(
-                            'PROGRAMĂRI',
+                            AppStrings.of(lang, 'dashboard.appointments_title').toUpperCase(),
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -432,8 +432,36 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         ? parts.skip(2).join(' · ')       // everything after specialty
         : parts.length == 2 ? parts[1]    // just doctorName without specialty
         : null;
+    final specialty = parts.length >= 3 ? parts[1] : null;
     final desc = doctorName ?? rawDesc;    // show doctorName as card title
     final canEnter = _canEnterConsult(appt);
+
+    // FIX 1: Full practitioner name lookup — covers all 9 known practitioners.
+    // FIX 2: Safe for-loop search by actor.reference prefix, not by index.
+    const practitionerNameMap = {
+      Practitioners.familyDoctorId: Practitioners.familyDoctorName,
+      'Practitioner/family':        Practitioners.familyDoctorName,
+      Practitioners.bogheanuId:     Practitioners.bogheanuName,
+      Practitioners.cardioId:       Practitioners.cardioName,
+      Practitioners.neuroId:        Practitioners.neuroName,
+      Practitioners.dermId:         Practitioners.dermName,
+      Practitioners.orthoId:        Practitioners.orthoName,
+      Practitioners.ophthaId:       Practitioners.ophthaName,
+      Practitioners.psychId:        Practitioners.psychName,
+      Practitioners.gyneId:         Practitioners.gyneName,
+    };
+    final apptParticipants = appt['participant'] as List? ?? [];
+    String? practitionerRef;
+    for (final p in apptParticipants) {
+      final ref = ((p as Map?)?['actor'] as Map?)?['reference'] as String?;
+      if (ref != null && ref.startsWith('Practitioner/')) {
+        practitionerRef = ref;
+        break;
+      }
+    }
+    final resolvedDoctorName = practitionerRef != null
+        ? (practitionerNameMap[practitionerRef] ?? practitionerRef)
+        : null;
 
     return Container(
       constraints: const BoxConstraints(minHeight: 80),
@@ -461,13 +489,26 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
-                          child: Text(
-                            desc,
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                              color: _onSurface,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                desc,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                  color: _onSurface,
+                                ),
+                              ),
+                              if (specialty != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  specialty,
+                                  style: const TextStyle(
+                                      fontSize: 13, color: _onSurfaceV),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -503,32 +544,21 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                         width: double.infinity,
                         height: 64,
                         child: ElevatedButton(
-                          onPressed: () {
-                            final participants =
-                                appt['participant'] as List? ?? [];
-                            String? actorRef;
-                            if (participants.length > 1) {
-                              final actor = (participants[1]
-                                      as Map)['actor']
-                                  as Map?;
-                              actorRef =
-                                  actor?['reference'] as String?;
-                            }
-                            final doctorName =
-                                (actorRef == Practitioners.familyDoctorId ||
-                                        actorRef == 'Practitioner/family')
-                                    ? Practitioners.familyDoctorName
-                                    : Practitioners.bogheanuName;
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => WaitingRoomScreen(
-                                  appointmentId: appt['id'] as String?,
-                                  doctorName: doctorName,
-                                ),
-                              ),
-                            );
-                          },
+                          // FIX 2: disabled (null) when no practitioner participant found.
+                          onPressed: resolvedDoctorName != null
+                              ? () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => WaitingRoomScreen(
+                                        appointmentId: appt['id'] as String?,
+                                        doctorName: resolvedDoctorName,
+                                        doctorSpecialty: specialty,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _brand,
                             foregroundColor: Colors.white,

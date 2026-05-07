@@ -12,7 +12,7 @@ Flutter 3.44.0 master channel at /snap/bin/flutter
 
 ## Infrastructure
 Caddy v2.11.2 serving model at https://telemed-b.duckdns.org
-Model: /home/corb_d/sovereign-factory/models/gemma-4-E4B-it.litertlm (3.65GB)
+Model: /home/rares_bogheanu/gemma-4-E4B-it.litertlm (3.5GB) — on GCP VM, served by Caddy file_server
 Caddy systemd service: caddy-telemed (sudo systemctl status caddy-telemed)
 GX10 ethernet IP: 192.168.0.144 (enP7s7) — no rate limiting
 DuckDNS token: stored as DUCKDNS_TOKEN env in caddy-telemed.service
@@ -34,7 +34,7 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 
 ## Tech Stack
 - Flutter/Dart + Kotlin native Android
-- LiteRT-LM 0.10.2 (Gemma 4 E2B on-device inference)
+- LiteRT-LM 0.10.2 (Gemma 4 E4B on-device inference)
 - Google Android FHIR SDK 1.2.0 + SQLCipher (local encrypted storage)
 - OkHttp (model download with resume)
 - Riverpod (state management)
@@ -74,7 +74,7 @@ Latest build: #69 — pushed to main, downloading on device. Last device-tested 
 GitHub Actions secrets MEDPLUM_CLIENT_ID and MEDPLUM_CLIENT_SECRET are set correctly.
 Medplum sync confirmed working — appointments, observations, and communications reach https://telemed-medplum.duckdns.org/fhir/R4.
 WebRTC two-device video call confirmed working end-to-end (patient Pixel 9 Pro + doctor Brave browser).
-On-device AI inference confirmed working — Gemma 4 E2B responds to text and voice in correct language.
+On-device AI inference confirmed working — Gemma 4 E4B responds to text and voice in correct language.
 Doctor UI at https://telemed-doctor.duckdns.org confirmed working — shows today's appointments, joins video call.
 Signaling server updated: peer_joined message triggers offer re-send when doctor joins after patient.
 Signaling server location: /home/corb_d/sovereign-factory/signaling/server.js (PID changes on restart).

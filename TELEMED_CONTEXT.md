@@ -57,7 +57,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 
 - **Auth — CNP + OTP** — CNP validation: full official spec (S=1-9, S=9 valid, county 99, 18+, checksum); demo OTP = last 6 digits of CNP (`substring(7,13)`); 3-attempt lockout; SmartAuth SMS listener; button disabled until all 6 boxes filled
 - **Phone validation** — `07XXXXXXXX` format enforced in real-time on identity screen
-- **Model download — sovereign server** — `ModelDownloadForegroundService.kt` downloads from `https://telemed-b.duckdns.org/gemma-4-E2B-it.litertlm` (Caddy 2.11.2 on GX10, Let's Encrypt TLS via DuckDNS DNS-01)
+- **Model download — sovereign server** — `ModelDownloadForegroundService.kt` downloads from `https://telemed-b.duckdns.org/gemma-4-E4B-it.litertlm` (Caddy file_server on GCP VM at `/home/rares_bogheanu/gemma-4-E4B-it.litertlm`, 3.5GB, Let's Encrypt TLS via DuckDNS)
 - **Model download — OkHttp + foreground service + resume** — OkHttp replaces DownloadManager; HTTP Range header resume; model written to `filesDir/models/`; foreground service survives backgrounding; triggers only after auth completes; mobile data allowed with soft warning
 - **Model download auto-advance** — STATUS_SUCCESS → `unawaited(initializeModel())`; `Future.delayed(1500ms)` then `navigateTo(AppRoute.home)`; button hidden permanently on success; terminal state guard in `_startDownload()`
 - **Chat screen with Gemma 4** — full Romanian dialog UI; raw JSON stripped from AI output before rendering; follow-up text inference correct on all subsequent turns
@@ -68,7 +68,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Back button exit dialog** — `AlertDialog` with "Finalizează Dialogul" (saves + exits) and "Ieși fără a salva" (discards); `PopScope(canPop: false)` routes hardware back through same `_onBack()` handler; dismissing stays in chat
 - **Emergency 112 routing** — `SessionState.emergency` → `EmergencyScreen` → `tel:112` dialer
 - **App navigation session guard** — auth + download routes protected from session-state hijacking
-- **LiteRT-LM E2B integration** — real Engine via `litertlm-android:0.10.2`; dual-path model lookup (`filesDir/models/` or `/sdcard/Download/`)
+- **LiteRT-LM E4B integration** — real Engine via `litertlm-android:0.10.2`; dual-path model lookup (`filesDir/models/` or `/sdcard/Download/`)
 - **AI acknowledgment structure** — system prompt enforces a/b/c: Confirmare / Evaluare / Continuare; applies to voice, text, photo
 - **Photo loading indicator** — "Se analizează fotografia..." replaces animated dots while `evaluateMedia()` runs; `_isPhotoAnalyzing` bool tracks photo-specific processing
 - **Audio recording** — WAV 16kHz mono; async WAV→AAC transcode (MediaCodec, no FFmpeg)
@@ -87,7 +87,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Waiting room mute/video** — buttons correctly disable/enable actual MediaStream tracks
 - **Triage chat attachments** — voice bubble shows play/stop button with correct `attachmentPath`; photo bubble shows tappable thumbnail; both open full-screen on tap
 - **AI conversation context** — conversation history passed as `customPrompt` to every `evaluateText`/`evaluateAudio`/`evaluateMedia` call; AI no longer repeats Turn 1 greeting
-- **On-device AI inference** — Gemma 4 E2B confirmed responding on device; text inference working; voice inference working (returns response); `[name]` placeholder removed from system prompt
+- **On-device AI inference** — Gemma 4 E4B confirmed responding on device; text inference working; voice inference working (returns response); `[name]` placeholder removed from system prompt
 - **GitHub Actions secrets** — `MEDPLUM_CLIENT_ID` and `MEDPLUM_CLIENT_SECRET` confirmed set with correct values; build #60+ have working Medplum credentials
 - **Doctor UI rewrite** — English interface confirmed loading at telemed-doctor.duckdns.org; doctor dropdown with 9 practitioners; appointment join window -21min to +30min; chat panel present; peer-left overlay present
 - **Practitioner names** — all mock names confirmed in Medplum and Flutter constants; 9 real Medplum Practitioner UUIDs in practitioner_constants.dart
@@ -232,7 +232,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 | File | Role |
 |---|---|
 | android/.../MainActivity.kt | Registers 5 MethodChannels |
-| android/.../channels/LiteRtLmChannel.kt | Gemma 4 E2B inference; getModelPath dual-path check |
+| android/.../channels/LiteRtLmChannel.kt | Gemma 4 E4B inference; getModelPath dual-path check |
 | android/.../channels/FhirEngineChannel.kt | Google FHIR SDK CRUD + mock data seed |
 | android/.../channels/AudioTranscodeChannel.kt | MediaCodec WAV→AAC (no FFmpeg) |
 | android/.../channels/TelemedicineChannel.kt | FCM stub + WebRTC answerCall stub |
@@ -247,7 +247,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 | Item | Value |
 |---|---|
 | Test device | Google Pixel 9 Pro (serial: 4C041FDAP006Z1) |
-| Model file location | /sdcard/Download/gemma-4-E2B-it.litertlm |
+| Model file location | /sdcard/Download/gemma-4-E4B-it.litertlm (sideload fallback) |
 | ADB | USB cable (unreliable); wireless not configured |
 | Install method | Download APK from GitHub Actions artifact on phone browser |
 | GX10 model server | https://telemed-b.duckdns.org (production) / 192.168.0.144:443 (LAN direct) |
@@ -410,7 +410,7 @@ Refactoring completed during audit:
 - [x] OTP: last-6-digits formula, button state fixed
 - [x] Login screen scroll/visibility fix committed
 - [x] Model download: OkHttp + foreground service + resume + triggers after auth
-- [x] Production model download URL — `https://telemed-b.duckdns.org/gemma-4-E2B-it.litertlm`
+- [x] Production model download URL — `https://telemed-b.duckdns.org/gemma-4-E4B-it.litertlm`
 - [x] Model download auto-advances to home on STATUS_SUCCESS (1.5s delay, unawaited initializeModel)
 - [x] Model download terminal state guard — success blocks re-entry
 - [x] Chat screen: Gemma 4 dialog, patient bubbles, raw JSON stripped, follow-up inference fixed
@@ -491,7 +491,7 @@ Refactoring completed during audit:
 - **Deadline:** May 18, 2026 — **12 days remaining**
 - **Public repo required:** currently PRIVATE — must make public before deadline
 - **Demo video:** not yet recorded
-- **Gemma 4 on-device status:** CONFIRMED WORKING — Gemma 4 E2B responds to text and voice on Pixel 9 Pro; language toggle works; conversation context maintained
+- **Gemma 4 on-device status:** CONFIRMED WORKING — Gemma 4 E4B responds to text and voice on Pixel 9 Pro; language toggle works; conversation context maintained
 - **Latest tested build:** #64 (commit fb1a104) — installed on Pixel 9 Pro 2026-05-05
 - **Medplum status:** CONFIRMED WORKING — client_credentials auth working; appointments/observations/communications syncing; doctor UI showing live data
 - **WebRTC status:** CONFIRMED WORKING — two-device video call end-to-end tested

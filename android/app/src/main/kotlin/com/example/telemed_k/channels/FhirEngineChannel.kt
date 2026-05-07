@@ -557,10 +557,16 @@ class FhirEngineChannel(
                     }
                 )
 
+                // Strip "Practitioner/" prefix if already present — avoids double-prefixing
+                // when callers pass the full FHIR reference string instead of a bare UUID.
+                val barePractitionerId = if (practitionerId.startsWith("Practitioner/"))
+                    practitionerId.removePrefix("Practitioner/")
+                    else practitionerId
+
                 // Practitioner participant
                 appointment.addParticipant(
                     org.hl7.fhir.r4.model.Appointment.AppointmentParticipantComponent().apply {
-                        actor  = org.hl7.fhir.r4.model.Reference("Practitioner/$practitionerId")
+                        actor  = org.hl7.fhir.r4.model.Reference("Practitioner/$barePractitionerId")
                         setStatus(org.hl7.fhir.r4.model.Appointment.ParticipationStatus.ACCEPTED)
                     }
                 )

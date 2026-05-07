@@ -11,7 +11,7 @@
 Flutter telemedicine app for rural Romania. Dr. Rareș Bogheanu's clinic in Brănești, Dâmbovița.  
 Target users: elderly patients (70s–80s) with low tech literacy; NGO provides devices.  
 Competition: Kaggle Gemma 4 Good Hackathon.  
-Primary AI: Gemma 4 E2B (2.4GB model, LiteRT-LM 0.10.2) — runs fully on-device.  
+Primary AI: Gemma 4 E4B (3.5GB model, LiteRT-LM 0.10.2) — runs fully on-device.  
 FHIR backend: Google Android FHIR SDK (local encrypted SQLite) + Medplum 5.1.10 (self-hosted, dual-write).
 
 ---
@@ -57,7 +57,7 @@ FHIR backend: Google Android FHIR SDK (local encrypted SQLite) + Medplum 5.1.10 
 - Back button exit dialog (PopScope, hardware back handled)
 - Emergency 112 routing
 - Session guard (auth/download routes protected)
-- LiteRT-LM E2B dual-path model lookup
+- LiteRT-LM E4B dual-path model lookup
 - Audio recording (WAV 16kHz, AAC transcode)
 - Camera capture (JPEG 85)
 - Legal screens (WebView, EN/RO, H4)
@@ -73,7 +73,7 @@ FHIR backend: Google Android FHIR SDK (local encrypted SQLite) + Medplum 5.1.10 
 - In-call chat: no keyboard overflow; end call works (single tap when keyboard closed)
 - Triage chat: voice bubble shows play button; photo bubble shows tappable thumbnail
 - AI conversation context maintained across turns (history passed as customPrompt)
-- On-device AI inference confirmed working — Gemma 4 E2B responds in correct language
+- On-device AI inference confirmed working — Gemma 4 E4B responds in correct language
 - GitHub Actions secrets MEDPLUM_CLIENT_ID and MEDPLUM_CLIENT_SECRET confirmed set and working
 - Doctor UI sliding panel deployed at https://telemed-doctor.duckdns.org: 3-state panel (Appointments / Patient Report / In-Call); patient triage report with chronic conditions, unreviewed dialogues, Mark reviewed → PATCH reviewed-by extension, Finalize → PATCH status:final; In-Call panel: Chat tab + Activity tab (last 5 Observations); responsive 320px desktop / 280px tablet overlay / full-width mobile; join window -60min to +120min
 - All practitioner names replaced with approved mock names throughout app and Medplum
@@ -154,7 +154,7 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 | caddy-telemed.service | Running | Serves telemed-b, telemed-doctor, telemed-signal on 443 |
 | telemed-signaling (Node.js) | Running (PID in session) | ws://0.0.0.0:8765; wss://telemed-signal.duckdns.org |
 | Medplum 5.1.10 | Running | https://telemed-medplum.duckdns.org/fhir/R4 |
-| Gemma model server (Caddy) | Running | https://telemed-b.duckdns.org/gemma-4-E2B-it.litertlm |
+| Gemma model server (Caddy) | Running | https://telemed-b.duckdns.org/gemma-4-E4B-it.litertlm — served from GCP VM /home/rares_bogheanu/gemma-4-E4B-it.litertlm |
 | WireGuard | Running | GX10 peer 10.0.0.2 ↔ GCP VM 10.0.0.1 |
 
 **Note:** The Node.js signaling server was started with `node server.js &` in a session — it may need restarting after reboot. Run: `cd /home/corb_d/sovereign-factory/signaling && node server.js &`  
@@ -213,7 +213,7 @@ PATCH format confirmed: application/json-patch+json (not merge-patch — Medplum
 
 ## Key Architecture Decisions
 
-- **AI is fully on-device** — no cloud API calls for inference; Gemma 4 E2B runs via LiteRT-LM
+- **AI is fully on-device** — no cloud API calls for inference; Gemma 4 E4B runs via LiteRT-LM
 - **Default language is English** — `LanguageNotifier.build() => 'en'`; toggle in every AppBar
 - **Flat navigation + session guard** — `AppNavigationNotifier` manages routing; auth routes protected; use `Navigator.push` for sub-screens (doctors, specialists, legal) to avoid session guard override
 - **Dual-write FHIR** — all writes go to local FHIR SDK (guaranteed) + Medplum (best-effort); reads are online-first with local fallback

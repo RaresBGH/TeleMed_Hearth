@@ -224,10 +224,15 @@ class FhirRepository {
       }
     }
     try {
+      // Strip 'Practitioner/' prefix before passing to Kotlin — the native filter
+      // builds "Practitioner/$value" itself, so passing the full ref would double-prefix.
+      final bareRef = practitionerRef?.startsWith('Practitioner/') == true
+          ? practitionerRef!.substring('Practitioner/'.length)
+          : practitionerRef;
       final String? result = await _channel.invokeMethod<String>(
           'getAppointments', {
         'cnp': cnp,
-        if (practitionerRef != null) 'practitionerRef': practitionerRef,
+        if (bareRef != null) 'practitionerRef': bareRef,
       });
       if (result == null) return [];
       final List<dynamic> parsed = jsonDecode(result) as List<dynamic>;

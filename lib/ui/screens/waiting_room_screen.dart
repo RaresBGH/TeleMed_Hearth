@@ -40,11 +40,14 @@ const Color _errorRed = Color(0xFFAB1118);
 class WaitingRoomScreen extends ConsumerStatefulWidget {
   final String? appointmentId;
   final String  doctorName;
+  /// Specialist specialty string (e.g. 'Cardiologie'). Displayed in the next task.
+  final String? doctorSpecialty;
 
   const WaitingRoomScreen({
     super.key,
     this.appointmentId,
     this.doctorName = Practitioners.familyDoctorName,
+    this.doctorSpecialty,
   });
 
   @override
@@ -212,6 +215,16 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
                     color: _onSurface,
                   ),
                 ),
+                if (widget.doctorSpecialty != null &&
+                    widget.doctorSpecialty!.isNotEmpty)
+                  Text(
+                    widget.doctorSpecialty!,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: _onSurfaceV,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
               ],
             ),
           ),
