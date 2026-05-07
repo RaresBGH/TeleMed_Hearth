@@ -301,20 +301,30 @@ class MedplumRepository {
     String? attachmentPath,
     String? mimeType,
     String? attachmentTitle,
+    String? practitionerId,
   }) async {
     if (!await auth.isOnline()) return null;
     try {
+      final patientRef = {
+        'type': 'Patient',
+        'identifier': {
+          'system': 'urn:oid:1.2.40.0.10.1.4.3.1',
+          'value': patientCnp,
+        },
+      };
+      final practRef = practitionerId != null && practitionerId.isNotEmpty
+          ? {'reference': 'Practitioner/$practitionerId'}
+          : null;
+
       final payload = <String, dynamic>{
         'resourceType': 'Communication',
         'status': 'completed',
         'sent': timestamp.toUtc().toIso8601String(),
-        'subject': {
-          'type': 'Patient',
-          'identifier': {
-            'system': 'urn:oid:1.2.40.0.10.1.4.3.1',
-            'value': patientCnp,
-          },
-        },
+        'subject': patientRef,
+        // sender: the party that sent the message.
+        'sender': isPatient ? patientRef : (practRef ?? <String, dynamic>{}),
+        // recipient: the intended receiver of the message.
+        'recipient': [isPatient ? (practRef ?? <String, dynamic>{}) : patientRef],
         if (appointmentId != null && appointmentId.isNotEmpty)
           'about': [{'reference': 'Appointment/$appointmentId'}],
         'payload': [
@@ -328,6 +338,7 @@ class MedplumRepository {
               }
             },
         ],
+        // Keep isPatient extension for backwards compatibility.
         'extension': [
           {'url': 'isPatient', 'valueBoolean': isPatient},
         ],
@@ -345,6 +356,25 @@ class MedplumRepository {
     } catch (e) {
       debugPrint('MedplumRepository.saveCommunication error: $e');
       return null;
+    }
+  }
+
+  /// Returns Communication resources for [patientId], newest first (max 50).
+  Future<List<Map<String, dynamic>>> getCommunications(String patientId) async {
+    if (!await auth.isOnline()) return [];
+    try {
+      final uri = Uri.parse(
+          '$_base/Communication?subject=Patient/$patientId&_sort=-sent&_count=50');
+      final response = await client.get(uri, headers: await _headers());
+      if (response.statusCode == 200) {
+        final bundle = jsonDecode(response.body) as Map<String, dynamic>;
+        return _extractEntries(bundle);
+      }
+      debugPrint('MedplumRepository.getCommunications: ${response.statusCode}');
+      return [];
+    } catch (e) {
+      debugPrint('MedplumRepository.getCommunications error: $e');
+      return [];
     }
   }
 

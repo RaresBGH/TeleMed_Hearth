@@ -2,7 +2,7 @@
 **Date:** 2026-05-05  
 **Deadline:** May 18, 2026 — **12 days remaining**  
 **Repo:** https://github.com/RaresBGH/TeleMed_K (PRIVATE — must go public before deadline)  
-**Latest commit:** build #75 — in progress (not yet pushed). Last pushed: build #73. Last device-tested: build #74.
+**Latest commit:** build #76 — in progress. Last pushed: build #75. Last device-tested: build #74.
 
 ---
 
@@ -158,12 +158,25 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 - Doctor UI: redundant blue PANEL tab removed from DOM
 - Fulfilled appointment timestamps patched in Medplum to distinct dates/times (Apr 14–22)
 
+### FIXED in build #76 batch:
+- UI-1: Exit dialogue black background → white (AlertDialog backgroundColor: Colors.white)
+- In-call chat removed from VideoConsultationScreen — Activity tab (observations) only remains
+- Doctor Communications data layer: getCommunications() in MedplumRepository + FhirRepository
+- saveCommunication() now includes FHIR sender/recipient fields
+- ChatMessage 'doctor' role + 'document' AttachmentType added
+- Doctor messages surface in MedicalResponseScreen as distinct green bubble with doctor name
+- Doctor UI: Appointments panel state removed entirely; panel has 2 states (report, chat)
+- Doctor UI: In-call panel shows Patient Report read-only, no chat during call
+- Doctor UI: Chat state — async Medplum Communications only, no WebSocket
+- Doctor UI: Blue Chat stripe visible outside call, opens chat panel
+
 ### OPEN BUGS — carry forward:
 - T3: AI resets to "Hello. What brings you to the doctor today?" mid-conversation
 - T4: Triage back button not white background
 - D3: "Could not load photo" error on profile photo upload
-- Patient PDF send: plain text notification only — no DocumentReference ID from saveCommunication; post-hackathon fix
-- P1-5/6/7: Mic release, end-call keyboard, mute chip — pending two-device video call test
+- Patient PDF send: plain text notification only — post-hackathon fix
+- P1-5/6/7: Mic release, end-call keyboard, mute chip — pending two-device test
+- Doctor Communications polling: not real-time — patient must reopen to see new messages (post-hackathon)
 
 ### POST-HACKATHON TRACKER:
 - Duplicate Observation schema (finalizeConsultation vs _saveCallSummary) — refactor to shared factory

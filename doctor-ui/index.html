@@ -56,8 +56,8 @@
   }
   .panel-state.active { display: flex; }
 
-  /* ── PANEL TOGGLE BUTTON ─────────────────────────────────── */
-  #panelToggleBtn {
+  /* ── CHAT STRIPE (outside call only) ────────────────────── */
+  #chatStripeBtn {
     position: fixed;
     top: 50%; right: 0;
     transform: translateY(-50%);
@@ -66,20 +66,18 @@
     width: 36px; height: 80px;
     cursor: pointer; z-index: 201;
     display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 4px;
+    align-items: center; justify-content: center;
     transition: right 0.28s cubic-bezier(0.4,0,0.2,1), background 0.15s;
     box-shadow: -2px 0 8px rgba(0,0,0,0.15);
-  }
-  #panelToggleBtn:hover { background: #3a82aa; }
-  #panelToggleBtn.panel-open { right: 360px; }
-  @media (max-width: 1023px) { #panelToggleBtn.panel-open { right: 300px; } }
-  @media (max-width: 767px)  { #panelToggleBtn.panel-open { right: 100%; } }
-  #toggleIcon { font-size: 16px; }
-  #toggleLabel {
-    font-size: 9px; font-weight: 700;
+    font-size: 11px; font-weight: 700;
     writing-mode: vertical-rl; text-orientation: mixed;
-    transform: rotate(180deg); letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
   }
+  #chatStripeBtn:hover { background: #3a82aa; }
+  #chatStripeBtn.panel-open { right: 360px; }
+  #chatStripeBtn.hidden { display: none; }
+  @media (max-width: 1023px) { #chatStripeBtn.panel-open { right: 300px; } }
+  @media (max-width: 767px)  { #chatStripeBtn.panel-open { right: 100%; } }
 
   /* ── MAIN CONTENT ────────────────────────────────────────── */
   #mainContent {
@@ -103,10 +101,7 @@
   }
   .card-title { font-size: 22px; font-weight: 700; color: #1a1c1c; margin-bottom: 4px; }
   .card-subtitle { font-size: 15px; color: #40484e; margin-bottom: 24px; }
-  .field-label {
-    font-size: 13px; color: #40484e; font-weight: 600;
-    margin-bottom: 8px; display: block;
-  }
+  .field-label { font-size: 13px; color: #40484e; font-weight: 600; margin-bottom: 8px; display: block; }
   select {
     width: 100%; height: 48px; font-size: 15px;
     border: 2px solid #5BA4CF; border-radius: 8px;
@@ -114,36 +109,25 @@
     outline: none; cursor: pointer; margin-bottom: 16px;
   }
   select:focus { border-color: #3a82aa; background: #fff; }
-  #todayDate {
-    font-size: 13px; font-weight: 600; color: #5BA4CF;
-    margin-bottom: 20px; letter-spacing: 0.02em;
-  }
-  .section-label {
-    font-size: 12px; font-weight: 700; color: #40484e;
-    letter-spacing: 0.06em; margin-bottom: 10px;
-  }
+  #todayDate { font-size: 13px; font-weight: 600; color: #5BA4CF; margin-bottom: 20px; letter-spacing: 0.02em; }
+  .section-label { font-size: 12px; font-weight: 700; color: #40484e; letter-spacing: 0.06em; margin-bottom: 10px; }
   .appt-card {
     background: #f3f3f3; border-radius: 10px;
     padding: 14px 16px; margin-bottom: 10px;
-    display: flex; align-items: center;
-    justify-content: space-between; gap: 12px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
   }
   .appt-patient { font-weight: 700; font-size: 15px; color: #1a1c1c; }
   .appt-time { font-size: 13px; color: #40484e; margin-top: 2px; }
   .appt-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
   .join-btn {
-    background: #5BA4CF; color: #fff;
-    border: none; border-radius: 8px;
-    padding: 8px 14px; font-size: 13px; font-weight: 700;
-    cursor: pointer; white-space: nowrap; transition: background 0.15s;
+    background: #5BA4CF; color: #fff; border: none; border-radius: 8px;
+    padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background 0.15s;
   }
   .join-btn:hover:not(:disabled) { background: #3a82aa; }
   .join-btn:disabled { background: #c4c4c4; color: #888; cursor: not-allowed; }
   .view-report-btn {
     background: none; border: 1.5px solid #5BA4CF; color: #5BA4CF;
-    border-radius: 8px; padding: 6px 12px;
-    font-size: 12px; font-weight: 700;
-    cursor: pointer; white-space: nowrap;
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
   }
   .view-report-btn:hover { background: #eaf2f9; }
   .empty-state { font-size: 14px; color: #40484e; padding: 16px 0; text-align: center; }
@@ -152,67 +136,22 @@
   #appointmentInput {
     width: 100%; height: 48px; font-size: 15px;
     border: 2px solid #5BA4CF; border-radius: 8px;
-    padding: 0 12px; outline: none;
-    background: #f9f9f9; color: #1a1c1c; margin-bottom: 10px;
+    padding: 0 12px; outline: none; background: #f9f9f9; color: #1a1c1c; margin-bottom: 10px;
   }
   #appointmentInput:focus { border-color: #3a82aa; background: #fff; }
-  #joinBtn {
-    width: 100%; height: 52px;
-    background: #5BA4CF; color: #fff;
-    font-size: 16px; font-weight: 700; border: none;
-    border-radius: 8px; cursor: pointer; transition: background 0.15s;
-  }
+  #joinBtn { width: 100%; height: 52px; background: #5BA4CF; color: #fff; font-size: 16px; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
   #joinBtn:hover { background: #3a82aa; }
   #statusText { margin-top: 12px; font-size: 14px; color: #40484e; min-height: 20px; text-align: center; }
 
   /* ── CALL SCREEN ─────────────────────────────────────────── */
-  #callScreen {
-    display: none; position: relative;
-    width: 100%; height: 100dvh;
-    background: #000; overflow: hidden;
-  }
-  #remoteVideo {
-    width: 100%; height: 100%;
-    background-color: #000; display: block;
-    object-fit: contain;
-    aspect-ratio: 16/9;
-  }
-  #localVideo {
-    position: fixed; bottom: 128px; left: 16px;
-    width: 160px; height: 120px;
-    background: #222; border-radius: 8px;
-    object-fit: cover; z-index: 10;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.5);
-  }
-  #callStatus {
-    position: fixed; top: 16px; left: 50%;
-    transform: translateX(-50%);
-    background: rgba(26,28,28,0.75); color: #fff;
-    font-size: 14px; padding: 8px 20px;
-    border-radius: 999px; z-index: 30;
-  }
-  #controlBar {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    height: 112px;
-    background: rgba(249,249,249,0.95);
-    backdrop-filter: blur(20px);
-    display: flex; align-items: center;
-    justify-content: center; gap: 32px; z-index: 20;
-    transition: right 0.28s cubic-bezier(0.4,0,0.2,1);
-  }
-  @media (min-width: 1024px) {
-    body.panel-open #controlBar { right: 360px; }
-  }
-  .ctrl-btn {
-    display: flex; flex-direction: column;
-    align-items: center; gap: 6px;
-    cursor: pointer; background: none; border: none;
-  }
-  .ctrl-circle {
-    width: 64px; height: 64px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 24px; transition: background 0.15s, transform 0.1s;
-  }
+  #callScreen { display: none; position: relative; width: 100%; height: 100dvh; background: #000; overflow: hidden; }
+  #remoteVideo { width: 100%; height: 100%; background-color: #000; display: block; object-fit: contain; aspect-ratio: 16/9; }
+  #localVideo { position: fixed; bottom: 128px; left: 16px; width: 160px; height: 120px; background: #222; border-radius: 8px; object-fit: cover; z-index: 10; box-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+  #callStatus { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: rgba(26,28,28,0.75); color: #fff; font-size: 14px; padding: 8px 20px; border-radius: 999px; z-index: 30; }
+  #controlBar { position: fixed; bottom: 0; left: 0; right: 0; height: 112px; background: rgba(249,249,249,0.95); backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: center; gap: 32px; z-index: 20; transition: right 0.28s cubic-bezier(0.4,0,0.2,1); }
+  @media (min-width: 1024px) { body.panel-open #controlBar { right: 360px; } }
+  .ctrl-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; background: none; border: none; }
+  .ctrl-circle { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: background 0.15s, transform 0.1s; }
   .ctrl-circle:active { transform: scale(0.92); }
   .ctrl-label { font-size: 12px; color: #40484e; font-weight: 500; }
   #muteBtn   .ctrl-circle { background: #f3f3f3; }
@@ -222,153 +161,48 @@
   #panelBtn  .ctrl-circle { background: #f3f3f3; }
 
   /* ── PEER LEFT OVERLAY ───────────────────────────────────── */
-  #peerLeftOverlay {
-    display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.78); z-index: 50;
-    flex-direction: column; align-items: center;
-    justify-content: center; gap: 16px;
-    color: #fff; text-align: center; padding: 32px;
-  }
+  #peerLeftOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 16px; color: #fff; text-align: center; padding: 32px; }
   #peerLeftOverlay p { font-size: 20px; font-weight: 600; max-width: 320px; }
-  #peerLeftEndBtn {
-    margin-top: 16px; padding: 14px 32px;
-    background: #ab1118; color: #fff; border: none;
-    border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer;
-  }
-
-  /* ── PANEL: APPOINTMENTS STATE ───────────────────────────── */
-  #stateAppointments { overflow-y: auto; }
-  #panelTodayDate {
-    font-size: 12px; font-weight: 600; color: #5BA4CF;
-    padding: 12px 16px 0;
-  }
-  #panelApptList { padding: 8px 16px 16px; }
-  .panel-appt-card {
-    background: #f3f3f3; border-radius: 10px;
-    padding: 12px 14px; margin-bottom: 10px;
-    border: 1.5px solid transparent;
-  }
-  .panel-appt-name { font-weight: 700; font-size: 14px; color: #1a1c1c; }
-  .panel-appt-time { font-size: 12px; color: #40484e; margin-top: 2px; }
-  .panel-appt-row { display: flex; gap: 6px; margin-top: 8px; }
-  .panel-join-btn {
-    flex: 1; background: #5BA4CF; color: #fff;
-    border: none; border-radius: 6px;
-    padding: 7px 8px; font-size: 12px; font-weight: 700; cursor: pointer;
-  }
-  .panel-join-btn:hover:not(:disabled) { background: #3a82aa; }
-  .panel-join-btn:disabled { background: #c4c4c4; color: #888; cursor: not-allowed; }
-  .panel-report-btn {
-    flex: 1; background: none; border: 1.5px solid #5BA4CF;
-    color: #5BA4CF; border-radius: 6px;
-    padding: 6px 8px; font-size: 12px; font-weight: 700; cursor: pointer;
-  }
-  .panel-report-btn:hover { background: #eaf2f9; }
+  #peerLeftEndBtn { margin-top: 16px; padding: 14px 32px; background: #ab1118; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; }
 
   /* ── PANEL: PATIENT REPORT STATE ────────────────────────── */
   #stateReport { overflow-y: auto; }
+  #reportTopBtn { padding: 10px 16px 0; }
+  #reportTopBtn button { width: 100%; padding: 8px 12px; background: none; border: 1.5px solid #5BA4CF; color: #5BA4CF; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  #reportTopBtn button:hover { background: #eaf2f9; }
   #reportInner { padding: 16px; }
-  .btn-back-appts {
-    background: none; border: 1.5px solid #5BA4CF; color: #5BA4CF;
-    border-radius: 8px; padding: 8px 12px;
-    font-size: 13px; font-weight: 700; cursor: pointer;
-    width: 100%; margin-bottom: 14px;
-  }
-  .btn-back-appts:hover { background: #eaf2f9; }
   #reportPatientName { font-size: 18px; font-weight: 700; color: #1a1c1c; margin-bottom: 4px; }
   #reportPatientMeta { font-size: 13px; color: #40484e; margin-bottom: 12px; }
-  .report-section-title {
-    font-size: 11px; font-weight: 700; color: #40484e;
-    letter-spacing: 0.06em; text-transform: uppercase;
-    margin: 14px 0 8px;
-  }
-  .condition-chip {
-    display: inline-block; background: #E8F4FC; color: #1a6495;
-    border-radius: 16px; padding: 4px 12px;
-    font-size: 12px; font-weight: 600; margin: 0 4px 6px 0;
-  }
-  .observation-entry {
-    background: #f3f3f3; border-radius: 8px;
-    padding: 10px 12px; margin-bottom: 8px;
-    font-size: 13px; color: #1a1c1c; line-height: 1.5;
-  }
-  .observation-entry.reviewed {
-    opacity: 0.6; border-left: 3px solid #c4c4c4; padding-left: 10px;
-  }
+  .report-section-title { font-size: 11px; font-weight: 700; color: #40484e; letter-spacing: 0.06em; text-transform: uppercase; margin: 14px 0 8px; }
+  .condition-chip { display: inline-block; background: #E8F4FC; color: #1a6495; border-radius: 16px; padding: 4px 12px; font-size: 12px; font-weight: 600; margin: 0 4px 6px 0; }
+  .observation-entry { background: #f3f3f3; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; font-size: 13px; color: #1a1c1c; line-height: 1.5; }
+  .observation-entry.reviewed { opacity: 0.6; border-left: 3px solid #c4c4c4; padding-left: 10px; }
   .observation-date { font-size: 11px; color: #40484e; margin-top: 4px; }
-  .btn-mark-reviewed {
-    width: 100%; margin-top: 8px; padding: 8px;
-    background: #f3f3f3; color: #1a1c1c;
-    border: 1px solid #d0d0d0; border-radius: 6px;
-    font-size: 12px; font-weight: 700; cursor: pointer;
-  }
+  .btn-mark-reviewed { width: 100%; margin-top: 8px; padding: 8px; background: #f3f3f3; color: #1a1c1c; border: 1px solid #d0d0d0; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
   .btn-mark-reviewed:hover { background: #e0e0e0; }
-  .btn-finalize {
-    width: 100%; padding: 12px; margin-top: 16px;
-    background: #5BA4CF; color: #fff;
-    border: none; border-radius: 8px;
-    font-size: 14px; font-weight: 700; cursor: pointer;
-    transition: background 0.15s;
-  }
+  .btn-finalize { width: 100%; padding: 12px; margin-top: 16px; background: #5BA4CF; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
   .btn-finalize:hover:not(:disabled) { background: #3a82aa; }
   .btn-finalize:disabled { background: #c4c4c4; color: #888; cursor: not-allowed; }
 
-  /* ── PANEL: IN-CALL STATE ────────────────────────────────── */
-  #incallTabs { display: flex; border-bottom: 1px solid #e8e8e8; flex-shrink: 0; }
-  .incall-tab {
-    flex: 1; padding: 12px; background: none; border: none;
-    font-size: 13px; font-weight: 600; color: #40484e; cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: color 0.15s, border-color 0.15s;
-  }
-  .incall-tab.active { color: #5BA4CF; border-bottom-color: #5BA4CF; }
-  .incall-pane {
-    display: none; flex: 1; flex-direction: column; overflow: hidden;
-  }
-  .incall-pane.active { display: flex; }
-
-  #chatMessages {
-    flex: 1; overflow-y: auto; padding: 16px;
-    display: flex; flex-direction: column; gap: 10px;
-  }
-  .chat-msg {
-    max-width: 90%; padding: 8px 12px;
-    border-radius: 10px; font-size: 14px; line-height: 1.5;
-  }
-  .chat-msg.doctor { background: #E8F4FC; align-self: flex-end; color: #1a1c1c; }
-  .chat-msg.patient { background: #f3f3f3; align-self: flex-start; color: #1a1c1c; }
-  .chat-msg-label { font-size: 11px; font-weight: 700; margin-bottom: 3px; }
-  .chat-msg.doctor .chat-msg-label { color: #5BA4CF; }
-  .chat-msg.patient .chat-msg-label { color: #40484e; }
-  #chatInputRow {
-    display: flex; gap: 8px; padding: 12px 16px;
-    border-top: 1px solid #e8e8e8; background: #f9f9f9; flex-shrink: 0;
-  }
-  #chatInput {
-    flex: 1; height: 40px; border: 1.5px solid #d0d0d0;
-    border-radius: 8px; padding: 0 12px; font-size: 14px;
-    outline: none; background: #fff; color: #1a1c1c;
-  }
-  #chatInput:focus { border-color: #5BA4CF; }
-  #chatSendBtn {
-    height: 40px; padding: 0 16px;
-    background: #5BA4CF; color: #fff;
-    border: none; border-radius: 8px;
-    font-size: 13px; font-weight: 700; cursor: pointer;
-  }
-  #chatSendBtn:hover { background: #3a82aa; }
-
-  #activityPane { overflow-y: auto; padding: 12px 16px; }
-  .activity-entry {
-    display: flex; gap: 10px; padding: 10px 0;
-    border-bottom: 1px solid #f0f0f0; font-size: 13px;
-  }
-  .activity-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: #5BA4CF; margin-top: 5px; flex-shrink: 0;
-  }
-  .activity-text { color: #1a1c1c; line-height: 1.4; }
-  .activity-time { font-size: 11px; color: #40484e; margin-top: 2px; }
+  /* ── PANEL: CHAT STATE (async Medplum) ───────────────────── */
+  #stateChat { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  #stateChat.active { display: flex; }
+  #chatToReportBtn { padding: 10px 16px 0; flex-shrink: 0; }
+  #chatToReportBtn button { width: 100%; padding: 8px 12px; background: none; border: 1.5px solid #5BA4CF; color: #5BA4CF; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  #chatToReportBtn button:hover { background: #eaf2f9; }
+  #asyncChatPatientHeader { padding: 8px 16px 4px; font-size: 13px; font-weight: 600; color: #40484e; flex-shrink: 0; border-bottom: 1px solid #f0f0f0; }
+  #asyncChatMessages { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .async-msg { max-width: 85%; padding: 8px 12px; border-radius: 10px; font-size: 14px; line-height: 1.5; }
+  .async-msg.doctor { background: #E8F4FC; align-self: flex-end; color: #1a1c1c; }
+  .async-msg.patient { background: #f3f3f3; align-self: flex-start; color: #1a1c1c; }
+  .async-msg-label { font-size: 11px; font-weight: 700; margin-bottom: 3px; }
+  .async-msg.doctor .async-msg-label { color: #5BA4CF; }
+  .async-msg.patient .async-msg-label { color: #40484e; }
+  #asyncChatInputRow { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #e8e8e8; background: #f9f9f9; flex-shrink: 0; }
+  #asyncChatInput { flex: 1; height: 40px; border: 1.5px solid #d0d0d0; border-radius: 8px; padding: 0 12px; font-size: 14px; outline: none; background: #fff; color: #1a1c1c; }
+  #asyncChatInput:focus { border-color: #5BA4CF; }
+  #asyncChatSendBtn { height: 40px; padding: 0 16px; background: #5BA4CF; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  #asyncChatSendBtn:hover { background: #3a82aa; }
 </style>
 </head>
 <body>
@@ -376,23 +210,15 @@
 <!-- ── SIDE PANEL ─────────────────────────────────────────── -->
 <div id="sidePanel">
   <div id="panelHeader">
-    <span id="panelTitle">Appointments</span>
+    <span id="panelTitle">Patient Report</span>
     <button id="panelCloseBtn" title="Close panel">✕</button>
   </div>
   <div id="panelContent">
 
-    <!-- State 1: Appointments -->
-    <div id="stateAppointments" class="panel-state active">
-      <p id="panelTodayDate"></p>
-      <div id="panelApptList">
-        <p class="empty-state">Loading appointments...</p>
-      </div>
-    </div>
-
-    <!-- State 2: Patient Triage Report -->
+    <!-- State 1: Patient Triage Report -->
     <div id="stateReport" class="panel-state">
+      <div id="reportTopBtn"></div>
       <div id="reportInner">
-        <button class="btn-back-appts" id="reportBackBtn">← Back to Appointments</button>
         <div id="reportPatientName">Patient</div>
         <div id="reportPatientMeta"></div>
         <div id="reportConditions"></div>
@@ -401,33 +227,24 @@
       </div>
     </div>
 
-    <!-- State 3: In-Call (Chat + Activity tabs) -->
-    <div id="stateInCall" class="panel-state">
-      <div style="padding:10px 16px 0;">
-        <button id="viewPatientReportBtn" style="width:100%;padding:8px 12px;background:none;border:1.5px solid #5BA4CF;color:#5BA4CF;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
-          📋 View Patient Report
-        </button>
+    <!-- State 2: Async Chat via Medplum Communications -->
+    <div id="stateChat" class="panel-state">
+      <div id="chatToReportBtn">
+        <button onclick="showPanelState('report')">← Patient Report</button>
       </div>
-      <div id="incallTabs">
-        <button class="incall-tab active" data-tab="chat">Chat</button>
-        <button class="incall-tab" data-tab="activity">Activity</button>
-      </div>
-      <div id="chatPane" class="incall-pane active">
-        <div id="chatMessages"></div>
-        <div id="chatInputRow">
-          <input type="file" id="pdfFileInput" accept="application/pdf" style="display:none;" />
-          <button id="attachPdfBtn" title="Attach PDF" style="height:40px;padding:0 10px;background:none;border:1.5px solid #5BA4CF;color:#5BA4CF;border-radius:8px;font-size:16px;cursor:pointer;flex-shrink:0;">📎</button>
-          <input id="chatInput" type="text" placeholder="Type a message..." />
-          <button id="chatSendBtn">Send</button>
-        </div>
-      </div>
-      <div id="activityPane" class="incall-pane">
-        <div id="activityList"></div>
+      <div id="asyncChatPatientHeader">Select a patient to start chatting</div>
+      <div id="asyncChatMessages"></div>
+      <div id="asyncChatInputRow">
+        <input id="asyncChatInput" type="text" placeholder="Type a message..." />
+        <button id="asyncChatSendBtn">Send</button>
       </div>
     </div>
 
   </div>
 </div>
+
+<!-- ── CHAT STRIPE (outside call — opens async chat) ─────── -->
+<button id="chatStripeBtn" title="Open chat">Chat</button>
 
 <!-- ── MAIN CONTENT ──────────────────────────────────────── -->
 <div id="mainContent">
@@ -479,8 +296,8 @@
         <span class="ctrl-label">Stop video</span>
       </button>
       <button class="ctrl-btn" id="panelBtn">
-        <div class="ctrl-circle">💬</div>
-        <span class="ctrl-label">Panel</span>
+        <div class="ctrl-circle">📋</div>
+        <span class="ctrl-label">Report</span>
       </button>
     </div>
   </div>
@@ -518,18 +335,18 @@
   let localStream     = null;
   let signalingSocket = null;
   let currentRoom     = null;
-  let currentPatientId = ''; // resolved when joining a call
+  let currentPatientId = '';
+  let currentPatientName = '';
   let isMuted         = false;
   let isCameraOff     = false;
   let medplumToken    = null;
   let panelOpen       = false;
-  let currentPanelState = 'appointments';
+  let currentPanelState = 'report';
   let allAppointments   = [];
   let allPatients       = {};
   let reviewedInSession = new Set();
   let fetchedObservations = [];
-  let panelReturnState  = 'appointments'; // 'appointments' or 'incall'
-  let isCallActive      = false;          // true while a call is in progress
+  let isCallActive      = false;
 
   function esc(str) {
     if (!str) return '';
@@ -544,77 +361,134 @@
     document.getElementById('sidePanel').classList.toggle('open', panelOpen);
     document.getElementById('mainContent').classList.toggle('panel-open', panelOpen);
     document.body.classList.toggle('panel-open', panelOpen);
-    // panelToggleBtn removed from DOM (FIX 3) — guard with optional chaining.
-    document.getElementById('panelToggleBtn')?.classList.toggle('panel-open', panelOpen);
-    const toggleIcon = document.getElementById('toggleIcon');
-    if (toggleIcon) toggleIcon.textContent = panelOpen ? '✕' : '☰';
+    document.getElementById('chatStripeBtn').classList.toggle('panel-open', panelOpen);
   }
 
   function openPanel() { if (!panelOpen) togglePanel(); }
+  function closePanel() { if (panelOpen) togglePanel(); }
 
   function showPanelState(state) {
-    // FIX 1: while a call is active, block any transition back to appointments.
-    if (state === 'appointments' && isCallActive) return;
     currentPanelState = state;
     document.querySelectorAll('.panel-state').forEach(el => el.classList.remove('active'));
     const id = 'state' + state.charAt(0).toUpperCase() + state.slice(1);
     document.getElementById(id).classList.add('active');
-    const titles = { appointments: 'Appointments', report: 'Patient Report', incall: 'In-Call' };
+    const titles = { report: 'Patient Report', chat: 'Chat' };
     document.getElementById('panelTitle').textContent = titles[state] || 'Panel';
-    // Clear stale chat and activity data whenever entering the in-call panel.
-    if (state === 'incall') {
-      isCallActive = true;
-      document.getElementById('chatMessages').innerHTML = '';
-      fetchedObservations = [];
-      document.getElementById('activityList').innerHTML = '';
-    }
+    if (state === 'chat') loadChatMessages();
     openPanel();
   }
 
-  function switchIncallTab(tab) {
-    document.querySelectorAll('.incall-tab').forEach(el => {
-      el.classList.toggle('active', el.dataset.tab === tab);
-    });
-    document.getElementById('chatPane').classList.toggle('active', tab === 'chat');
-    document.getElementById('activityPane').classList.toggle('active', tab === 'activity');
-    if (tab === 'activity') renderActivityTab();
+  function updateReportTopBtn() {
+    const btn = document.getElementById('reportTopBtn');
+    if (isCallActive) {
+      btn.innerHTML = '';  // no top button during call
+      document.getElementById('reportActions').style.display = 'none';
+    } else {
+      btn.innerHTML = '<button onclick="showPanelState(\'chat\')">💬 Chat</button>';
+      const ra = document.getElementById('reportActions');
+      if (ra) ra.style.display = '';
+    }
   }
 
-  // ── Activity tab: patient observation summaries ───────────────────────────────
-  function renderActivityTab() {
-    const container = document.getElementById('activityList');
-    container.innerHTML = '';
-    if (fetchedObservations.length === 0) {
-      container.innerHTML = '<p style="font-size:14px;color:#40484e;font-style:italic;padding:16px 0;">No recent triage activity.</p>';
+  // ── Async Chat (Medplum Communications) ───────────────────────────────────────
+  async function loadChatMessages() {
+    const header = document.getElementById('asyncChatPatientHeader');
+    const msgs   = document.getElementById('asyncChatMessages');
+    if (!currentPatientId) {
+      header.textContent = 'Select a patient to start chatting';
+      msgs.innerHTML = '';
       return;
     }
-    fetchedObservations.slice(0, 5).forEach(obs => {
-      const card = document.createElement('div');
-      card.style.cssText = 'background:#f3f3f3;border-radius:8px;padding:10px 12px;margin-bottom:8px;';
-      const date = obs.effectiveDateTime
-        ? new Date(obs.effectiveDateTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-        : '';
-      const catExt = (obs.extension || []).find(e => e.url?.endsWith('session-category'));
-      const cat    = catExt?.valueString;
-      let chipHtml = '';
-      if (cat === 'medical') {
-        chipHtml = '<span style="display:inline-block;background:#E8F4FC;color:#1a6495;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700;margin-bottom:6px;">Medical</span>';
-      } else if (cat) {
-        chipHtml = '<span style="display:inline-block;background:#f0f0f0;color:#40484e;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700;margin-bottom:6px;">' + esc(cat) + '</span>';
+    header.textContent = currentPatientName || 'Patient';
+    msgs.innerHTML = '<p style="font-size:12px;color:#40484e;padding:8px 0;font-style:italic;">Loading…</p>';
+    try {
+      const token = await ensureToken();
+      if (!token) { msgs.innerHTML = '<p style="color:red;font-size:12px;">Auth error</p>'; return; }
+      const patId = currentPatientId;
+      const res = await fetch(
+        MEDPLUM_BASE + '/fhir/R4/Communication?subject=Patient/' + patId + '&_sort=sent&_count=50',
+        { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' } }
+      );
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const bundle = await res.json();
+      const entries = (bundle.entry || []).map(e => e.resource).filter(Boolean);
+      msgs.innerHTML = '';
+      if (entries.length === 0) {
+        msgs.innerHTML = '<p style="font-size:13px;color:#40484e;font-style:italic;padding:12px 0;">No messages yet.</p>';
+        return;
       }
-      const summary = obs.valueString || '';
-      card.innerHTML =
-        '<div style="font-size:11px;font-weight:600;color:#40484e;margin-bottom:4px;">' + esc(date) + '</div>' +
-        chipHtml +
-        '<div style="font-size:13px;color:#1a1c1c;line-height:1.4;">' + esc(summary.substring(0, 200)) + (summary.length > 200 ? '…' : '') + '</div>';
-      container.appendChild(card);
-    });
+      entries.forEach(comm => {
+        const exts = comm.extension || [];
+        const isPatient = exts.some(e => e.url === 'isPatient' && e.valueBoolean === true);
+        const text = comm.payload?.[0]?.contentString || '';
+        const sentStr = comm.sent || '';
+        const timeLabel = sentStr ? new Date(sentStr).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+        const div = document.createElement('div');
+        div.className = 'async-msg ' + (isPatient ? 'patient' : 'doctor');
+        div.innerHTML =
+          '<div class="async-msg-label">' + (isPatient ? 'Patient' : 'Doctor') + (timeLabel ? ' · ' + timeLabel : '') + '</div>' +
+          '<div>' + esc(text) + '</div>';
+        msgs.appendChild(div);
+      });
+      msgs.scrollTop = msgs.scrollHeight;
+    } catch(e) {
+      msgs.innerHTML = '<p style="color:red;font-size:12px;">Error loading messages: ' + esc(e.message) + '</p>';
+    }
   }
 
-  function updateFinalizeButton() {
-    const finBtn = document.getElementById('finalizeBtn');
-    if (!finBtn) return;
-    finBtn.disabled = reviewedInSession.size === 0;
+  async function sendMedplumChatMessage() {
+    const input = document.getElementById('asyncChatInput');
+    const text  = input.value.trim();
+    if (!text || !currentPatientId) return;
+    input.value = '';
+    const currentDoctorId = document.getElementById('doctorSelect').value;
+    try {
+      const token = await ensureToken();
+      if (!token) { alert('Not authenticated'); return; }
+      const payload = {
+        resourceType: 'Communication',
+        status: 'completed',
+        sent: new Date().toISOString(),
+        subject: { reference: 'Patient/' + currentPatientId },
+        sender: { reference: 'Practitioner/' + currentDoctorId },
+        payload: [{ contentString: text }],
+        extension: [{ url: 'isPatient', valueBoolean: false }],
+      };
+      const res = await fetch(MEDPLUM_BASE + '/fhir/R4/Communication', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/fhir+json', 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      // Append bubble locally
+      const msgs = document.getElementById('asyncChatMessages');
+      const div  = document.createElement('div');
+      div.className = 'async-msg doctor';
+      div.innerHTML = '<div class="async-msg-label">Doctor</div><div>' + esc(text) + '</div>';
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    } catch(e) {
+      alert('Send failed: ' + e.message);
+    }
+  }
+
+  // ── Medplum auth ─────────────────────────────────────────────────────────────
+  async function fetchMedplumToken() {
+    try {
+      const res = await fetch(MEDPLUM_BASE + '/oauth2/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'grant_type=client_credentials&client_id=' + CLIENT_ID +
+              '&client_secret=' + encodeURIComponent(CLIENT_SECRET),
+      });
+      if (!res.ok) throw new Error('Token fetch failed: ' + res.status);
+      return (await res.json()).access_token;
+    } catch(e) { console.error('Medplum token error:', e); return null; }
+  }
+
+  async function ensureToken() {
+    if (!medplumToken) medplumToken = await fetchMedplumToken();
+    return medplumToken;
   }
 
   // ── Doctor dropdown & date ────────────────────────────────────────────────────
@@ -629,12 +503,8 @@
   }
 
   function showTodayDate() {
-    const formatted = new Date().toLocaleDateString('en-GB', {
-      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-    });
-    const txt = 'Appointments for: ' + formatted;
-    document.getElementById('todayDate').textContent = txt;
-    document.getElementById('panelTodayDate').textContent = txt;
+    const formatted = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    document.getElementById('todayDate').textContent = 'Appointments for: ' + formatted;
   }
 
   function isJoinable(startISO) {
@@ -643,44 +513,13 @@
     return now >= start - 60 * 60 * 1000 && now <= start + 2 * 60 * 60 * 1000;
   }
 
-  // ── Medplum auth ─────────────────────────────────────────────────────────────
-  async function fetchMedplumToken() {
-    try {
-      const res = await fetch(MEDPLUM_BASE + '/oauth2/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'grant_type=client_credentials&client_id=' + CLIENT_ID +
-              '&client_secret=' + encodeURIComponent(CLIENT_SECRET),
-      });
-      if (!res.ok) throw new Error('Token fetch failed: ' + res.status);
-      return (await res.json()).access_token;
-    } catch(e) {
-      console.error('Medplum token error:', e);
-      return null;
-    }
-  }
-
-  async function ensureToken() {
-    if (!medplumToken) medplumToken = await fetchMedplumToken();
-    return medplumToken;
-  }
-
   // ── Appointments ─────────────────────────────────────────────────────────────
   async function loadAppointments() {
-    const listEl    = document.getElementById('appointmentsList');
-    const panelList = document.getElementById('panelApptList');
-    const doctorId  = document.getElementById('doctorSelect').value;
-
-    listEl.innerHTML  = '<p class="empty-state">Loading today\'s appointments...</p>';
-    panelList.innerHTML = '<p class="empty-state">Loading...</p>';
-
+    const listEl  = document.getElementById('appointmentsList');
+    const doctorId = document.getElementById('doctorSelect').value;
+    listEl.innerHTML = '<p class="empty-state">Loading today\'s appointments...</p>';
     medplumToken = await fetchMedplumToken();
-    if (!medplumToken) {
-      listEl.innerHTML  = '<p class="empty-state">Could not load appointments (auth error).</p>';
-      panelList.innerHTML = '<p class="empty-state">Auth error.</p>';
-      return;
-    }
-
+    if (!medplumToken) { listEl.innerHTML = '<p class="empty-state">Could not load appointments (auth error).</p>'; return; }
     try {
       const today    = new Date().toISOString().split('T')[0];
       const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -688,71 +527,42 @@
         '?date=ge' + today + 'T00:00:00Z' +
         '&date=lt' + tomorrow + 'T00:00:00Z' +
         '&status=booked&_include=Appointment:actor&_count=50';
-
-      const res = await fetch(url, {
-        headers: { 'Authorization': 'Bearer ' + medplumToken, 'Accept': 'application/fhir+json' }
-      });
+      const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + medplumToken, 'Accept': 'application/fhir+json' } });
       if (!res.ok) throw new Error('Appointment fetch failed: ' + res.status);
       const bundle = await res.json();
-
       allPatients = {};
       (bundle.entry || []).forEach(e => {
         if (e.resource?.resourceType === 'Patient') {
           const n = e.resource.name?.[0];
-          allPatients[e.resource.id] = {
-            name: n ? ((n.given || []).join(' ') + ' ' + (n.family || '')).trim() : 'Patient',
-            resource: e.resource,
-          };
+          allPatients[e.resource.id] = { name: n ? ((n.given || []).join(' ') + ' ' + (n.family || '')).trim() : 'Patient', resource: e.resource };
         }
       });
-
       allAppointments = (bundle.entry || [])
         .map(e => e.resource)
-        .filter(r => {
-          if (r?.resourceType !== 'Appointment') return false;
-          return (r.participant || []).some(p =>
-            p.actor?.reference === 'Practitioner/' + doctorId
-          );
-        })
+        .filter(r => { if (r?.resourceType !== 'Appointment') return false; return (r.participant || []).some(p => p.actor?.reference === 'Practitioner/' + doctorId); })
         .sort((a, b) => new Date(a.start) - new Date(b.start));
-
-      renderAppointments(listEl, panelList);
-
+      renderAppointments(listEl);
     } catch(e) {
       console.error('Appointment load error:', e);
-      listEl.innerHTML  = '<p class="empty-state">Error loading appointments. Use manual code below.</p>';
-      panelList.innerHTML = '<p class="empty-state">Error loading appointments.</p>';
+      listEl.innerHTML = '<p class="empty-state">Error loading appointments. Use manual code below.</p>';
     }
   }
 
-  function renderAppointments(listEl, panelList) {
-    listEl.innerHTML  = '';
-    panelList.innerHTML = '';
-
-    if (allAppointments.length === 0) {
-      listEl.innerHTML  = '<p class="empty-state">No appointments for today.</p>';
-      panelList.innerHTML = '<p class="empty-state">No appointments for today.</p>';
-      return;
-    }
-
+  function renderAppointments(listEl) {
+    listEl.innerHTML = '';
+    if (allAppointments.length === 0) { listEl.innerHTML = '<p class="empty-state">No appointments for today.</p>'; return; }
     const header = document.createElement('p');
     header.className = 'section-label';
     header.textContent = 'TODAY\'S APPOINTMENTS';
     listEl.appendChild(header);
-
     allAppointments.forEach(appt => {
       const apptId  = appt.id || '';
       const start   = appt.start ? new Date(appt.start) : null;
-      const timeStr = start
-        ? start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-        : '--:--';
-      const patRef  = (appt.participant || []).find(p =>
-        p.actor?.reference?.startsWith('Patient/'));
+      const timeStr = start ? start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+      const patRef  = (appt.participant || []).find(p => p.actor?.reference?.startsWith('Patient/'));
       const patId   = patRef?.actor?.reference?.replace('Patient/', '') || '';
       const patName = (allPatients[patId] || {}).name || 'Patient';
       const joinable = start ? isJoinable(appt.start) : false;
-
-      // Main list card
       const card = document.createElement('div');
       card.className = 'appt-card';
       card.innerHTML =
@@ -764,31 +574,14 @@
           '<button class="join-btn"' + (joinable ? '' : ' disabled') + '>Join consultation</button>' +
           '<button class="view-report-btn">View report</button>' +
         '</div>';
-      card.querySelector('.join-btn').addEventListener('click', e => {
-        e.stopPropagation(); joinWithId(apptId);
-      });
+      card.querySelector('.join-btn').addEventListener('click', e => { e.stopPropagation(); joinWithId(apptId); });
       card.querySelector('.view-report-btn').addEventListener('click', e => {
-        e.stopPropagation(); panelReturnState = 'appointments'; viewPatientReport(patId, patName);
+        e.stopPropagation();
+        currentPatientId = patId;
+        currentPatientName = patName;
+        viewPatientReport(patId, patName);
       });
       listEl.appendChild(card);
-
-      // Panel card
-      const pCard = document.createElement('div');
-      pCard.className = 'panel-appt-card';
-      pCard.innerHTML =
-        '<div class="panel-appt-name">' + esc(patName) + '</div>' +
-        '<div class="panel-appt-time">&#128336; ' + timeStr + '</div>' +
-        '<div class="panel-appt-row">' +
-          '<button class="panel-join-btn"' + (joinable ? '' : ' disabled') + '>Join</button>' +
-          '<button class="panel-report-btn">Report</button>' +
-        '</div>';
-      pCard.querySelector('.panel-join-btn').addEventListener('click', e => {
-        e.stopPropagation(); joinWithId(apptId);
-      });
-      pCard.querySelector('.panel-report-btn').addEventListener('click', e => {
-        e.stopPropagation(); panelReturnState = 'appointments'; viewPatientReport(patId, patName);
-      });
-      panelList.appendChild(pCard);
     });
   }
 
@@ -802,287 +595,120 @@
     document.getElementById('reportObservations').innerHTML = '';
     document.getElementById('reportActions').innerHTML      = '';
     showPanelState('report');
-    // Update back button label based on where we came from.
-    document.getElementById('reportBackBtn').textContent =
-      panelReturnState === 'incall' ? '← Back to Call' : '← Back to Appointments';
-
+    updateReportTopBtn();
     const token = await ensureToken();
-    if (!token) {
-      document.getElementById('reportPatientMeta').textContent = 'Auth error — cannot load data.';
-      return;
-    }
-
+    if (!token) { document.getElementById('reportPatientMeta').textContent = 'Auth error — cannot load data.'; return; }
     try {
       const headers = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' };
       const [condRes, obsRes] = await Promise.all([
         fetch(MEDPLUM_BASE + '/fhir/R4/Condition?patient=' + patientId + '&_count=20', { headers }),
         fetch(MEDPLUM_BASE + '/fhir/R4/Observation?patient=' + patientId + '&_sort=-date&_count=10', { headers }),
       ]);
-
       const conditions   = condRes.ok ? (await condRes.json()).entry?.map(e => e.resource).filter(Boolean) || [] : [];
       const observations = obsRes.ok  ? (await obsRes.json()).entry?.map(e => e.resource).filter(Boolean) || []  : [];
       fetchedObservations = observations;
-
-      // Meta
       const patInfo = allPatients[patientId];
       if (patInfo?.resource) {
-        const dob    = patInfo.resource.birthDate || '';
-        const gender = patInfo.resource.gender    || '';
-        document.getElementById('reportPatientMeta').textContent =
-          [gender, dob ? 'DOB: ' + dob : ''].filter(Boolean).join(' · ') || '';
-      } else {
-        document.getElementById('reportPatientMeta').textContent = '';
-      }
-
-      // Conditions
+        const dob = patInfo.resource.birthDate || '';
+        const gender = patInfo.resource.gender || '';
+        document.getElementById('reportPatientMeta').textContent = [gender, dob ? 'DOB: ' + dob : ''].filter(Boolean).join(' · ') || '';
+      } else { document.getElementById('reportPatientMeta').textContent = ''; }
       const condEl = document.getElementById('reportConditions');
       if (conditions.length > 0) {
         condEl.innerHTML = '<div class="report-section-title">Active Conditions</div>';
-        conditions.forEach(c => {
-          const label = c.code?.text || c.code?.coding?.[0]?.display || 'Unknown';
-          const chip = document.createElement('span');
-          chip.className = 'condition-chip';
-          chip.textContent = label;
-          condEl.appendChild(chip);
-        });
+        conditions.forEach(c => { const chip = document.createElement('span'); chip.className = 'condition-chip'; chip.textContent = c.code?.text || c.code?.coding?.[0]?.display || 'Unknown'; condEl.appendChild(chip); });
       }
-
-      // Observations
       const obsEl = document.getElementById('reportObservations');
       obsEl.innerHTML = '<div class="report-section-title">Triage Observations</div>';
       if (observations.length > 0) {
         observations.forEach(obs => {
-          const entry    = document.createElement('div');
+          const entry = document.createElement('div');
           const reviewed = obs.status === 'final';
           entry.className = 'observation-entry' + (reviewed ? ' reviewed' : '');
           const val  = obs.valueString || '';
-          const date = obs.effectiveDateTime
-            ? new Date(obs.effectiveDateTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-            : '';
-          entry.innerHTML =
-            '<div>' + esc(val.substring(0, 160)) + (val.length > 160 ? '…' : '') + '</div>' +
+          const date = obs.effectiveDateTime ? new Date(obs.effectiveDateTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+          entry.innerHTML = '<div>' + esc(val.substring(0, 160)) + (val.length > 160 ? '…' : '') + '</div>' +
             '<div class="observation-date">' + esc(date) + (reviewed ? ' · Reviewed' : '') + '</div>';
-          if (!reviewed) {
-            const btn = document.createElement('button');
-            btn.className = 'btn-mark-reviewed';
-            btn.textContent = 'Mark as reviewed';
-            btn.addEventListener('click', () => markReviewed(obs.id, btn, entry));
-            entry.appendChild(btn);
-          }
+          if (!reviewed && !isCallActive) { const btn = document.createElement('button'); btn.className = 'btn-mark-reviewed'; btn.textContent = 'Mark as reviewed'; btn.addEventListener('click', () => markReviewed(obs.id, btn, entry)); entry.appendChild(btn); }
           obsEl.appendChild(entry);
         });
-      } else {
-        obsEl.innerHTML += '<p class="empty-state" style="text-align:left;">No observations recorded.</p>';
+      } else { obsEl.innerHTML += '<p class="empty-state" style="text-align:left;">No observations recorded.</p>'; }
+      if (!isCallActive) {
+        const actEl = document.getElementById('reportActions');
+        const finBtn = document.createElement('button');
+        finBtn.id = 'finalizeBtn'; finBtn.className = 'btn-finalize'; finBtn.textContent = 'Finalize consultation report';
+        finBtn.addEventListener('click', () => finalizeReport(finBtn));
+        actEl.appendChild(finBtn);
+        updateFinalizeButton();
       }
-
-      // Finalize button
-      const actEl  = document.getElementById('reportActions');
-      const finBtn = document.createElement('button');
-      finBtn.id        = 'finalizeBtn';
-      finBtn.className = 'btn-finalize';
-      finBtn.textContent = 'Finalize consultation report';
-      finBtn.addEventListener('click', () => finalizeReport(finBtn));
-      actEl.appendChild(finBtn);
-      updateFinalizeButton();
-
-    } catch(e) {
-      console.error('Report load error:', e);
-      document.getElementById('reportPatientMeta').textContent = 'Error loading clinical data.';
-    }
+    } catch(e) { console.error('Report load error:', e); document.getElementById('reportPatientMeta').textContent = 'Error loading clinical data.'; }
   }
 
   async function markReviewed(obsId, btn, entryEl) {
     if (!obsId) return;
-    btn.disabled = true;
-    btn.textContent = 'Marking...';
+    btn.disabled = true; btn.textContent = 'Marking...';
     const token = await ensureToken();
     if (!token) { btn.disabled = false; btn.textContent = 'Mark as reviewed'; return; }
     try {
-      const getRes = await fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, {
-        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' }
-      });
+      const getRes = await fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' } });
       if (!getRes.ok) throw new Error('GET failed: ' + getRes.status);
       const obs = await getRes.json();
-
-      const currentDoctorId   = document.getElementById('doctorSelect').value;
-      const updatedExtensions = [
-        ...(obs.extension || []),
-        { url: 'https://telemed-bogheanu.ro/fhir/ext/reviewed-by', valueString: 'Practitioner/' + currentDoctorId },
-      ];
-
-      const patchRes = await fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': 'Bearer ' + token,
-          'Content-Type': 'application/json-patch+json',
-          'Accept': 'application/fhir+json',
-        },
-        body: JSON.stringify([
-          { op: 'replace', path: '/extension', value: updatedExtensions }
-        ]),
-      });
-
-      if (patchRes.ok) {
-        entryEl.classList.add('reviewed');
-        btn.textContent = 'Reviewed ✓';
-        btn.style.cssText = 'width:100%;margin-top:8px;padding:8px;background:#16A34A;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:default;';
-        btn.disabled = true;
-        reviewedInSession.add(obsId);
-        updateFinalizeButton();
-      } else {
-        btn.disabled = false;
-        btn.textContent = 'Mark as reviewed';
-        console.error('Mark reviewed patch failed:', patchRes.status);
-      }
-    } catch(e) {
-      btn.disabled = false;
-      btn.textContent = 'Mark as reviewed';
-      console.error('Mark reviewed error:', e);
-    }
+      const currentDoctorId = document.getElementById('doctorSelect').value;
+      const updatedExtensions = [...(obs.extension || []), { url: 'https://telemed-bogheanu.ro/fhir/ext/reviewed-by', valueString: 'Practitioner/' + currentDoctorId }];
+      const patchRes = await fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, { method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json-patch+json', 'Accept': 'application/fhir+json' }, body: JSON.stringify([{ op: 'replace', path: '/extension', value: updatedExtensions }]) });
+      if (patchRes.ok) { entryEl.classList.add('reviewed'); btn.textContent = 'Reviewed ✓'; btn.style.cssText = 'width:100%;margin-top:8px;padding:8px;background:#16A34A;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:default;'; btn.disabled = true; reviewedInSession.add(obsId); updateFinalizeButton(); }
+      else { btn.disabled = false; btn.textContent = 'Mark as reviewed'; }
+    } catch(e) { btn.disabled = false; btn.textContent = 'Mark as reviewed'; console.error('Mark reviewed error:', e); }
   }
 
   async function finalizeReport(btn) {
     if (reviewedInSession.size === 0) return;
-    btn.disabled = true;
-    btn.textContent = 'Finalizing...';
+    btn.disabled = true; btn.textContent = 'Finalizing...';
     const token = await ensureToken();
     if (!token) { btn.disabled = false; btn.textContent = 'Finalize consultation report'; return; }
     try {
       await Promise.all([...reviewedInSession].map(obsId =>
-        fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': 'Bearer ' + token,
-            'Content-Type': 'application/json-patch+json',
-            'Accept': 'application/fhir+json',
-          },
-          body: JSON.stringify([
-            { op: 'replace', path: '/status', value: 'final' }
-          ]),
-        }).then(r => { if (!r.ok) throw new Error('PATCH ' + obsId + ' failed: ' + r.status); })
+        fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, { method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json-patch+json', 'Accept': 'application/fhir+json' }, body: JSON.stringify([{ op: 'replace', path: '/status', value: 'final' }]) })
+        .then(r => { if (!r.ok) throw new Error('PATCH ' + obsId + ' failed: ' + r.status); })
       ));
-      btn.textContent = 'Report finalized ✓';
-      btn.style.background = '#16A34A';
-      btn.disabled = true;
-      reviewedInSession.clear();
-    } catch(e) {
-      btn.disabled = false;
-      btn.textContent = 'Finalize consultation report';
-      console.error('Finalize error:', e);
-    }
+      btn.textContent = 'Report finalized ✓'; btn.style.background = '#16A34A'; btn.disabled = true; reviewedInSession.clear();
+    } catch(e) { btn.disabled = false; btn.textContent = 'Finalize consultation report'; console.error('Finalize error:', e); }
   }
 
-  // ── PDF upload from doctor ────────────────────────────────────────────────────
+  function updateFinalizeButton() {
+    const finBtn = document.getElementById('finalizeBtn');
+    if (!finBtn) return;
+    finBtn.disabled = reviewedInSession.size === 0;
+  }
+
+  // ── PDF upload (Medplum only, no WebSocket) ───────────────────────────────────
   async function uploadAndSendPdf(file) {
     const filename = file.name;
-    const msgs = document.getElementById('chatMessages');
-    const loadingEl = document.createElement('div');
-    loadingEl.style.cssText = 'padding:6px 16px;font-size:12px;color:#40484e;font-style:italic;';
-    loadingEl.textContent = '📤 Uploading ' + filename + '…';
-    msgs.appendChild(loadingEl);
-    msgs.scrollTop = msgs.scrollHeight;
-
     try {
       const token = await ensureToken();
       if (!token) throw new Error('Not authenticated');
-      const base = 'https://telemed-medplum.duckdns.org/fhir/R4';
-
-      // Step 1 — POST Binary (raw ArrayBuffer, not base64)
+      const base = MEDPLUM_BASE + '/fhir/R4';
       const arrayBuffer = await file.arrayBuffer();
-      const binRes = await fetch(base + '/Binary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/pdf', 'Authorization': 'Bearer ' + token },
-        body: arrayBuffer,
-      });
+      const binRes = await fetch(base + '/Binary', { method: 'POST', headers: { 'Content-Type': 'application/pdf', 'Authorization': 'Bearer ' + token }, body: arrayBuffer });
       if (!binRes.ok) throw new Error('Binary upload failed: ' + binRes.status);
-      const binData = await binRes.json();
-      const binaryId = binData.id;
+      const binaryId = (await binRes.json()).id;
       if (!binaryId) throw new Error('No Binary ID returned');
-
-      // Step 2 — POST DocumentReference
-      const docRefPayload = {
-        resourceType: 'DocumentReference',
-        status: 'current',
-        content: [{ attachment: { contentType: 'application/pdf', url: 'Binary/' + binaryId, title: filename } }],
-      };
+      const docRefPayload = { resourceType: 'DocumentReference', status: 'current', content: [{ attachment: { contentType: 'application/pdf', url: 'Binary/' + binaryId, title: filename } }] };
       if (currentPatientId) docRefPayload.subject = { reference: 'Patient/' + currentPatientId };
-      const drRes = await fetch(base + '/DocumentReference', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/fhir+json', 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' },
-        body: JSON.stringify(docRefPayload),
-      });
+      const drRes = await fetch(base + '/DocumentReference', { method: 'POST', headers: { 'Content-Type': 'application/fhir+json', 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' }, body: JSON.stringify(docRefPayload) });
       if (!drRes.ok) throw new Error('DocumentReference creation failed: ' + drRes.status);
-      const drData = await drRes.json();
-      const documentReferenceId = drData.id;
-      if (!documentReferenceId) throw new Error('No DocumentReference ID returned');
-
-      // Step 3 — Send over WebSocket
-      safeSend({ type: 'chat', room: currentRoom, sender: 'doctor', documentReferenceId, filename });
-
-      // Step 4 — Show local bubble
-      loadingEl.remove();
-      appendChatMessage('Doctor', '📄 ' + filename + ' sent');
-    } catch (e) {
-      loadingEl.remove();
-      console.error('PDF upload error:', e);
-      alert('Failed to send PDF: ' + e.message);
-    }
-  }
-
-  // ── Patient document/image from DocumentReference ─────────────────────────────
-  async function appendPatientDocumentRef(docRefId, filename) {
-    try {
-      const token = await ensureToken();
-      if (!token) throw new Error('No token');
-      const base = 'https://telemed-medplum.duckdns.org/fhir/R4';
-      const res = await fetch(base + '/DocumentReference/' + docRefId, {
-        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' }
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      let rawUrl       = data.content?.[0]?.attachment?.url || '';
-      const contentType = data.content?.[0]?.attachment?.contentType || '';
-      if (rawUrl.startsWith('Binary/')) rawUrl = base + '/' + rawUrl;
-
-      const msgs = document.getElementById('chatMessages');
-      const div  = document.createElement('div');
-      div.className = 'chat-msg patient';
-      const isImage = contentType.startsWith('image/') && rawUrl;
-      const safeUrl = esc(rawUrl);
-      div.innerHTML  = '<div class="chat-msg-label">' + esc('Patient') + '</div>' +
-        (isImage
-          ? '<img src="' + safeUrl + '" style="max-width:200px;max-height:200px;border-radius:8px;cursor:pointer;display:block;" onclick="window.open(this.src,\'_blank\')" />'
-          : rawUrl
-            ? '<a href="' + safeUrl + '" target="_blank" style="color:#5BA4CF;">📄 ' + esc(filename) + '</a>'
-            : '<div>📄 ' + esc(filename) + '</div>');
-      msgs.appendChild(div);
-      msgs.scrollTop = msgs.scrollHeight;
-      openPanel();
-      switchIncallTab('chat');
-    } catch(e) {
-      appendChatMessage('Patient', '📄 ' + filename + ' (could not load)');
-    }
-  }
-
-  // ── Patient report from in-call panel ────────────────────────────────────────
-  function viewCurrentPatientReport() {
-    const appt = allAppointments.find(a => a.id === currentRoom);
-    if (!appt) { showPanelState('report'); return; }
-    const patRef = (appt.participant || []).find(p => p.actor?.reference?.startsWith('Patient/'));
-    const patId  = patRef?.actor?.reference?.replace('Patient/', '') || '';
-    const patName = (allPatients[patId] || {}).name || 'Patient';
-    panelReturnState = 'incall';
-    viewPatientReport(patId, patName);
+      alert('📄 ' + filename + ' uploaded successfully.');
+    } catch (e) { console.error('PDF upload error:', e); alert('Failed to upload PDF: ' + e.message); }
   }
 
   // ── WebRTC / signaling ────────────────────────────────────────────────────────
   function joinWithId(appointmentId) {
     document.getElementById('appointmentInput').value = appointmentId;
-    // Resolve patient ID from the appointment so PDF uploads can reference it.
     const appt = allAppointments.find(a => a.id === appointmentId);
     if (appt) {
       const patRef = (appt.participant || []).find(p => p.actor?.reference?.startsWith('Patient/'));
-      currentPatientId = patRef?.actor?.reference?.replace('Patient/', '') || '';
+      currentPatientId   = patRef?.actor?.reference?.replace('Patient/', '') || '';
+      currentPatientName = (allPatients[currentPatientId] || {}).name || 'Patient';
     }
     joinCall();
   }
@@ -1093,54 +719,36 @@
     currentRoom = appointmentId;
     setJoinStatus('Connecting...');
     document.getElementById('joinBtn').disabled = true;
-
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       document.getElementById('localVideo').srcObject = localStream;
-
       pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, sdpSemantics: 'unified-plan' });
       localStream.getTracks().forEach(t => {
         const sender = pc.addTrack(t, localStream);
-        // Cap video bitrate at 1 Mbps to reduce stutter on constrained uplinks.
         if (t.kind === 'video') {
           const params = sender.getParameters();
-          if (!params.encodings || params.encodings.length === 0) {
-            params.encodings = [{}];
-          }
-          params.encodings[0].maxBitrate    = 1000000;
+          if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
+          params.encodings[0].maxBitrate = 1000000;
           params.encodings[0].scaleResolutionDownBy = 1.0;
           sender.setParameters(params).catch(e => console.warn('setParameters error:', e));
         }
       });
-
-      pc.ontrack = (event) => {
-        document.getElementById('remoteVideo').srcObject = event.streams[0];
-        setCallStatus('In consultation');
-      };
-
+      pc.ontrack = (event) => { document.getElementById('remoteVideo').srcObject = event.streams[0]; setCallStatus('In consultation'); };
       pc.onicecandidate = (event) => {
         if (!event.candidate) return;
-        safeSend({
-          type: 'candidate', room: currentRoom,
-          candidate: event.candidate.candidate,
-          sdpMid: event.candidate.sdpMid,
-          sdpMLineIndex: event.candidate.sdpMLineIndex,
-        });
+        safeSend({ type: 'candidate', room: currentRoom, candidate: event.candidate.candidate, sdpMid: event.candidate.sdpMid, sdpMLineIndex: event.candidate.sdpMLineIndex });
       };
-
       signalingSocket = new WebSocket(SIGNALING_URL);
-
       signalingSocket.onopen = () => {
         safeSend({ type: 'join', room: currentRoom });
         setJoinStatus('');
         showCallUI();
         setCallStatus('Waiting for patient...');
-        showPanelState('incall');
+        // Show patient report read-only during call
+        if (currentPatientId) viewPatientReport(currentPatientId, currentPatientName);
       };
-
       signalingSocket.onmessage = async (event) => {
         const msg = JSON.parse(event.data);
-
         if (msg.type === 'offer') {
           setCallStatus('Patient connected — establishing call...');
           await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }));
@@ -1148,57 +756,21 @@
           await pc.setLocalDescription(answer);
           safeSend({ type: 'answer', room: currentRoom, sdp: answer.sdp });
         }
-
         if (msg.type === 'candidate') {
-          try {
-            await pc.addIceCandidate(new RTCIceCandidate({
-              candidate: msg.candidate,
-              sdpMid: msg.sdpMid,
-              sdpMLineIndex: msg.sdpMLineIndex,
-            }));
-          } catch(e) { console.warn('ICE candidate error:', e); }
+          try { await pc.addIceCandidate(new RTCIceCandidate({ candidate: msg.candidate, sdpMid: msg.sdpMid, sdpMLineIndex: msg.sdpMLineIndex })); } catch(e) { console.warn('ICE candidate error:', e); }
         }
-
-        if (msg.type === 'chat') {
-          if (msg.sender === 'doctor') {
-            // Echo of our own send — already shown locally, skip.
-          } else if (msg.imageData) {
-            // Patient sent a base64 JPEG inline.
-            const wrap = document.createElement('div');
-            wrap.className = 'chat-msg patient';
-            wrap.innerHTML = '<div class="chat-msg-label">' + esc('Patient') + '</div>' +
-              '<img src="data:image/jpeg;base64,' + msg.imageData + '" ' +
-              'style="max-width:200px;max-height:200px;border-radius:8px;cursor:pointer;display:block;" ' +
-              'onclick="window.open(this.src,\'_blank\')" />';
-            document.getElementById('chatMessages').appendChild(wrap);
-            document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
-            openPanel(); switchIncallTab('chat');
-          } else if (msg.documentReferenceId) {
-            // Patient sent a document/image via Medplum DocumentReference.
-            appendPatientDocumentRef(msg.documentReferenceId, msg.filename || 'File');
-          } else {
-            appendChatMessage('Patient', msg.text || '');
-          }
-        }
-
         if (msg.type === 'leave') {
           document.getElementById('peerLeftOverlay').style.display = 'flex';
-          // FIX 2: clear the remote video so a frozen frame is not left on screen.
           const rv = document.getElementById('remoteVideo');
-          rv.srcObject = null;
-          rv.style.display = 'none';
+          rv.srcObject = null; rv.style.display = 'none';
         }
-
-        // peer_joined: doctor is always the answerer.
-        // Re-assert incall panel after 100ms to override any post-join panel reset.
         if (msg.type === 'peer_joined') {
-          setTimeout(() => showPanelState('incall'), 100);
+          setTimeout(() => { if (currentPatientId) viewPatientReport(currentPatientId, currentPatientName); }, 100);
         }
+        // FIX 5: WebSocket 'chat' messages removed — chat is async via Medplum only
       };
-
       signalingSocket.onerror = () => setCallStatus('Signaling connection error.');
       signalingSocket.onclose = () => {};
-
     } catch(e) {
       setJoinStatus('Error: ' + e.message);
       document.getElementById('joinBtn').disabled = false;
@@ -1217,8 +789,7 @@
   function toggleMute() {
     const track = localStream?.getAudioTracks()[0];
     if (!track) return;
-    isMuted = !isMuted;
-    track.enabled = !isMuted;
+    isMuted = !isMuted; track.enabled = !isMuted;
     document.querySelector('#muteBtn .ctrl-circle').textContent = isMuted ? '🔇' : '🎤';
     document.querySelector('#muteBtn .ctrl-circle').style.background = isMuted ? '#5BA4CF' : '#f3f3f3';
     document.querySelector('#muteBtn .ctrl-label').textContent = isMuted ? 'Unmute' : 'Mute';
@@ -1227,39 +798,15 @@
   function toggleCamera() {
     const track = localStream?.getVideoTracks()[0];
     if (!track) return;
-    isCameraOff = !isCameraOff;
-    track.enabled = !isCameraOff;
+    isCameraOff = !isCameraOff; track.enabled = !isCameraOff;
     document.querySelector('#cameraBtn .ctrl-circle').textContent = isCameraOff ? '🚫' : '📷';
     document.querySelector('#cameraBtn .ctrl-circle').style.background = isCameraOff ? '#5BA4CF' : '#f3f3f3';
     document.querySelector('#cameraBtn .ctrl-label').textContent = isCameraOff ? 'Start video' : 'Stop video';
   }
 
-  function sendChatMessage() {
-    const input = document.getElementById('chatInput');
-    const text  = input.value.trim();
-    if (!text) return;
-    safeSend({ type: 'chat', room: currentRoom, sender: 'doctor', text: text });
-    appendChatMessage('Doctor', text);
-    input.value = '';
-  }
-
-  function appendChatMessage(sender, text) {
-    const msgs = document.getElementById('chatMessages');
-    const div  = document.createElement('div');
-    div.className = 'chat-msg ' + (sender === 'Doctor' ? 'doctor' : 'patient');
-    div.innerHTML =
-      '<div class="chat-msg-label">' + esc(sender) + '</div>' +
-      '<div>' + esc(text) + '</div>';
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
-    if (sender === 'Patient') {
-      openPanel();
-      switchIncallTab('chat');
-    }
-  }
-
   function showCallUI() {
     isCallActive = true;
+    document.getElementById('chatStripeBtn').classList.add('hidden');
     document.getElementById('joinScreen').style.display = 'none';
     document.getElementById('callScreen').style.display = 'block';
   }
@@ -1284,33 +831,16 @@
     document.getElementById('endBtn').addEventListener('click', endCall);
     document.getElementById('muteBtn').addEventListener('click', toggleMute);
     document.getElementById('cameraBtn').addEventListener('click', toggleCamera);
-    document.getElementById('panelBtn').addEventListener('click', togglePanel);
-    document.getElementById('panelToggleBtn')?.addEventListener('click', togglePanel);
-    document.getElementById('panelCloseBtn').addEventListener('click', () => {
-      if (panelOpen) togglePanel();
+    document.getElementById('panelBtn').addEventListener('click', () => {
+      if (currentPatientId) viewPatientReport(currentPatientId, currentPatientName);
+      else openPanel();
     });
-    document.getElementById('reportBackBtn').addEventListener('click', () => {
-      showPanelState(panelReturnState);
-    });
-    document.getElementById('viewPatientReportBtn').addEventListener('click', viewCurrentPatientReport);
-    document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
-    document.getElementById('attachPdfBtn').addEventListener('click', () => document.getElementById('pdfFileInput').click());
-    document.getElementById('pdfFileInput').addEventListener('change', e => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      uploadAndSendPdf(file);
-      e.target.value = ''; // allow re-selecting the same file
-    });
+    document.getElementById('panelCloseBtn').addEventListener('click', () => { if (panelOpen) togglePanel(); });
+    document.getElementById('chatStripeBtn').addEventListener('click', () => showPanelState('chat'));
+    document.getElementById('asyncChatSendBtn').addEventListener('click', sendMedplumChatMessage);
+    document.getElementById('asyncChatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMedplumChatMessage(); });
     document.getElementById('peerLeftEndBtn').addEventListener('click', endCall);
-    document.getElementById('appointmentInput').addEventListener('keydown', e => {
-      if (e.key === 'Enter') joinCall();
-    });
-    document.getElementById('chatInput').addEventListener('keydown', e => {
-      if (e.key === 'Enter') sendChatMessage();
-    });
-    document.querySelectorAll('.incall-tab').forEach(tab => {
-      tab.addEventListener('click', () => switchIncallTab(tab.dataset.tab));
-    });
+    document.getElementById('appointmentInput').addEventListener('keydown', e => { if (e.key === 'Enter') joinCall(); });
   });
 </script>
 </body>

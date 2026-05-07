@@ -12,7 +12,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:just_audio/just_audio.dart';
+// just_audio removed — in-call audio playback removed with chat (FIX 4)
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/l10n/app_strings.dart';
@@ -23,7 +23,7 @@ import '../../core/providers/language_provider.dart';
 import '../../core/providers/medplum_auth_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/utils/date_formatter.dart';
-import '../widgets/image_preview_screen.dart';
+// image_preview_screen removed — in-call image preview removed with chat (FIX 4)
 
 /// A message exchanged during an in-call chat session.
 class _CallMessage {
@@ -82,21 +82,11 @@ class _VideoConsultationScreenState
   bool     _isConnecting = true;
   bool     _peerLeft     = false;
 
-  // ── In-call chat ───────────────────────────────────────────────────────────
-  final List<_CallMessage>    _callMessages  = [];
-  final TextEditingController _chatController = TextEditingController();
-  bool _chatOpen = false;
+  // ── In-call activity panel ────────────────────────────────────────────────────
+  bool _chatOpen = false;  // controls panel visibility (kept for panel toggle)
   late final DraggableScrollableController _sheetController;
-
-  // ── Activity tab ───────────────────────────────────────────────────────────
-  String _activeTab = 'chat';
   List<Map<String, dynamic>> _activityObservations = [];
   bool _activityLoaded = false;
-
-  // ── In-call audio playback ─────────────────────────────────────────────────
-  late final AudioPlayer _callAudioPlayer;
-  StreamSubscription<PlayerState>? _callPlayerSub;
-  String? _callPlayingPath;
 
   String get _lang => ref.read(languageProvider);
   Duration _callDuration = Duration.zero;
@@ -111,7 +101,6 @@ class _VideoConsultationScreenState
   @override
   void initState() {
     super.initState();
-    _callAudioPlayer = AudioPlayer();
     _sheetController = DraggableScrollableController();
     _sheetController.addListener(() {
       // Close chat when sheet is dragged below visible threshold.
@@ -158,9 +147,6 @@ class _VideoConsultationScreenState
   void dispose() {
     _durationTimer?.cancel();
     _animController.dispose();
-    _chatController.dispose();
-    _callPlayerSub?.cancel();
-    _callAudioPlayer.dispose();
     _sheetController.dispose();
     // Restore normal AI mode when call ends.
     try { ref.read(aiEngineServiceProvider).setDoctorPresent(false); } catch (_) {}
@@ -338,50 +324,7 @@ class _VideoConsultationScreenState
         // knows the call has ended and can tap the end-call button.
         if (mounted) setState(() => _peerLeft = true);
         break;
-      case 'chat':
-        // Incoming chat from the doctor — display in the panel.
-        if (msg['sender'] == 'doctor') {
-          final docRefId = msg['documentReferenceId'] as String?;
-          _CallMessage? incoming;
-          if (docRefId != null && docRefId.isNotEmpty) {
-            // Doctor sent a PDF/document reference.
-            final filename = msg['filename'] as String? ?? 'Prescription.pdf';
-            incoming = _CallMessage(
-              id: DateTime.now().toIso8601String(),
-              text: filename,
-              isPatient: false,
-              timestamp: DateTime.now(),
-              attachmentType: AttachmentType.pdf,
-              attachmentPath: docRefId, // FHIR DocumentReference ID
-            );
-          } else {
-            final text = msg['text'] as String? ?? '';
-            if (text.isNotEmpty) {
-              incoming = _CallMessage(
-                id: DateTime.now().toIso8601String(),
-                text: text,
-                isPatient: false,
-                timestamp: DateTime.now(),
-              );
-            }
-          }
-          if (incoming != null && mounted) {
-            setState(() {
-              _callMessages.add(incoming!);
-              if (!_chatOpen) _chatOpen = true;
-            });
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (_sheetController.isAttached) {
-                _sheetController.animateTo(
-                  0.85,
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOut,
-                );
-              }
-            });
-          }
-        }
-        break;
+      // 'chat' case removed — in-call chat replaced by Activity panel (FIX 4).
     }
   }
 
@@ -424,45 +367,12 @@ class _VideoConsultationScreenState
   }
 
   Future<void> _endCall() async {
-    // Generate Gemma 4 summary if chat messages were exchanged.
-    if (_callMessages.isNotEmpty) await _saveCallSummary();
     if (!mounted) return;
-
-    final lang = _lang;
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
     } else {
       ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.myDoctor);
     }
-    if (_callMessages.isNotEmpty && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(AppStrings.of(lang, 'call.summary_saved'),
-            style: const TextStyle(fontSize: 16)),
-      ));
-    }
-  }
-
-  // ── Chat — send text ─────────────────────────────────────────────────────────
-
-  void _sendChatMessage() {
-    final text = _chatController.text.trim();
-    if (text.isEmpty) return;
-    final msg = _CallMessage(
-      id: DateTime.now().toIso8601String(),
-      text: text,
-      isPatient: true,
-      timestamp: DateTime.now(),
-    );
-    setState(() => _callMessages.add(msg));
-    _chatController.clear();
-    // Send over signaling so the doctor receives the message in real-time.
-    _signalingSocket?.add(jsonEncode({
-      'type':   'chat',
-      'room':   widget.appointmentId ?? 'default',
-      'sender': 'patient',
-      'text':   text,
-    }));
-    _persistMessage(msg);
   }
 
   // ── Chat — attach file ────────────────────────────────────────────────────────
@@ -502,35 +412,8 @@ class _VideoConsultationScreenState
       attachmentPath: path,
       attachmentType: attachType,
     );
-    setState(() => _callMessages.add(msg));
+    // Persist to Medplum only — WebSocket chat send removed (FIX 4).
     _persistMessage(msg);
-
-    // Send the attachment over WebSocket so the doctor sees it in real-time.
-    try {
-      if (attachType == AttachmentType.image && msg.attachmentPath != null) {
-        // Image: read bytes, base64 encode, send inline.
-        final bytes     = await File(msg.attachmentPath!).readAsBytes();
-        final imageData = base64Encode(bytes);
-        _signalingSocket?.add(jsonEncode({
-          'type':      'chat',
-          'room':      widget.appointmentId ?? 'default',
-          'sender':    'patient',
-          'imageData': imageData,
-          'filename':  msg.text,
-        }));
-      } else if (attachType == AttachmentType.pdf) {
-        // PDF: saveCommunication does not return a DocumentReference ID.
-        // Send a plain text notification so the doctor is aware of the document.
-        _signalingSocket?.add(jsonEncode({
-          'type':   'chat',
-          'room':   widget.appointmentId ?? 'default',
-          'sender': 'patient',
-          'text':   '📄 Patient sent a document: ${msg.text}',
-        }));
-      }
-    } catch (e) {
-      debugPrint('VideoConsultationScreen: WebSocket attachment send error: $e');
-    }
   }
 
   // ── Chat — persist as FHIR Communication ─────────────────────────────────────
@@ -557,101 +440,14 @@ class _VideoConsultationScreenState
     });
   }
 
-  // ── Call end — Gemma 4 summary ───────────────────────────────────────────────
-
-  Future<void> _saveCallSummary() async {
-    try {
-      final patientLabel = AppStrings.of(_lang, 'call.summary_label_patient');
-      final doctorLabel  = AppStrings.of(_lang, 'call.summary_label_doctor');
-      final transcript = _callMessages.map((m) {
-        final h   = m.timestamp.hour.toString().padLeft(2, '0');
-        final min = m.timestamp.minute.toString().padLeft(2, '0');
-        return '${m.isPatient ? patientLabel : doctorLabel} [$h:$min]: ${m.text}';
-      }).join('\n');
-
-      final prompt = '${AppStrings.of(_lang, 'call.summary_prompt')}\n';
-
-      String summaryText;
-      try {
-        final result = await ref
-            .read(aiEngineServiceProvider)
-            .evaluateText('$prompt$transcript');
-        summaryText = ((result['response'] as String?)?.trim().isNotEmpty == true)
-            ? result['response'] as String
-            : transcript;
-      } catch (_) {
-        summaryText = transcript;
-      }
-
-      final cnp = ref.read(loginCnpProvider);
-      await ref.read(fhirRepositoryProvider).saveObservation({
-        'resourceType': 'Observation',
-        'status': 'final',
-        'category': [{'coding': [{'code': 'consultation-summary'}]}],
-        'code': {'text': 'Rezumat consultație video'}, // FHIR internal label — not localised, stored server-side
-        'subject': {
-          'identifier': {
-            'system': 'urn:oid:1.2.40.0.10.1.4.3.1',
-            'value': cnp,
-          },
-        },
-        'valueString': summaryText,
-        'effectiveDateTime': DateTime.now().toUtc().toIso8601String(),
-      });
-    } catch (e) {
-      debugPrint('VideoConsultationScreen._saveCallSummary error: $e');
-    }
-  }
-
-  // ── In-call audio playback ────────────────────────────────────────────────────
-
-  Future<void> _toggleCallPlayback(_CallMessage msg) async {
-    final path = msg.attachmentPath;
-    if (path == null) return;
-    if (_callPlayingPath == path) {
-      await _callAudioPlayer.stop();
-      setState(() => _callPlayingPath = null);
-      return;
-    }
-    _callPlayerSub?.cancel();
-    if (_callPlayingPath != null) await _callAudioPlayer.stop();
-    try {
-      await _callAudioPlayer.setFilePath(path);
-      await _callAudioPlayer.play();
-      setState(() => _callPlayingPath = path);
-      _callPlayerSub = _callAudioPlayer.playerStateStream.listen((s) {
-        if (s.processingState == ProcessingState.completed && mounted) {
-          setState(() => _callPlayingPath = null);
-        }
-      });
-    } catch (_) {
-      if (mounted) setState(() => _callPlayingPath = null);
-    }
-  }
-
-  // ── Image full-screen (in-call) ───────────────────────────────────────────────
-
-  void _showCallImagePreview(String imagePath) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => ImagePreviewScreen(
-          imagePath: imagePath,
-          title: AppStrings.of(_lang, 'attachment.image_label'),
-        ),
-      ),
-    );
-  }
-
-  // ── Chat panel (DraggableScrollableSheet in Stack) ───────────────────────────
-
+  // ── Activity panel (DraggableScrollableSheet in Stack) ───────────────────────
+  // FIX 4: Chat tab removed — Activity observations only.
   Widget _buildChatPanel() {
     return Positioned.fill(
       child: DraggableScrollableSheet(
         controller: _sheetController,
         initialChildSize: 0.45,
-        minChildSize: 0.0,   // Allow full collapse via drag or tap-outside
+        minChildSize: 0.0,
         maxChildSize: 0.85,
         snap: true,
         snapSizes: const [0.45, 0.85],
@@ -663,139 +459,40 @@ class _VideoConsultationScreenState
           child: SafeArea(
             top: false,
             child: Column(
-            children: [
-              // Drag handle
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 10),
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.black26,
-                  borderRadius: BorderRadius.circular(2),
+              children: [
+                // Drag handle
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 10),
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black26,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              // Header with Chat / Activity tab bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),
-                child: Row(
-                  children: [
-                    _buildPanelTab('chat',     AppStrings.of(_lang, 'call.tab_chat')),
-                    const SizedBox(width: 4),
-                    _buildPanelTab('activity', AppStrings.of(_lang, 'call.tab_activity')),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => setState(() => _chatOpen = false),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              // Chat or Activity content
-              Expanded(
-                child: _activeTab == 'activity'
-                    ? _buildActivityTab()
-                    : (_callMessages.isEmpty
-                        ? Center(
-                            child: Text(
-                              AppStrings.of(_lang, 'call.chat_hint'),
-                              style: const TextStyle(color: Colors.grey, fontSize: 15),
-                              textAlign: TextAlign.center,
-                            ),
-                          )
-                        : ListView.builder(
-                            controller: scrollController,
-                            padding: const EdgeInsets.all(12),
-                            itemCount: _callMessages.length,
-                            itemBuilder: (_, i) =>
-                                _buildCallMessageBubble(_callMessages[i]),
-                          )),
-              ),
-              // Input row (48dp buttons — constrained video overlay space)
-              Container(
-                padding: EdgeInsets.fromLTRB(
-                    12, 8, 12, 8 + MediaQuery.of(context).viewInsets.bottom),
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: Color(0xFFE2E2E2))),
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.attach_file,
-                          color: Color(0xFF5BA4CF), size: 26),
-                      onPressed: _attachCallFile,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                          minWidth: 48, minHeight: 48),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: TextField(
-                        controller: _chatController,
-                        minLines: 1,
-                        maxLines: 4,
-                        textInputAction: TextInputAction.send,
-                        style: const TextStyle(
-                            fontSize: 16, color: Color(0xFF1a1c1c)),
-                        decoration: InputDecoration(
-                          hintText: AppStrings.of(_lang, 'call.chat_hint'),
-                          hintStyle: const TextStyle(
-                              color: Color(0xFF40484e)),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
-                        ),
-                        onSubmitted: (_) => _sendChatMessage(),
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),
+                  child: Row(
+                    children: [
+                      Text(
+                        AppStrings.of(_lang, 'call.tab_activity'),
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.send,
-                          color: Color(0xFF5BA4CF), size: 26),
-                      onPressed: _sendChatMessage,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                          minWidth: 48, minHeight: 48),
-                    ),
-                  ],
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => setState(() => _chatOpen = false),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-            ), // Column
-          ), // SafeArea
-        ),
-      ),
-    );
-  }
-
-  // ── Panel tab button ──────────────────────────────────────────────────────
-  Widget _buildPanelTab(String tab, String label) {
-    final isActive = _activeTab == tab;
-    return TextButton(
-      onPressed: () => setState(() => _activeTab = tab),
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-              color: isActive ? const Color(0xFF5BA4CF) : Colors.grey,
+                const Divider(height: 1),
+                // Activity observations only
+                Expanded(child: _buildActivityTab()),
+              ],
             ),
           ),
-          Container(
-            height: 2,
-            width: label.length * 8.0,
-            color: isActive ? const Color(0xFF5BA4CF) : Colors.transparent,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -899,111 +596,6 @@ class _VideoConsultationScreenState
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCallMessageBubble(_CallMessage msg) {
-    const patientBg = Color(0xFF5BA4CF);
-    const doctorBg  = Color(0xFFF3F3F3);
-    final bg        = msg.isPatient ? patientBg : doctorBg;
-    final textColor = msg.isPatient ? Colors.white : const Color(0xFF1A1C1C);
-    final timeStr   = DateFormatter.formatTimeOfDay(
-        msg.timestamp.hour, msg.timestamp.minute);
-
-    Widget content;
-    switch (msg.attachmentType) {
-      case AttachmentType.audio:
-        final isPlaying = _callPlayingPath == msg.attachmentPath;
-        content = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(
-                isPlaying
-                    ? Icons.stop_circle_outlined
-                    : Icons.play_circle_outline,
-                size: 32,
-                color: msg.isPatient ? Colors.white : const Color(0xFF5BA4CF),
-              ),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onPressed: () => _toggleCallPlayback(msg),
-            ),
-            const SizedBox(width: 6),
-            Text(AppStrings.of(_lang, 'voice.message_label'),
-                style: TextStyle(fontSize: 15, color: textColor)),
-          ],
-        );
-        break;
-
-      case AttachmentType.image:
-        final path = msg.attachmentPath;
-        content = path != null
-            ? GestureDetector(
-                onTap: () => _showCallImagePreview(path),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    File(path),
-                    width: 120, height: 90,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.broken_image, size: 36, color: Colors.grey),
-                  ),
-                ),
-              )
-            : Text(msg.text, style: TextStyle(fontSize: 15, color: textColor));
-        break;
-
-      case AttachmentType.pdf:
-        final pdfRow = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.picture_as_pdf, color: Color(0xFFAB1118), size: 28),
-            const SizedBox(width: 6),
-            Flexible(child: Text(msg.text,
-                style: TextStyle(fontSize: 15, color: textColor))),
-          ],
-        );
-        // Doctor-sent documents are tappable and fetch from Medplum.
-        content = (!msg.isPatient && msg.attachmentPath != null)
-            ? GestureDetector(
-                onTap: () => _openDocumentReference(msg.attachmentPath!),
-                child: pdfRow,
-              )
-            : pdfRow;
-        break;
-
-      case null:
-        content = Text(msg.text,
-            style: TextStyle(fontSize: 15, color: textColor));
-    }
-
-    return Align(
-      alignment: msg.isPatient ? Alignment.centerRight : Alignment.centerLeft,
-      child: Column(
-        crossAxisAlignment: msg.isPatient
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
-        children: [
-          Container(
-            margin: const EdgeInsets.only(bottom: 2),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: content,
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8, left: 4, right: 4),
-            child: Text(
-              timeStr,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ),
         ],
       ),
     );
@@ -1405,8 +997,9 @@ class _VideoConsultationScreenState
   }
 
   Widget _buildChatStrip(BuildContext context) {
+    // FIX 4: Chat removed — strip now toggles the Activity panel only.
     return Semantics(
-      label: AppStrings.of(_lang, 'call.open_chat'),
+      label: AppStrings.of(_lang, 'call.tab_activity'),
       child: GestureDetector(
         onTap: () => setState(() => _chatOpen = !_chatOpen),
         child: Container(
@@ -1420,30 +1013,20 @@ class _VideoConsultationScreenState
             children: [
               IconButton(
                 onPressed: _attachCallFile,
-                icon: const Icon(
-                  Icons.attach_file,
-                  size:  32,
-                  color: Color(0xFF5BA4CF),
-                ),
+                icon: const Icon(Icons.attach_file, size: 32, color: Color(0xFF5BA4CF)),
               ),
               Expanded(
                 child: GestureDetector(
                   onTap: () => setState(() => _chatOpen = !_chatOpen),
                   child: Text(
-                    AppStrings.of(_lang, 'call.chat_hint'),
+                    AppStrings.of(_lang, 'call.tab_activity'),
                     style: const TextStyle(fontSize: 16, color: Colors.grey),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
-              IconButton(
-                onPressed: _sendChatMessage,
-                icon: const Icon(
-                  Icons.send,
-                  size:  32,
-                  color: Color(0xFF5BA4CF),
-                ),
-              ),
+              const Icon(Icons.expand_less, color: Color(0xFF5BA4CF), size: 28),
+              const SizedBox(width: 8),
             ],
           ),
         ),

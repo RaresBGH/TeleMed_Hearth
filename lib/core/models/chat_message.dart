@@ -4,10 +4,10 @@
 // TeleMed_K: Offline-first telemedicine app for seniors
 
 /// Type of media attached to a [ChatMessage].
-enum AttachmentType { image, pdf, audio }
+enum AttachmentType { image, pdf, audio, document }
 
 class ChatMessage {
-  final String role; // 'ai' or 'patient'
+  final String role; // values: 'ai', 'patient', 'doctor'
   final String text;
   final DateTime timestamp;
   /// Local file path of an attached image, PDF, or audio file.

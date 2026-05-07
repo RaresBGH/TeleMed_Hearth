@@ -59,7 +59,9 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 - finalizeConsultation _finalized: reset as first line of reset() before stopAndRelease() — prevents audio exceptions blocking future FHIR writes
 - patientHistoryProvider: invalidated inside notifier after successful FHIR write via try { ref.invalidate(...) } catch (_) {}
 - Bottom nav: localised via languageProvider + AppStrings (nav.home / nav.dossier / nav.doctor), reactive to EN/RO toggle
-- In-call chat: bidirectional via WebSocket — patient sends {type:'chat',sender:'patient',text} or {imageData,filename}; doctor sends {type:'chat',sender:'doctor',text} or {documentReferenceId,filename}; both sides wired
+- Doctor Communications: getCommunications() in MedplumRepository + FhirRepository; saveCommunication() includes sender/recipient FHIR fields; doctor messages surface in MedicalResponseScreen as green 'doctor' role bubble
+- VideoConsultationScreen: in-call chat removed — Activity tab only (observations); _callMessages and WebSocket chat send removed
+- Doctor UI: Appointments panel state removed; in-call panel shows Patient Report read-only; Chat state is async Medplum-only (no WebSocket); blue Chat stripe opens chat outside call
 - AppointmentsScreen: showBookingButton=false by default (read-only from dashboard); screenTitle parameter for contextual title; family doctor scoped to familyDoctorId explicitly
 - Doctor profile: specialty shown as AppBar top label; entitlement string (from Practitioners.*entitlement) shown below name
 - Medplum-first reads: getMostRecentEncounter uses fulfilled Appointments; getMostRecentMedicationRequest and getPatientHistory (Conditions + Observations) all online-first with local fallback
@@ -68,19 +70,20 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 - T3: AI context reset mid-conversation — "Hello. What brings you..." reappears between turns
 - T4: Triage back button background not white
 - D3: "Could not load photo" error on profile photo upload
-- Patient PDF send: sends plain text notification only — no DocumentReference ID available from saveCommunication return value; post-hackathon fix
-- P1-5/6/7: Mic release, end-call keyboard, mute chip — still pending two-device video call test
+- Patient PDF send: plain text notification only — post-hackathon fix
+- P1-5/6/7: Mic release, end-call keyboard, mute chip — pending two-device test
+- Doctor Communications polling: not real-time — patient must reopen to see new doctor messages (post-hackathon: add polling or push)
 
 ## Current State
 See TELEMED_CONTEXT.md for full verified/awaiting-test/broken breakdown.
 Last updated: 2026-05-07
-Latest build: #75 — in progress (not yet pushed). Last pushed build: #73. Last device-tested build: #74.
+Latest build: #76 — in progress. Last pushed build: #75. Last device-tested build: #74.
 GitHub Actions secrets MEDPLUM_CLIENT_ID and MEDPLUM_CLIENT_SECRET are set correctly.
 Medplum sync confirmed working — appointments, observations, and communications reach https://telemed-medplum.duckdns.org/fhir/R4.
 Medplum Binary storage confirmed working: file:///var/medplum/storage.
 WebRTC two-device video call confirmed working end-to-end (patient Pixel 9 Pro + doctor Brave browser).
 On-device AI inference confirmed working — Gemma 4 E4B responds to text and voice in correct language.
-Doctor UI at https://telemed-doctor.duckdns.org confirmed working — shows today's appointments, joins video call, bidirectional chat working.
+Doctor UI at https://telemed-doctor.duckdns.org confirmed working — shows today's appointments, joins video call; async Medplum chat available outside call.
 Signaling server: telemed-signaling.service confirmed running under systemd, auto-restarts on reboot.
 medplum_token alias added to ~/.bashrc for Terminal 2 token refresh.
 
@@ -92,6 +95,7 @@ adb -s 4C041FDAP006Z1 shell pm clear com.example.telemed_k && adb -s 4C041FDAP00
 Audit round 4 completed 2026-05-06. All findings resolved.
 Build #75 batch: 25+ fixes across appointments, dashboard, doctor UI, video call, chat, PDF/image transfer. 0 analyze errors.
 Additional fixes: join window corrected (-60min/+120min); dashboard appointment filter broadened (booked+confirmed, within 2h past); 'Family Doctor' → 'Family Medicine'; doctor UI isCallActive guard, frozen video clear on peer exit, redundant PANEL tab removed; fulfilled appointment timestamps patched in Medplum (Apr 14–22).
+Build #76 batch: UI-1 exit dialog fix; in-call chat removed (Activity only); doctor Communications data layer; 'doctor' role + 'document' AttachmentType; doctor UI panel restructure (Appointments removed, async Medplum chat, read-only report during call).
 debugPrint tracing added to finalizeConsultation() for future diagnosis.
 
 ## Doctor UI

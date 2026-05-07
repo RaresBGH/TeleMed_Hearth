@@ -1,5 +1,5 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-05-07 (build #75 batch)
+Last updated: 2026-05-07 (build #76 batch)
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
@@ -393,9 +393,10 @@ FHIR search patterns:
 
 ## Code Quality
 
-Four full audit cycles completed (2026-05-02 – 2026-05-07). Build #75 batch: 25+ fixes across appointments, dashboard, doctor profile, video consultation, bidirectional chat, PDF/image transfer. 0 analyze errors. Current state: **0 critical, 0 high, 0 medium** open issues.
-Additional build #75 fixes: join window corrected (-60min/+120min); dashboard appointment filter broadened (booked+confirmed, within 2h past); 'Family Doctor' → 'Family Medicine'; doctor UI isCallActive panel guard, frozen video clear on peer exit, redundant PANEL tab removed; fulfilled appointment timestamps patched in Medplum (Apr 14–22).
-Known limitation: patient PDF send → plain text notification only (no DocumentReference ID from saveCommunication); post-hackathon fix.
+Four full audit cycles completed (2026-05-02 – 2026-05-07). Build #75+#76 batches: 30+ fixes. 0 analyze errors. Current state: **0 critical, 0 high, 0 medium** open issues.
+Build #75 additions: join window corrected; dashboard filter broadened; 'Family Medicine'; doctor UI panel guards; Medplum timestamps patched.
+Build #76 additions: UI-1 exit dialog fix; in-call chat removed (Activity only); doctor Communications data layer (getCommunications, sender/recipient in saveCommunication); 'doctor' role + 'document' AttachmentType; doctor UI panel restructured (Appointments removed, async Medplum chat, read-only report during call).
+Known limitations: patient PDF send → plain text only (post-hackathon); doctor Communications not real-time — patient must reopen to see new messages (post-hackathon: polling/push).
 Post-hackathon deferred: duplicate Observation schema between `finalizeConsultation()` and `VideoConsultationScreen._saveCallSummary()` (refactor to shared factory method).
 
 FHIR extension URL consistency (all confirmed matching Flutter writer ↔ doctor UI JavaScript reader):

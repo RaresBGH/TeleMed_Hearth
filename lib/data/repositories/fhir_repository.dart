@@ -387,6 +387,21 @@ class FhirRepository {
     }
   }
 
+  /// Returns Communication resources for [cnp] from Medplum, newest first.
+  /// Medplum-only — no local FHIR SDK fallback (Communications are cloud-only).
+  Future<List<Map<String, dynamic>>> getCommunications({required String cnp}) async {
+    if (_medplum == null) return [];
+    try {
+      final patient = await _medplum.getPatientByCnp(cnp);
+      final patientId = patient?['id'] as String?;
+      if (patientId == null) return [];
+      return await _medplum.getCommunications(patientId);
+    } catch (e) {
+      debugPrint('FhirRepository.getCommunications error: $e');
+      return [];
+    }
+  }
+
   Future<void> updateEncounterConsent(String callId) async {
     try {
       await _channel.invokeMethod<void>(
