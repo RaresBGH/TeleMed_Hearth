@@ -125,12 +125,15 @@ class TeleMedApp extends ConsumerWidget {
         break;
     }
 
+    // ValueKey forces Flutter to dispose the old element subtree before
+    // mounting the new one on every route change — prevents stale ref.watch
+    // dependents from triggering _dependents.isEmpty assertion (C1 bug).
     return MaterialApp(
       title: 'TeleMed_K',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-      home: screen,
+      home: KeyedSubtree(key: ValueKey(currentRoute), child: screen),
       debugShowCheckedModeBanner: false,
     );
   }
