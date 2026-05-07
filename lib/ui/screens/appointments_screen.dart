@@ -75,11 +75,20 @@ class AppointmentsScreen extends ConsumerStatefulWidget {
   final String doctorName;
   final String? doctorSpecialty;
 
+  /// When true, shows the "Request new appointment" CTA button.
+  /// Hidden by default so the flat-nav all-appointments view is read-only.
+  final bool showBookingButton;
+
+  /// When non-null, used as the AppBar title instead of the default key.
+  final String? screenTitle;
+
   const AppointmentsScreen({
     super.key,
     this.practitionerRef,
-    this.doctorName    = Practitioners.familyDoctorName,
+    this.doctorName        = Practitioners.familyDoctorName,
     this.doctorSpecialty,
+    this.showBookingButton = false,
+    this.screenTitle,
   });
 
   @override
@@ -249,10 +258,11 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                     ),
                   ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: _buildCTAButton(lang),
-          ),
+          if (widget.showBookingButton)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: _buildCTAButton(lang),
+            ),
           // Inline booking panel slides up from bottom
           AnimatedContainer(
             duration: const Duration(milliseconds: 250),
@@ -296,7 +306,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         ),
       ),
       title: Text(
-        AppStrings.of(lang, 'appointment.title'),
+        widget.screenTitle ?? AppStrings.of(lang, 'appointment.title'),
         style: const TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,

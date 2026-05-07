@@ -1,5 +1,5 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-05-07
+Last updated: 2026-05-07 (build #75 batch)
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
@@ -103,7 +103,15 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Appointments join window** — -60min / +120min confirmed working; matches doctor UI
 - **WaitingRoom activity panel** — "See my recent activity" bottom sheet loads; category chips, date, summary display correctly (build #68 verified)
 - **Bottom nav localised** — nav.home / nav.dossier / nav.doctor react to language toggle (build #69 pending device test)
-- **finalizeConsultation** — FHIR write confirmed reaching local SDK; _finalized reset bug fixed (build #69 pending device test)
+- **finalizeConsultation** — FHIR write confirmed reaching local SDK; _finalized reset bug fixed
+- **Practitioner name resolution** — full lookup map all 9 practitioners; WaitingRoomScreen shows correct specialist name
+- **Appointment cards** — specialty shown as subtitle extracted from description; showBookingButton/screenTitle parameters
+- **Dashboard data** — Conditions + Observations from Medplum merged; active medication from Medplum; last consultation from fulfilled appointments
+- **Doctor profile** — specialty as AppBar top label; entitlement string below name; family doctor scoped to familyDoctorId
+- **In-call chat bidirectional** — patient ↔ doctor text and images over WebSocket; doctor PDF via Binary + DocumentReference
+- **Doctor UI VC fixes** — Panel cleared on call entry; Patient Report accessible from in-call panel; video object-fit:contain + 16/9; 1Mbps bitrate cap
+- **telemed-signaling.service** — systemd service confirmed running, auto-restarts on reboot
+- **Medplum Binary storage** — confirmed working at file:///var/medplum/storage
 - **Dashboard doctor card** — tappable; "Family Doctor:" label; navigates to Medic tab
 - **Specialist screens** — all 8 specialties show real doctor names from Practitioners constants
 - **My Profile** — save SnackBar (brand blue); blue back button; avatar sync to dashboard via patientAvatarProvider
@@ -331,9 +339,10 @@ Conditions:
   Insuficiență cardiacă       → Condition/9feb7821 → Gheorghe Stan
   Boală pulmonară obstructivă → Condition/e7161115 → Ana Constantin
 
-Rich test data (Ion Popescu and Maria Ionescu):
-  Ion Popescu   — 8 Appointments (4 fulfilled, 3 booked today, 1 future); 6 Observations (1 final+reviewed, 5 preliminary)
-  Maria Ionescu — 7 Appointments (3 fulfilled, 3 booked today, 1 future); 6 Observations (2 final+reviewed, 4 preliminary)
+Rich test data (Ion Popescu and Maria Ionescu — fully populated):
+  Ion Popescu   — 1 condition, 2 medications, 3 fulfilled appointments (April 22); 6 Observations (2 exam + 4 survey, all categories correct)
+  Maria Ionescu — 1 condition, 2 medications, 3 fulfilled appointments (April 22); 6 Observations (3 exam + 3 survey, all categories correct)
+  Binary storage confirmed: file:///var/medplum/storage
 
 Practitioners:
   Dr. Elena Ionescu   Family Doctor (Medic de Familie)        Practitioner/733e1972-b42d-4bd0-82c7-66db72b2d311
@@ -375,12 +384,17 @@ FHIR search patterns:
 - **finalizeConsultation `_finalized` guard** — `_finalized = false` must be the FIRST statement in `reset()`, before `stopAndRelease()`. If audio cleanup throws, the guard would permanently block FHIR writes in subsequent sessions of the same app run.
 - **patientHistoryProvider invalidation** — called inside `finalizeConsultation()` after successful FHIR write, wrapped in `try { ref.invalidate(...); } catch (_) {}` to prevent invalidation errors from masking a successful write.
 - **Bottom nav labels** — localised via `languageProvider` + AppStrings keys `nav.home` / `nav.dossier` / `nav.doctor`; reactive to EN/RO toggle without restart.
+- **In-call chat** — bidirectional WebSocket: `{type:'chat',sender:'patient',text}` for text; `{imageData,filename}` for images (base64 JPEG); doctor sends `{sender:'doctor',text}` or `{documentReferenceId,filename}` for PDFs.
+- **AppointmentsScreen** — `showBookingButton: false` by default (dashboard entry is read-only); `screenTitle` parameter for contextual AppBar title; family doctor scoped to `Practitioners.familyDoctorId`.
+- **Doctor profile** — specialty string used as AppBar top label; `Practitioners.*entitlement` shown below doctor name.
+- **Medplum-first reads** — `getMostRecentEncounter` uses fulfilled Appointments; `getMostRecentMedicationRequest` and `getPatientHistory` (Conditions + Observations merged) all online-first with local fallback.
 
 ---
 
 ## Code Quality
 
-Four full audit cycles completed (2026-05-02, 2026-05-04, 2026-05-05, 2026-05-06). All findings resolved: audit round 4 found 0 critical + 1 high + 11 medium + 5 low — all fixed. Build #69 batch: 6 fix groups applied, 0 analyze errors. Current state: **0 critical, 0 high, 0 medium, 0 low** open issues.
+Four full audit cycles completed (2026-05-02 – 2026-05-07). Build #75 batch: 25+ fixes across appointments, dashboard, doctor profile, video consultation, bidirectional chat, PDF/image transfer. 0 analyze errors. Current state: **0 critical, 0 high, 0 medium** open issues.
+Known limitation: patient PDF send → plain text notification only (no DocumentReference ID from saveCommunication); post-hackathon fix.
 Post-hackathon deferred: duplicate Observation schema between `finalizeConsultation()` and `VideoConsultationScreen._saveCallSummary()` (refactor to shared factory method).
 
 FHIR extension URL consistency (all confirmed matching Flutter writer ↔ doctor UI JavaScript reader):

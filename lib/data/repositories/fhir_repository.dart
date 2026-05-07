@@ -290,7 +290,39 @@ class FhirRepository {
 
   // ── Encounter / Medication ────────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>?> getMostRecentEncounter() async {
+  /// Returns the most recent consultation date for the patient.
+  /// Online-first when [cnp] is provided: fetches fulfilled Appointments from
+  /// Medplum (Encounter is not stored in Medplum for this setup) and returns
+  /// the most recent one wrapped as {period: {start: ...}} so the UI reads
+  /// data['period']?['start'] without any changes.
+  /// Falls back to local FHIR SDK Encounter query.
+  Future<Map<String, dynamic>?> getMostRecentEncounter({String cnp = ''}) async {
+    if (_medplum != null && cnp.isNotEmpty) {
+      try {
+        final patient = await _medplum.getPatientByCnp(cnp);
+        final patientId = patient?['id'] as String?;
+        if (patientId != null) {
+          final appointments = await _medplum.getAppointments(patientId: patientId);
+          final fulfilled = appointments
+              .where((a) =>
+                  (a['status'] as String? ?? '').toLowerCase() == 'fulfilled' &&
+                  (a['start'] as String?) != null)
+              .toList();
+          if (fulfilled.isNotEmpty) {
+            fulfilled.sort((a, b) {
+              final aD = DateTime.tryParse(a['start'] as String? ?? '') ?? DateTime(0);
+              final bD = DateTime.tryParse(b['start'] as String? ?? '') ?? DateTime(0);
+              return bD.compareTo(aD); // most recent first
+            });
+            final start = fulfilled.first['start'] as String;
+            return {'period': {'start': start}};
+          }
+        }
+      } catch (e) {
+        debugPrint('FhirRepository.getMostRecentEncounter: Medplum error: $e');
+      }
+    }
+    // Local FHIR SDK fallback (unchanged).
     try {
       final String? result =
           await _channel.invokeMethod<String>('getMostRecentEncounter');

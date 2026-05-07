@@ -28,6 +28,8 @@ import 'ui/screens/appointments_screen.dart';
 import 'ui/screens/patient_profile_screen.dart';
 import 'ui/screens/specialists_screen.dart';
 import 'ui/screens/profile_completion_screen.dart';
+import 'core/l10n/app_strings.dart';
+import 'core/providers/language_provider.dart';
 import 'core/providers/medical_session_provider.dart';
 
 Future<void> main() async {
@@ -69,6 +71,7 @@ class TeleMedApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentRoute = ref.watch(appNavigationProvider);
+    final lang         = ref.watch(languageProvider);
 
     Widget screen;
     switch (currentRoute) {
@@ -103,7 +106,9 @@ class TeleMedApp extends ConsumerWidget {
         screen = const PatientProfileScreen();
         break;
       case AppRoute.appointments:
-        screen = const AppointmentsScreen();
+        screen = AppointmentsScreen(
+          screenTitle: AppStrings.of(lang, 'appointment.title'),
+        );
         break;
       case AppRoute.specialists:
         screen = const SpecialistsScreen();

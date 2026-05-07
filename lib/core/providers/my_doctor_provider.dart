@@ -7,7 +7,8 @@ import 'medical_session_provider.dart';
 
 final mostRecentEncounterProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
   final repository = ref.watch(fhirRepositoryProvider);
-  return repository.getMostRecentEncounter();
+  final cnp        = ref.watch(loginCnpProvider);
+  return repository.getMostRecentEncounter(cnp: cnp);
 });
 
 final mostRecentMedicationProvider = FutureProvider<Map<String, dynamic>?>((ref) async {

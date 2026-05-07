@@ -12,6 +12,7 @@ import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/my_doctor_provider.dart';
+import '../../core/providers/patient_history_provider.dart';
 import '../../core/utils/date_formatter.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/language_toggle.dart';
@@ -58,6 +59,7 @@ class DoctorProfileScreen extends ConsumerWidget {
     final specialty     = doctorSpecialty ?? AppStrings.of(lang, 'doctor.family_specialty');
     final encounterAsync = ref.watch(mostRecentEncounterProvider);
     final medAsync      = ref.watch(mostRecentMedicationProvider);
+    final historyData   = ref.watch(patientHistoryProvider).asData?.value;
 
     // ── Entitlement and AppBar top label ─────────────────────────────────────
     const entitlementMap = {
@@ -97,7 +99,7 @@ class DoctorProfileScreen extends ConsumerWidget {
                       _buildConsultationsSection(context, ref, lang),
                       const SizedBox(height: 20),
                     ],
-                    _buildInfoCard(lang, encounterAsync, medAsync),
+                    _buildInfoCard(lang, encounterAsync, medAsync, historyData: historyData),
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -299,9 +301,11 @@ class DoctorProfileScreen extends ConsumerWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => AppointmentsScreen(
-                            practitionerRef: practitionerRef,
-                            doctorName:      doctorName,
-                            doctorSpecialty: specialty,
+                            practitionerRef:    practitionerRef,
+                            doctorName:         doctorName,
+                            doctorSpecialty:    specialty,
+                            showBookingButton:  true,
+                            screenTitle:        specialty,
                           ),
                         ),
                       );
@@ -313,9 +317,11 @@ class DoctorProfileScreen extends ConsumerWidget {
                         context,
                         MaterialPageRoute(
                           builder: (_) => AppointmentsScreen(
-                            practitionerRef: Practitioners.familyDoctorId,
-                            doctorName:      doctorName,
-                            doctorSpecialty: specialty,
+                            practitionerRef:    Practitioners.familyDoctorId,
+                            doctorName:         doctorName,
+                            doctorSpecialty:    specialty,
+                            showBookingButton:  true,
+                            screenTitle:        AppStrings.of(lang, 'doctor.family_specialty'),
                           ),
                         ),
                       );
@@ -418,8 +424,9 @@ class DoctorProfileScreen extends ConsumerWidget {
   Widget _buildInfoCard(
     String lang,
     AsyncValue<Map<String, dynamic>?> encounterAsync,
-    AsyncValue<Map<String, dynamic>?> medAsync,
-  ) {
+    AsyncValue<Map<String, dynamic>?> medAsync, {
+    List<Map<String, dynamic>>? historyData,
+  }) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -487,10 +494,46 @@ class DoctorProfileScreen extends ConsumerWidget {
                 }
                 final text = data['medicationCodeableConcept']?['text'] as String?
                     ?? AppStrings.of(lang, 'doctor.treatment');
-                return Text(
-                  text,
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w500, color: _onSurface),
+
+                // Resolve linked condition from reasonReference for subtitle.
+                String? conditionName;
+                final reasonRef = data['reasonReference'] as List?;
+                if (reasonRef != null &&
+                    reasonRef.isNotEmpty &&
+                    historyData != null) {
+                  final rawRef =
+                      (reasonRef.first as Map?)?['reference'] as String?;
+                  if (rawRef != null) {
+                    final condId = rawRef.startsWith('Condition/')
+                        ? rawRef.substring('Condition/'.length)
+                        : rawRef;
+                    conditionName = historyData
+                        .where((r) =>
+                            r['resourceType'] == 'Condition' &&
+                            r['id'] == condId)
+                        .firstOrNull?['code']?['text'] as String?;
+                  }
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      text,
+                      style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                          color: _onSurface),
+                    ),
+                    if (conditionName != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Prescribed for: $conditionName',
+                        style: const TextStyle(
+                            fontSize: 13, color: _onSurfaceV),
+                      ),
+                    ],
+                  ],
                 );
               },
               loading: () => const SizedBox(

@@ -2,7 +2,7 @@
 **Date:** 2026-05-05  
 **Deadline:** May 18, 2026 — **12 days remaining**  
 **Repo:** https://github.com/RaresBGH/TeleMed_K (PRIVATE — must go public before deadline)  
-**Latest commit:** build #69 — downloading on device. All changes committed and pushed to main.
+**Latest commit:** build #75 — in progress (not yet pushed). Last pushed: build #73. Last device-tested: build #74.
 
 ---
 
@@ -130,13 +130,33 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 - debugPrint tracing added to finalizeConsultation()
 - Medplum conditions patched to English via REST: Ion Popescu → "Type 2 Diabetes", Maria Ionescu → "Arterial Hypertension"
 
-### OPEN BUGS — carry to build #70:
-- T3: AI resets to "Hello. What brings you to the doctor today?" mid-conversation (context lost between turns)
-- T4: Triage back button still not white background
+### FIXED in build #75 batch:
+- T-NEW-4a/4b: Red screen on text send and exit — mounted guard on appNavigationProvider listener
+- C1: _dependents.isEmpty — KeyedSubtree + mounted guard (fully resolved)
+- BUG-A/B/C/D: Practitioner name resolution — full lookup map all 9 practitioners
+- BUG-E: WaitingRoomScreen specialty display — doctorSpecialty parameter added
+- BUG-F/G: FHIR local fallback + Kotlin double-prefix — stripped in both layers
+- A-NEW-1: Appointment cards missing specialty — extracted from description, shown as subtitle
+- AP-1: "Request new appointment" always visible — showBookingButton=false by default
+- AP-2: Calendar title not contextual — screenTitle parameter
+- AP-4: Last consultation shows Unknown — Medplum fulfilled appointments path
+- AP-5: Active prescription no context — "Prescribed for: {conditionName}" subtitle
+- AP-6: "Data recenta" Romanian title — "Recent Health Status"
+- Dashboard medication / conditions missing from Medplum — Medplum-first paths added
+- Doctor profile top label and entitlement — specialty as AppBar title, entitlement below name
+- Family doctor appointment scoping — familyDoctorId passed explicitly
+- VC-1/2/3/4: In-call panel, Patient Report from call, chat cleared, video quality — all fixed
+- Flutter in-call chat: both directions wired (incoming + outgoing over WebSocket)
+- Patient image attachments: base64 sent over WebSocket in _attachCallFile
+- Doctor PDF send: Binary + DocumentReference + WebSocket notify
+- Doctor receives patient images: inline display in doctor UI chat
+
+### OPEN BUGS — carry forward:
+- T3: AI resets to "Hello. What brings you to the doctor today?" mid-conversation
+- T4: Triage back button not white background
 - D3: "Could not load photo" error on profile photo upload
-- C1: _dependents.isEmpty crash — reduced severity after Consumer fix but not eliminated; intermittent
-- Appointments: WaitingRoomScreen doctor name resolution shows Practitioners.bogheanuName for all non-family-doctor appointments instead of correct specialist name
-- P1-5/6/7: Microphone release, end call keyboard, mute chip — pending two-way video call test
+- Patient PDF send: plain text notification only — no DocumentReference ID from saveCommunication; post-hackathon fix
+- P1-5/6/7: Mic release, end-call keyboard, mute chip — pending two-device video call test
 
 ### POST-HACKATHON TRACKER:
 - Duplicate Observation schema (finalizeConsultation vs _saveCallSummary) — refactor to shared factory
@@ -157,8 +177,7 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 | Gemma model server (Caddy) | Running | https://telemed-b.duckdns.org/gemma-4-E4B-it.litertlm — served from GCP VM /home/rares_bogheanu/gemma-4-E4B-it.litertlm |
 | WireGuard | Running | GX10 peer 10.0.0.2 ↔ GCP VM 10.0.0.1 |
 
-**Note:** The Node.js signaling server was started with `node server.js &` in a session — it may need restarting after reboot. Run: `cd /home/corb_d/sovereign-factory/signaling && node server.js &`  
-To make it persistent: `sudo cp /tmp/telemed-signaling.service /etc/systemd/system/ && sudo systemctl enable --now telemed-signaling`
+**telemed-signaling.service** is running under systemd and auto-restarts on reboot. No manual restart needed.
 
 ### GCP VM (telemed-proxy, e2-micro, Frankfurt — 34.185.191.34)
 
@@ -179,14 +198,18 @@ To make it persistent: `sudo cp /tmp/telemed-signaling.service /etc/systemd/syst
 Ion Popescu (Patient/118149bf-26e0-46e1-87de-7149e8066284)
   CNP: 1490815150027 | OTP: 150027
   Condition: Type 2 Diabetes (ID: 1b02b21e-e6ae-4723-961b-cecd4cb2085e)
-  Appointments: 8 (4 past fulfilled, 3 today booked, 1 future)
-  Observations: 6 (1 final+reviewed, 5 preliminary unreviewed)
+  Medications: 2 active
+  Appointments: 3 fulfilled (April 22) + booked
+  Observations: 6 (2 exam + 4 survey) — all categories correct
 
 Maria Ionescu (Patient/a0e44abc-acc5-442e-a316-be70192fc72b)
   CNP: 2540203150013 | OTP: 150013
   Condition: Arterial Hypertension (ID: 36d3b343-a8e9-4b7b-bcfc-52dfe5c51073)
-  Appointments: 7 (3 past fulfilled, 3 today booked, 1 future)
-  Observations: 6 (2 final+reviewed, 4 preliminary unreviewed)
+  Medications: 2 active
+  Appointments: 3 fulfilled (April 22) + booked
+  Observations: 6 (3 exam + 3 survey) — all categories correct
+
+Binary storage: file:///var/medplum/storage (confirmed working)
 
 **FHIR extension URL consistency (all confirmed matching Flutter ↔ doctor UI):**
   https://telemed-bogheanu.ro/fhir/ext/reviewed-by-target

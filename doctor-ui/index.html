@@ -173,7 +173,9 @@
   }
   #remoteVideo {
     width: 100%; height: 100%;
-    background: #111; display: block; object-fit: cover;
+    background-color: #000; display: block;
+    object-fit: contain;
+    aspect-ratio: 16/9;
   }
   #localVideo {
     position: fixed; bottom: 128px; left: 16px;
@@ -401,6 +403,11 @@
 
     <!-- State 3: In-Call (Chat + Activity tabs) -->
     <div id="stateInCall" class="panel-state">
+      <div style="padding:10px 16px 0;">
+        <button id="viewPatientReportBtn" style="width:100%;padding:8px 12px;background:none;border:1.5px solid #5BA4CF;color:#5BA4CF;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+          📋 View Patient Report
+        </button>
+      </div>
       <div id="incallTabs">
         <button class="incall-tab active" data-tab="chat">Chat</button>
         <button class="incall-tab" data-tab="activity">Activity</button>
@@ -408,6 +415,8 @@
       <div id="chatPane" class="incall-pane active">
         <div id="chatMessages"></div>
         <div id="chatInputRow">
+          <input type="file" id="pdfFileInput" accept="application/pdf" style="display:none;" />
+          <button id="attachPdfBtn" title="Attach PDF" style="height:40px;padding:0 10px;background:none;border:1.5px solid #5BA4CF;color:#5BA4CF;border-radius:8px;font-size:16px;cursor:pointer;flex-shrink:0;">📎</button>
           <input id="chatInput" type="text" placeholder="Type a message..." />
           <button id="chatSendBtn">Send</button>
         </div>
@@ -515,6 +524,7 @@
   let localStream     = null;
   let signalingSocket = null;
   let currentRoom     = null;
+  let currentPatientId = ''; // resolved when joining a call
   let isMuted         = false;
   let isCameraOff     = false;
   let medplumToken    = null;
@@ -524,6 +534,7 @@
   let allPatients       = {};
   let reviewedInSession = new Set();
   let fetchedObservations = [];
+  let panelReturnState  = 'appointments'; // 'appointments' or 'incall'
 
   function esc(str) {
     if (!str) return '';
@@ -551,6 +562,12 @@
     document.getElementById(id).classList.add('active');
     const titles = { appointments: 'Appointments', report: 'Patient Report', incall: 'In-Call' };
     document.getElementById('panelTitle').textContent = titles[state] || 'Panel';
+    // FIX 2+3: clear stale chat and activity data whenever entering the in-call panel.
+    if (state === 'incall') {
+      document.getElementById('chatMessages').innerHTML = '';
+      fetchedObservations = [];
+      document.getElementById('activityList').innerHTML = '';
+    }
     openPanel();
   }
 
@@ -751,7 +768,7 @@
         e.stopPropagation(); joinWithId(apptId);
       });
       card.querySelector('.view-report-btn').addEventListener('click', e => {
-        e.stopPropagation(); viewPatientReport(patId, patName);
+        e.stopPropagation(); panelReturnState = 'appointments'; viewPatientReport(patId, patName);
       });
       listEl.appendChild(card);
 
@@ -769,7 +786,7 @@
         e.stopPropagation(); joinWithId(apptId);
       });
       pCard.querySelector('.panel-report-btn').addEventListener('click', e => {
-        e.stopPropagation(); viewPatientReport(patId, patName);
+        e.stopPropagation(); panelReturnState = 'appointments'; viewPatientReport(patId, patName);
       });
       panelList.appendChild(pCard);
     });
@@ -785,6 +802,9 @@
     document.getElementById('reportObservations').innerHTML = '';
     document.getElementById('reportActions').innerHTML      = '';
     showPanelState('report');
+    // Update back button label based on where we came from.
+    document.getElementById('reportBackBtn').textContent =
+      panelReturnState === 'incall' ? '← Back to Call' : '← Back to Appointments';
 
     const token = await ensureToken();
     if (!token) {
@@ -952,9 +972,118 @@
     }
   }
 
+  // ── PDF upload from doctor ────────────────────────────────────────────────────
+  async function uploadAndSendPdf(file) {
+    const filename = file.name;
+    const msgs = document.getElementById('chatMessages');
+    const loadingEl = document.createElement('div');
+    loadingEl.style.cssText = 'padding:6px 16px;font-size:12px;color:#40484e;font-style:italic;';
+    loadingEl.textContent = '📤 Uploading ' + filename + '…';
+    msgs.appendChild(loadingEl);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    try {
+      const token = await ensureToken();
+      if (!token) throw new Error('Not authenticated');
+      const base = 'https://telemed-medplum.duckdns.org/fhir/R4';
+
+      // Step 1 — POST Binary (raw ArrayBuffer, not base64)
+      const arrayBuffer = await file.arrayBuffer();
+      const binRes = await fetch(base + '/Binary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/pdf', 'Authorization': 'Bearer ' + token },
+        body: arrayBuffer,
+      });
+      if (!binRes.ok) throw new Error('Binary upload failed: ' + binRes.status);
+      const binData = await binRes.json();
+      const binaryId = binData.id;
+      if (!binaryId) throw new Error('No Binary ID returned');
+
+      // Step 2 — POST DocumentReference
+      const docRefPayload = {
+        resourceType: 'DocumentReference',
+        status: 'current',
+        content: [{ attachment: { contentType: 'application/pdf', url: 'Binary/' + binaryId, title: filename } }],
+      };
+      if (currentPatientId) docRefPayload.subject = { reference: 'Patient/' + currentPatientId };
+      const drRes = await fetch(base + '/DocumentReference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/fhir+json', 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' },
+        body: JSON.stringify(docRefPayload),
+      });
+      if (!drRes.ok) throw new Error('DocumentReference creation failed: ' + drRes.status);
+      const drData = await drRes.json();
+      const documentReferenceId = drData.id;
+      if (!documentReferenceId) throw new Error('No DocumentReference ID returned');
+
+      // Step 3 — Send over WebSocket
+      safeSend({ type: 'chat', room: currentRoom, sender: 'doctor', documentReferenceId, filename });
+
+      // Step 4 — Show local bubble
+      loadingEl.remove();
+      appendChatMessage('Doctor', '📄 ' + filename + ' sent');
+    } catch (e) {
+      loadingEl.remove();
+      console.error('PDF upload error:', e);
+      alert('Failed to send PDF: ' + e.message);
+    }
+  }
+
+  // ── Patient document/image from DocumentReference ─────────────────────────────
+  async function appendPatientDocumentRef(docRefId, filename) {
+    try {
+      const token = await ensureToken();
+      if (!token) throw new Error('No token');
+      const base = 'https://telemed-medplum.duckdns.org/fhir/R4';
+      const res = await fetch(base + '/DocumentReference/' + docRefId, {
+        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' }
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      let rawUrl       = data.content?.[0]?.attachment?.url || '';
+      const contentType = data.content?.[0]?.attachment?.contentType || '';
+      if (rawUrl.startsWith('Binary/')) rawUrl = base + '/' + rawUrl;
+
+      const msgs = document.getElementById('chatMessages');
+      const div  = document.createElement('div');
+      div.className = 'chat-msg patient';
+      const isImage = contentType.startsWith('image/') && rawUrl;
+      const safeUrl = esc(rawUrl);
+      div.innerHTML  = '<div class="chat-msg-label">' + esc('Patient') + '</div>' +
+        (isImage
+          ? '<img src="' + safeUrl + '" style="max-width:200px;max-height:200px;border-radius:8px;cursor:pointer;display:block;" onclick="window.open(this.src,\'_blank\')" />'
+          : rawUrl
+            ? '<a href="' + safeUrl + '" target="_blank" style="color:#5BA4CF;">📄 ' + esc(filename) + '</a>'
+            : '<div>📄 ' + esc(filename) + '</div>');
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+      openPanel();
+      switchIncallTab('chat');
+    } catch(e) {
+      appendChatMessage('Patient', '📄 ' + filename + ' (could not load)');
+    }
+  }
+
+  // ── Patient report from in-call panel ────────────────────────────────────────
+  function viewCurrentPatientReport() {
+    const appt = allAppointments.find(a => a.id === currentRoom);
+    if (!appt) { showPanelState('report'); return; }
+    const patRef = (appt.participant || []).find(p => p.actor?.reference?.startsWith('Patient/'));
+    const patId  = patRef?.actor?.reference?.replace('Patient/', '') || '';
+    const patName = (allPatients[patId] || {}).name || 'Patient';
+    panelReturnState = 'incall';
+    viewPatientReport(patId, patName);
+  }
+
   // ── WebRTC / signaling ────────────────────────────────────────────────────────
   function joinWithId(appointmentId) {
     document.getElementById('appointmentInput').value = appointmentId;
+    // Resolve patient ID from the appointment so PDF uploads can reference it.
+    const appt = allAppointments.find(a => a.id === appointmentId);
+    if (appt) {
+      const patRef = (appt.participant || []).find(p => p.actor?.reference?.startsWith('Patient/'));
+      currentPatientId = patRef?.actor?.reference?.replace('Patient/', '') || '';
+    }
     joinCall();
   }
 
@@ -969,8 +1098,20 @@
       localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       document.getElementById('localVideo').srcObject = localStream;
 
-      pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+      pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, sdpSemantics: 'unified-plan' });
+      localStream.getTracks().forEach(t => {
+        const sender = pc.addTrack(t, localStream);
+        // Cap video bitrate at 1 Mbps to reduce stutter on constrained uplinks.
+        if (t.kind === 'video') {
+          const params = sender.getParameters();
+          if (!params.encodings || params.encodings.length === 0) {
+            params.encodings = [{}];
+          }
+          params.encodings[0].maxBitrate    = 1000000;
+          params.encodings[0].scaleResolutionDownBy = 1.0;
+          sender.setParameters(params).catch(e => console.warn('setParameters error:', e));
+        }
+      });
 
       pc.ontrack = (event) => {
         document.getElementById('remoteVideo').srcObject = event.streams[0];
@@ -1019,7 +1160,25 @@
         }
 
         if (msg.type === 'chat') {
-          appendChatMessage('Patient', msg.text);
+          if (msg.sender === 'doctor') {
+            // Echo of our own send — already shown locally, skip.
+          } else if (msg.imageData) {
+            // Patient sent a base64 JPEG inline.
+            const wrap = document.createElement('div');
+            wrap.className = 'chat-msg patient';
+            wrap.innerHTML = '<div class="chat-msg-label">' + esc('Patient') + '</div>' +
+              '<img src="data:image/jpeg;base64,' + msg.imageData + '" ' +
+              'style="max-width:200px;max-height:200px;border-radius:8px;cursor:pointer;display:block;" ' +
+              'onclick="window.open(this.src,\'_blank\')" />';
+            document.getElementById('chatMessages').appendChild(wrap);
+            document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+            openPanel(); switchIncallTab('chat');
+          } else if (msg.documentReferenceId) {
+            // Patient sent a document/image via Medplum DocumentReference.
+            appendPatientDocumentRef(msg.documentReferenceId, msg.filename || 'File');
+          } else {
+            appendChatMessage('Patient', msg.text || '');
+          }
         }
 
         if (msg.type === 'leave') {
@@ -1122,9 +1281,17 @@
       if (panelOpen) togglePanel();
     });
     document.getElementById('reportBackBtn').addEventListener('click', () => {
-      showPanelState('appointments');
+      showPanelState(panelReturnState);
     });
+    document.getElementById('viewPatientReportBtn').addEventListener('click', viewCurrentPatientReport);
     document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
+    document.getElementById('attachPdfBtn').addEventListener('click', () => document.getElementById('pdfFileInput').click());
+    document.getElementById('pdfFileInput').addEventListener('change', e => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      uploadAndSendPdf(file);
+      e.target.value = ''; // allow re-selecting the same file
+    });
     document.getElementById('peerLeftEndBtn').addEventListener('click', endCall);
     document.getElementById('appointmentInput').addEventListener('keydown', e => {
       if (e.key === 'Enter') joinCall();

@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/models/chat_message.dart';
@@ -337,6 +338,50 @@ class _VideoConsultationScreenState
         // knows the call has ended and can tap the end-call button.
         if (mounted) setState(() => _peerLeft = true);
         break;
+      case 'chat':
+        // Incoming chat from the doctor — display in the panel.
+        if (msg['sender'] == 'doctor') {
+          final docRefId = msg['documentReferenceId'] as String?;
+          _CallMessage? incoming;
+          if (docRefId != null && docRefId.isNotEmpty) {
+            // Doctor sent a PDF/document reference.
+            final filename = msg['filename'] as String? ?? 'Prescription.pdf';
+            incoming = _CallMessage(
+              id: DateTime.now().toIso8601String(),
+              text: filename,
+              isPatient: false,
+              timestamp: DateTime.now(),
+              attachmentType: AttachmentType.pdf,
+              attachmentPath: docRefId, // FHIR DocumentReference ID
+            );
+          } else {
+            final text = msg['text'] as String? ?? '';
+            if (text.isNotEmpty) {
+              incoming = _CallMessage(
+                id: DateTime.now().toIso8601String(),
+                text: text,
+                isPatient: false,
+                timestamp: DateTime.now(),
+              );
+            }
+          }
+          if (incoming != null && mounted) {
+            setState(() {
+              _callMessages.add(incoming!);
+              if (!_chatOpen) _chatOpen = true;
+            });
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (_sheetController.isAttached) {
+                _sheetController.animateTo(
+                  0.85,
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOut,
+                );
+              }
+            });
+          }
+        }
+        break;
     }
   }
 
@@ -410,6 +455,13 @@ class _VideoConsultationScreenState
     );
     setState(() => _callMessages.add(msg));
     _chatController.clear();
+    // Send over signaling so the doctor receives the message in real-time.
+    _signalingSocket?.add(jsonEncode({
+      'type':   'chat',
+      'room':   widget.appointmentId ?? 'default',
+      'sender': 'patient',
+      'text':   text,
+    }));
     _persistMessage(msg);
   }
 
@@ -452,6 +504,33 @@ class _VideoConsultationScreenState
     );
     setState(() => _callMessages.add(msg));
     _persistMessage(msg);
+
+    // Send the attachment over WebSocket so the doctor sees it in real-time.
+    try {
+      if (attachType == AttachmentType.image && msg.attachmentPath != null) {
+        // Image: read bytes, base64 encode, send inline.
+        final bytes     = await File(msg.attachmentPath!).readAsBytes();
+        final imageData = base64Encode(bytes);
+        _signalingSocket?.add(jsonEncode({
+          'type':      'chat',
+          'room':      widget.appointmentId ?? 'default',
+          'sender':    'patient',
+          'imageData': imageData,
+          'filename':  msg.text,
+        }));
+      } else if (attachType == AttachmentType.pdf) {
+        // PDF: saveCommunication does not return a DocumentReference ID.
+        // Send a plain text notification so the doctor is aware of the document.
+        _signalingSocket?.add(jsonEncode({
+          'type':   'chat',
+          'room':   widget.appointmentId ?? 'default',
+          'sender': 'patient',
+          'text':   '📄 Patient sent a document: ${msg.text}',
+        }));
+      }
+    } catch (e) {
+      debugPrint('VideoConsultationScreen: WebSocket attachment send error: $e');
+    }
   }
 
   // ── Chat — persist as FHIR Communication ─────────────────────────────────────
@@ -879,7 +958,7 @@ class _VideoConsultationScreenState
         break;
 
       case AttachmentType.pdf:
-        content = Row(
+        final pdfRow = Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.picture_as_pdf, color: Color(0xFFAB1118), size: 28),
@@ -888,6 +967,13 @@ class _VideoConsultationScreenState
                 style: TextStyle(fontSize: 15, color: textColor))),
           ],
         );
+        // Doctor-sent documents are tappable and fetch from Medplum.
+        content = (!msg.isPatient && msg.attachmentPath != null)
+            ? GestureDetector(
+                onTap: () => _openDocumentReference(msg.attachmentPath!),
+                child: pdfRow,
+              )
+            : pdfRow;
         break;
 
       case null:
@@ -921,6 +1007,54 @@ class _VideoConsultationScreenState
         ],
       ),
     );
+  }
+
+  /// Fetches a Medplum DocumentReference by [id], extracts the attachment URL,
+  /// and opens it in an external browser so the patient can view the document.
+  Future<void> _openDocumentReference(String id) async {
+    try {
+      const medplumBase = 'https://telemed-medplum.duckdns.org/fhir/R4';
+      final repo  = ref.read(medplumRepositoryProvider);
+      final token = await repo.auth.getValidToken();
+      if (token == null) throw Exception('No auth token');
+
+      final response = await repo.client.get(
+        Uri.parse('$medplumBase/DocumentReference/$id'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/fhir+json',
+        },
+      );
+      if (response.statusCode != 200) {
+        throw Exception('DocumentReference fetch failed: ${response.statusCode}');
+      }
+
+      final body      = jsonDecode(response.body) as Map<String, dynamic>;
+      final content   = (body['content'] as List?)?.firstOrNull as Map?;
+      String? rawUrl  = (content?['attachment'] as Map?)?['url'] as String?;
+
+      if (rawUrl == null || rawUrl.isEmpty) {
+        throw Exception('No attachment URL in DocumentReference');
+      }
+      if (rawUrl.startsWith('Binary/')) {
+        rawUrl = '$medplumBase/$rawUrl';
+      }
+
+      final uri = Uri.parse(rawUrl);
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw Exception('Could not launch $rawUrl');
+      }
+    } catch (e) {
+      debugPrint('VideoConsultationScreen._openDocumentReference error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          '${AppStrings.of(_lang, 'error.generic')} ($e)',
+          style: const TextStyle(fontSize: 16),
+        ),
+        backgroundColor: Colors.red,
+      ));
+    }
   }
 
   String _formatDuration(Duration d) => DateFormatter.formatDuration(d);

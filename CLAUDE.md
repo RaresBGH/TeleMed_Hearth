@@ -59,25 +59,30 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 - finalizeConsultation _finalized: reset as first line of reset() before stopAndRelease() — prevents audio exceptions blocking future FHIR writes
 - patientHistoryProvider: invalidated inside notifier after successful FHIR write via try { ref.invalidate(...) } catch (_) {}
 - Bottom nav: localised via languageProvider + AppStrings (nav.home / nav.dossier / nav.doctor), reactive to EN/RO toggle
+- In-call chat: bidirectional via WebSocket — patient sends {type:'chat',sender:'patient',text} or {imageData,filename}; doctor sends {type:'chat',sender:'doctor',text} or {documentReferenceId,filename}; both sides wired
+- AppointmentsScreen: showBookingButton=false by default (read-only from dashboard); screenTitle parameter for contextual title; family doctor scoped to familyDoctorId explicitly
+- Doctor profile: specialty shown as AppBar top label; entitlement string (from Practitioners.*entitlement) shown below name
+- Medplum-first reads: getMostRecentEncounter uses fulfilled Appointments; getMostRecentMedicationRequest and getPatientHistory (Conditions + Observations) all online-first with local fallback
 
 ## Open Issues (carry to next session)
 - T3: AI context reset mid-conversation — "Hello. What brings you..." reappears between turns
 - T4: Triage back button background not white
 - D3: "Could not load photo" error on profile photo upload
-- C1: _dependents.isEmpty crash — reduced severity after Consumer fix in _buildHeader, not eliminated; intermittent
-- Appointments: WaitingRoomScreen doctor name shows Practitioners.bogheanuName for all non-family-doctor appointments
+- Patient PDF send: sends plain text notification only — no DocumentReference ID available from saveCommunication return value; post-hackathon fix
+- P1-5/6/7: Mic release, end-call keyboard, mute chip — still pending two-device video call test
 
 ## Current State
 See TELEMED_CONTEXT.md for full verified/awaiting-test/broken breakdown.
 Last updated: 2026-05-07
-Latest build: #69 — pushed to main, downloading on device. Last device-tested build: #68.
+Latest build: #75 — in progress (not yet pushed). Last pushed build: #73. Last device-tested build: #74.
 GitHub Actions secrets MEDPLUM_CLIENT_ID and MEDPLUM_CLIENT_SECRET are set correctly.
 Medplum sync confirmed working — appointments, observations, and communications reach https://telemed-medplum.duckdns.org/fhir/R4.
+Medplum Binary storage confirmed working: file:///var/medplum/storage.
 WebRTC two-device video call confirmed working end-to-end (patient Pixel 9 Pro + doctor Brave browser).
 On-device AI inference confirmed working — Gemma 4 E4B responds to text and voice in correct language.
-Doctor UI at https://telemed-doctor.duckdns.org confirmed working — shows today's appointments, joins video call.
-Signaling server updated: peer_joined message triggers offer re-send when doctor joins after patient.
-Signaling server location: /home/corb_d/sovereign-factory/signaling/server.js (PID changes on restart).
+Doctor UI at https://telemed-doctor.duckdns.org confirmed working — shows today's appointments, joins video call, bidirectional chat working.
+Signaling server: telemed-signaling.service confirmed running under systemd, auto-restarts on reboot.
+medplum_token alias added to ~/.bashrc for Terminal 2 token refresh.
 
 ## ADB Commands
 adb -s 4C041FDAP006Z1 logcat -d | grep -E "LiteRtLm|flutter|com.example.telemed_k" | tail -40
@@ -85,7 +90,7 @@ adb -s 4C041FDAP006Z1 shell pm clear com.example.telemed_k && adb -s 4C041FDAP00
 
 ## Code Quality
 Audit round 4 completed 2026-05-06. All findings resolved.
-Build #69 batch: 6 fix groups applied, 0 analyze errors.
+Build #75 batch: 25+ fixes across appointments, dashboard, doctor UI, video call, chat, PDF/image transfer. 0 analyze errors.
 debugPrint tracing added to finalizeConsultation() for future diagnosis.
 
 ## Doctor UI
