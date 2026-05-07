@@ -508,7 +508,7 @@ class AppStrings {
     'doctor.decline_sem':     'Decline the call',
     'doctor.unknown_date':    'Unknown',
     'doctor.name':            'Dr. Ionescu',
-    'doctor.family_specialty':       'Family Doctor',
+    'doctor.family_specialty':       'Family Medicine',
     'doctor.send_message':           'Send message',
     'doctor.message_btn':            'Message',
     'doctor.book_appointment':       'Appointment',

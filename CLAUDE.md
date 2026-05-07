@@ -91,6 +91,7 @@ adb -s 4C041FDAP006Z1 shell pm clear com.example.telemed_k && adb -s 4C041FDAP00
 ## Code Quality
 Audit round 4 completed 2026-05-06. All findings resolved.
 Build #75 batch: 25+ fixes across appointments, dashboard, doctor UI, video call, chat, PDF/image transfer. 0 analyze errors.
+Additional fixes: join window corrected (-60min/+120min); dashboard appointment filter broadened (booked+confirmed, within 2h past); 'Family Doctor' → 'Family Medicine'; doctor UI isCallActive guard, frozen video clear on peer exit, redundant PANEL tab removed; fulfilled appointment timestamps patched in Medplum (Apr 14–22).
 debugPrint tracing added to finalizeConsultation() for future diagnosis.
 
 ## Doctor UI

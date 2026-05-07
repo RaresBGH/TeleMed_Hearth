@@ -213,8 +213,8 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     final now = DateTime.now();
     // Allow joining 60 minutes before and up to 120 minutes after scheduled time.
     // Matches the doctor UI join window exactly.
-    return startTime.isAfter(now.subtract(const Duration(hours: 2))) &&
-           startTime.isBefore(now.add(const Duration(hours: 1)));
+    return startTime.isAfter(now.subtract(const Duration(hours: 1))) &&
+           startTime.isBefore(now.add(const Duration(hours: 2)));
   }
 
   String _formatSlot(TimeOfDay slot) => DateFormatter.formatTime(slot);

@@ -150,6 +150,13 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 - Patient image attachments: base64 sent over WebSocket in _attachCallFile
 - Doctor PDF send: Binary + DocumentReference + WebSocket notify
 - Doctor receives patient images: inline display in doctor UI chat
+- Join window corrected: -60min before to +120min after start (was reversed: -2h/+1h)
+- Dashboard appointment filter: accepts 'booked' OR 'confirmed', includes appointments within 2h past start
+- 'Family Doctor' EN string corrected to 'Family Medicine'
+- Doctor UI: isCallActive guard prevents panel reverting to Appointments during active call
+- Doctor UI: frozen remote video frame cleared (srcObject=null) on peer exit
+- Doctor UI: redundant blue PANEL tab removed from DOM
+- Fulfilled appointment timestamps patched in Medplum to distinct dates/times (Apr 14–22)
 
 ### OPEN BUGS — carry forward:
 - T3: AI resets to "Hello. What brings you to the doctor today?" mid-conversation

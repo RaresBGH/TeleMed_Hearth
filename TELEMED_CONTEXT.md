@@ -394,6 +394,7 @@ FHIR search patterns:
 ## Code Quality
 
 Four full audit cycles completed (2026-05-02 – 2026-05-07). Build #75 batch: 25+ fixes across appointments, dashboard, doctor profile, video consultation, bidirectional chat, PDF/image transfer. 0 analyze errors. Current state: **0 critical, 0 high, 0 medium** open issues.
+Additional build #75 fixes: join window corrected (-60min/+120min); dashboard appointment filter broadened (booked+confirmed, within 2h past); 'Family Doctor' → 'Family Medicine'; doctor UI isCallActive panel guard, frozen video clear on peer exit, redundant PANEL tab removed; fulfilled appointment timestamps patched in Medplum (Apr 14–22).
 Known limitation: patient PDF send → plain text notification only (no DocumentReference ID from saveCommunication); post-hackathon fix.
 Post-hackathon deferred: duplicate Observation schema between `finalizeConsultation()` and `VideoConsultationScreen._saveCallSummary()` (refactor to shared factory method).
 

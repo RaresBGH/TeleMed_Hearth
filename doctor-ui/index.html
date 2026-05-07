@@ -429,12 +429,6 @@
   </div>
 </div>
 
-<!-- ── PANEL TOGGLE BUTTON ───────────────────────────────── -->
-<button id="panelToggleBtn" title="Toggle panel">
-  <span id="toggleIcon">☰</span>
-  <span id="toggleLabel">PANEL</span>
-</button>
-
 <!-- ── MAIN CONTENT ──────────────────────────────────────── -->
 <div id="mainContent">
 
@@ -535,6 +529,7 @@
   let reviewedInSession = new Set();
   let fetchedObservations = [];
   let panelReturnState  = 'appointments'; // 'appointments' or 'incall'
+  let isCallActive      = false;          // true while a call is in progress
 
   function esc(str) {
     if (!str) return '';
@@ -547,23 +542,28 @@
   function togglePanel() {
     panelOpen = !panelOpen;
     document.getElementById('sidePanel').classList.toggle('open', panelOpen);
-    document.getElementById('panelToggleBtn').classList.toggle('panel-open', panelOpen);
     document.getElementById('mainContent').classList.toggle('panel-open', panelOpen);
     document.body.classList.toggle('panel-open', panelOpen);
-    document.getElementById('toggleIcon').textContent = panelOpen ? '✕' : '☰';
+    // panelToggleBtn removed from DOM (FIX 3) — guard with optional chaining.
+    document.getElementById('panelToggleBtn')?.classList.toggle('panel-open', panelOpen);
+    const toggleIcon = document.getElementById('toggleIcon');
+    if (toggleIcon) toggleIcon.textContent = panelOpen ? '✕' : '☰';
   }
 
   function openPanel() { if (!panelOpen) togglePanel(); }
 
   function showPanelState(state) {
+    // FIX 1: while a call is active, block any transition back to appointments.
+    if (state === 'appointments' && isCallActive) return;
     currentPanelState = state;
     document.querySelectorAll('.panel-state').forEach(el => el.classList.remove('active'));
     const id = 'state' + state.charAt(0).toUpperCase() + state.slice(1);
     document.getElementById(id).classList.add('active');
     const titles = { appointments: 'Appointments', report: 'Patient Report', incall: 'In-Call' };
     document.getElementById('panelTitle').textContent = titles[state] || 'Panel';
-    // FIX 2+3: clear stale chat and activity data whenever entering the in-call panel.
+    // Clear stale chat and activity data whenever entering the in-call panel.
     if (state === 'incall') {
+      isCallActive = true;
       document.getElementById('chatMessages').innerHTML = '';
       fetchedObservations = [];
       document.getElementById('activityList').innerHTML = '';
@@ -1183,9 +1183,17 @@
 
         if (msg.type === 'leave') {
           document.getElementById('peerLeftOverlay').style.display = 'flex';
+          // FIX 2: clear the remote video so a frozen frame is not left on screen.
+          const rv = document.getElementById('remoteVideo');
+          rv.srcObject = null;
+          rv.style.display = 'none';
         }
 
-        // peer_joined: doctor is always the answerer — no action needed
+        // peer_joined: doctor is always the answerer.
+        // Re-assert incall panel after 100ms to override any post-join panel reset.
+        if (msg.type === 'peer_joined') {
+          setTimeout(() => showPanelState('incall'), 100);
+        }
       };
 
       signalingSocket.onerror = () => setCallStatus('Signaling connection error.');
@@ -1251,6 +1259,7 @@
   }
 
   function showCallUI() {
+    isCallActive = true;
     document.getElementById('joinScreen').style.display = 'none';
     document.getElementById('callScreen').style.display = 'block';
   }
@@ -1276,7 +1285,7 @@
     document.getElementById('muteBtn').addEventListener('click', toggleMute);
     document.getElementById('cameraBtn').addEventListener('click', toggleCamera);
     document.getElementById('panelBtn').addEventListener('click', togglePanel);
-    document.getElementById('panelToggleBtn').addEventListener('click', togglePanel);
+    document.getElementById('panelToggleBtn')?.addEventListener('click', togglePanel);
     document.getElementById('panelCloseBtn').addEventListener('click', () => {
       if (panelOpen) togglePanel();
     });

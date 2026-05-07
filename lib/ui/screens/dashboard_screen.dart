@@ -68,10 +68,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         final now = DateTime.now();
         Map<String, dynamic>? next;
         for (final appt in appts) {
-          if ((appt['status'] as String?) != 'booked') continue;
+          // Accept 'booked' or 'confirmed' (case-insensitive) — some Medplum
+          // appointments arrive with 'confirmed' status after creation.
+          final apptStatus = (appt['status'] as String? ?? '').toLowerCase();
+          if (apptStatus != 'booked' && apptStatus != 'confirmed') continue;
           final dt = DateTime.tryParse(
               appt['start'] as String? ?? '')?.toLocal();
-          if (dt == null || !dt.isAfter(now)) continue;
+          // Include appointments within the join window (started up to 2h ago).
+          if (dt == null || !dt.isAfter(now.subtract(const Duration(hours: 2)))) continue;
           if (next == null) {
             next = appt;
           } else {
