@@ -43,6 +43,30 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
+  void initState() {
+    super.initState();
+    // TODO: remove after diagnosis — shows AI init error as a one-time dialog.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final err = AiEngineService.lastInitError;
+      if (err == null) return;
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('AI Init Error (diagnostic)'),
+          content: SelectableText(err),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final lang        = ref.watch(languageProvider);
     final firstName   = ref.watch(patientAuthProvider).patientFirstName;
@@ -517,9 +541,7 @@ class _AiStatusPill extends StatelessWidget {
           Text(
             isReady
                 ? AppStrings.of(lang, 'home.ai_ready')
-                : (AiEngineService.lastInitError != null
-                    ? 'AI error: ${AiEngineService.lastInitError}' // TODO: remove after diagnosis
-                    : AppStrings.of(lang, 'home.ai_loading')),
+                : AppStrings.of(lang, 'home.ai_loading'),
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
