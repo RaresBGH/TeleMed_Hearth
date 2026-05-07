@@ -107,6 +107,22 @@ The doctor UI is a static HTML file served by Caddy.
 - NEVER edit files directly in `/home/corb_d/sovereign-factory/doctor-ui/` — that folder is deploy-only.
 - NEVER create or edit any doctor UI files outside the repository.
 
+## Session Notes — 2026-05-07 (Build #76)
+Build #76 pushed — commit 072f10d — 9 files — GitHub Actions building.
+
+**Pending investigation (next session priority):**
+- Gemma E4B media handling: confirm text baseline, then audio path (WAV→transcript→Gemma), then photo path (LiteRT-LM multimodal)
+- LiteRT-LM 0.10.2 multimodal support for E4B needs device confirmation
+- Doctor UI panel cache: browser shows old version despite correct file on server — investigate Caddy cache headers
+
+**Session closed:** 2026-05-07 — next session start with build #76 device test results
+
+## Post-Hackathon Roadmap
+- Gemma real-time call summarization (WebRTC audio → STT → Gemma → FHIR Observation)
+- Patient PDF send to doctor via DocumentReference
+- Doctor Communications real-time polling
+- WiFi-triggered background sync
+
 ## Claude Code Custom Commands
 Location: .claude/commands/
   audit.md — full codebase audit (trigger with /audit)

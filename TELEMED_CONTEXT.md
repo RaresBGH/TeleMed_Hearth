@@ -500,6 +500,17 @@ Refactoring completed during audit:
 ### P3 — NEXT
 - [ ] DeviceConflictModal trigger from auth flow
 
+### BUILD #76 — SESSION CLOSED 2026-05-07
+- Commit 072f10d pushed — 9 files — GitHub Actions building
+- Next session priority: device test build #76; investigate doctor UI Caddy cache; Gemma E4B media path confirmation
+- Pending investigation: LiteRT-LM 0.10.2 multimodal support for E4B (audio + photo paths)
+
+### POST-HACKATHON ROADMAP
+- Gemma real-time call summarization (WebRTC audio → STT → Gemma → FHIR Observation)
+- Patient PDF send to doctor via DocumentReference
+- Doctor Communications real-time polling
+- WiFi-triggered background sync
+
 ---
 
 ## Hackathon

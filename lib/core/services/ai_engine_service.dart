@@ -30,6 +30,11 @@ class AiEngineService {
   // inference). Both operate on the same native Engine singleton.
   static bool _isInitialized = false;
 
+  /// Last initialization error string for diagnostic display. Null when init
+  /// succeeded or has not been attempted. Cleared at the start of each
+  /// initializeModel() call.
+  static String? lastInitError;
+
   // Returned whenever the model is not loaded — keeps the app functional
   // without a crash and avoids an empty state for the user.
   static const Map<String, dynamic> _fallbackResponse = {
@@ -320,6 +325,7 @@ Patient: "$ex3q"
   }
 
   Future<bool> initializeModel() async {
+    lastInitError = null; // clear before each attempt
     try {
       final String? modelPath = await _getModelPath();
       if (modelPath == null) {
@@ -337,9 +343,11 @@ Patient: "$ex3q"
       debugPrint('LiteRT-LM: engine initialized — $modelPath');
       return true;
     } on PlatformException catch (e) {
+      lastInitError = '${e.code}: ${e.message}';
       debugPrint('AiEngineService.initializeModel PlatformException: ${e.code}');
       return false;
     } catch (e) {
+      lastInitError = e.toString();
       debugPrint('AiEngineService.initializeModel error: $e');
       return false;
     }

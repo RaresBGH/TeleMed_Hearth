@@ -313,16 +313,19 @@ class _MedicalResponseScreenState
 
     if (_playingMessagePath == path) {
       await _audioPlayer.stop();
+      if (!mounted) return;
       setState(() => _playingMessagePath = null);
       return;
     }
 
     _playerSubscription?.cancel();
     if (_playingMessagePath != null) await _audioPlayer.stop();
+    if (!mounted) return;
 
     try {
       await _audioPlayer.setFilePath(path);
       await _audioPlayer.play();
+      if (!mounted) return;
       setState(() => _playingMessagePath = path);
 
       _playerSubscription = _audioPlayer.playerStateStream.listen((state) {

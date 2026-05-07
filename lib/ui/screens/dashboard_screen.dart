@@ -16,6 +16,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/my_doctor_provider.dart';
+import '../../core/services/ai_engine_service.dart';
 import '../../core/providers/patient_history_provider.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/dialog_detail_sheet.dart';
@@ -516,7 +517,9 @@ class _AiStatusPill extends StatelessWidget {
           Text(
             isReady
                 ? AppStrings.of(lang, 'home.ai_ready')
-                : AppStrings.of(lang, 'home.ai_loading'),
+                : (AiEngineService.lastInitError != null
+                    ? 'AI error: ${AiEngineService.lastInitError}' // TODO: remove after diagnosis
+                    : AppStrings.of(lang, 'home.ai_loading')),
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,

@@ -178,10 +178,19 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 - P1-5/6/7: Mic release, end-call keyboard, mute chip — pending two-device test
 - Doctor Communications polling: not real-time — patient must reopen to see new messages (post-hackathon)
 
-### POST-HACKATHON TRACKER:
-- Duplicate Observation schema (finalizeConsultation vs _saveCallSummary) — refactor to shared factory
+### POST-HACKATHON ROADMAP:
+- Gemma real-time call summarization (WebRTC audio → STT → Gemma → FHIR Observation)
+- Patient PDF send to doctor via DocumentReference
+- Doctor Communications real-time polling
 - WiFi-triggered background sync via ConnectivityListener
+- Duplicate Observation schema (finalizeConsultation vs _saveCallSummary) — refactor to shared factory
 - main.dart and auth_provider.dart direct FhirRepository() kept intentionally (startup / circular import)
+
+### BUILD #76 STATUS:
+- Commit: 072f10d — 9 files — pushed to main 2026-05-07
+- GitHub Actions building
+- Next session: device test build #76, then Gemma E4B media path investigation
+- Pending: doctor UI Caddy cache issue (browser shows old version despite correct file on server)
 
 ---
 
@@ -302,9 +311,10 @@ PATCH format confirmed: application/json-patch+json (not merge-patch — Medplum
 
 ## Immediate Next Actions (in priority order)
 
-1. Make repo public (`gh repo edit --visibility public` or GitHub UI)
-2. Record demo video (Maria story)
-3. Fix P1 bugs above (items 3–7) — batch into one CI build
-4. Fix P2 polish bugs (items 8–12) — batch into one CI build
+1. Device test build #76 APK — confirm E4B text, audio, photo inference paths
+2. Investigate doctor UI Caddy cache issue — browser shows stale panel
+3. Make repo public before May 18 deadline
+4. Record demo video (Maria story)
 5. GCP firewall rule: UDP/TCP 3478, 5349, UDP 49152–65535 for TURN server
-6. Make signaling server persistent: `sudo systemctl enable --now telemed-signaling`
+
+**Session closed:** 2026-05-07
