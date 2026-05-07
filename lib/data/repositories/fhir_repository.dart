@@ -175,8 +175,8 @@ class FhirRepository {
 
   // ── History ────────────────────────────────────────────────────────────────
 
-  /// Returns Observations (and Conditions) for [cnp].
-  /// Online-first: tries Medplum observations, falls back to local SDK.
+  /// Returns Observations and Conditions for [cnp].
+  /// Online-first: fetches both from Medplum, merges, falls back to local SDK.
   Future<List<Map<String, dynamic>>> getPatientHistory(
       {String cnp = ''}) async {
     if (_medplum != null && cnp.isNotEmpty) {
@@ -185,7 +185,19 @@ class FhirRepository {
       if (patientId != null) {
         final observations =
             await _medplum.getObservationsForPatient(patientId);
-        if (observations.isNotEmpty) return observations;
+
+        // Also fetch Conditions from Medplum and merge into the result.
+        List<Map<String, dynamic>> conditions = [];
+        try {
+          final condition = await _medplum.getConditionForPatient(patientId);
+          if (condition != null) conditions = [condition];
+        } catch (e) {
+          debugPrint(
+              'FhirRepository.getPatientHistory: Medplum Condition fetch error: $e');
+        }
+
+        final merged = [...observations, ...conditions];
+        if (merged.isNotEmpty) return merged;
       }
     }
     try {
@@ -276,7 +288,7 @@ class FhirRepository {
     }
   }
 
-  // ── Encounter / Medication (local-only — no Medplum equivalent yet) ────────
+  // ── Encounter / Medication ────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>?> getMostRecentEncounter() async {
     try {
@@ -290,7 +302,48 @@ class FhirRepository {
     }
   }
 
-  Future<Map<String, dynamic>?> getMostRecentMedicationRequest() async {
+  /// Returns the most recent active MedicationRequest for [cnp].
+  /// Online-first when [cnp] is provided: queries Medplum for the patient's
+  /// active medications, falls back to local FHIR SDK.
+  Future<Map<String, dynamic>?> getMostRecentMedicationRequest({String cnp = ''}) async {
+    if (_medplum != null && cnp.isNotEmpty) {
+      try {
+        final patient = await _medplum.getPatientByCnp(cnp);
+        final patientId = patient?['id'] as String?;
+        if (patientId != null) {
+          const medplumBase = 'https://telemed-medplum.duckdns.org/fhir/R4';
+          final token = await _medplum.auth.getValidToken();
+          if (token != null) {
+            final response = await _medplum.client.get(
+              Uri.parse(
+                '$medplumBase/MedicationRequest'
+                '?patient=Patient/$patientId'
+                '&status=active&_sort=-date&_count=1',
+              ),
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Accept': 'application/fhir+json',
+              },
+            );
+            if (response.statusCode == 200) {
+              final bundle = jsonDecode(response.body) as Map<String, dynamic>;
+              final entries = bundle['entry'] as List?;
+              if (entries != null && entries.isNotEmpty) {
+                final resource =
+                    (entries.first as Map)['resource'] as Map<String, dynamic>?;
+                if (resource != null) return resource;
+              }
+            } else {
+              debugPrint(
+                  'FhirRepository.getMostRecentMedicationRequest: Medplum ${response.statusCode}');
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('FhirRepository.getMostRecentMedicationRequest: Medplum error: $e');
+      }
+    }
+    // Local FHIR SDK fallback (unchanged).
     try {
       final String? result = await _channel
           .invokeMethod<String>('getMostRecentMedicationRequest');

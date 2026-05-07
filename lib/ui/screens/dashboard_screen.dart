@@ -62,7 +62,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     });
 
     // Find the earliest upcoming booked appointment for the status card.
-    final String? nextApptText = apptAsync.maybeWhen(
+    // Returns [text, specialty] so both can be shown on the card.
+    final List<String?> nextApptData = apptAsync.maybeWhen(
       data: (appts) {
         final now = DateTime.now();
         Map<String, dynamic>? next;
@@ -79,16 +80,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             if (prevDt != null && dt.isBefore(prevDt)) next = appt;
           }
         }
-        if (next == null) return null;
+        if (next == null) return [null, null];
         final dateStr = DateFormatter.format(
             next['start'] as String, includeTime: true);
-        // Extract doctor name from "type · specialty · doctorName" format.
+        // Extract doctor name and specialty from "type · specialty · doctorName".
         final parts = ((next['description'] as String?) ?? '').split(' · ');
         final doctorName = parts.length >= 2 ? parts.last : null;
-        return doctorName != null ? '$dateStr · $doctorName' : dateStr;
+        final specialty  = parts.length >= 3 ? parts[1] : null;
+        final text = doctorName != null ? '$dateStr · $doctorName' : dateStr;
+        return [text, specialty];
       },
-      orElse: () => null,
+      orElse: () => [null, null],
     );
+    final String? nextApptText      = nextApptData[0];
+    final String? nextApptSpecialty = nextApptData[1];
 
     return Scaffold(
       backgroundColor: _bg,
@@ -127,12 +132,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     // ── Quick status row ───────────────────────────────────
                     medAsync.when(
                       data: (med) => _buildQuickStatusRow(lang, med, nextApptText,
+                          nextApptSpecialty: nextApptSpecialty,
                           onApptTap: () => ref.read(appNavigationProvider.notifier)
                               .navigateTo(AppRoute.appointments)),
                       loading: () => _buildQuickStatusRow(lang, null, nextApptText,
+                          nextApptSpecialty: nextApptSpecialty,
                           onApptTap: () => ref.read(appNavigationProvider.notifier)
                               .navigateTo(AppRoute.appointments)),
                       error: (_, __) => _buildQuickStatusRow(lang, null, nextApptText,
+                          nextApptSpecialty: nextApptSpecialty,
                           onApptTap: () => ref.read(appNavigationProvider.notifier)
                               .navigateTo(AppRoute.appointments)),
                     ),
@@ -348,7 +356,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildQuickStatusRow(
       String lang, Map<String, dynamic>? med, String? nextApptText,
-      {VoidCallback? onApptTap}) {
+      {String? nextApptSpecialty, VoidCallback? onApptTap}) {
     final medText = med != null
         ? (med['medicationCodeableConcept']?['text'] as String? ??
            AppStrings.of(lang, 'doctor.treatment'))
@@ -361,6 +369,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             icon: Icons.calendar_month,
             label: AppStrings.of(lang, 'dashboard.appointments_title'),
             value: nextApptText ?? AppStrings.of(lang, 'dashboard.no_appt'),
+            subtitle: nextApptSpecialty,
             onTap: onApptTap ?? () {},
           ),
         ),
@@ -520,12 +529,14 @@ class _StatusCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  final String? subtitle;
   final VoidCallback? onTap;
 
   const _StatusCard({
     required this.icon,
     required this.label,
     required this.value,
+    this.subtitle,
     this.onTap,
   });
 
@@ -583,6 +594,18 @@ class _StatusCard extends StatelessWidget {
               height: 1.2,
             ),
           ),
+          if (subtitle != null && subtitle!.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              subtitle!,
+              style: const TextStyle(
+                fontSize: 12,
+                color: _onSurfaceV,
+                fontWeight: FontWeight.w400,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ],
       ),
     ), // Container

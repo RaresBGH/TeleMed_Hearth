@@ -59,9 +59,28 @@ class DoctorProfileScreen extends ConsumerWidget {
     final encounterAsync = ref.watch(mostRecentEncounterProvider);
     final medAsync      = ref.watch(mostRecentMedicationProvider);
 
+    // ── Entitlement and AppBar top label ─────────────────────────────────────
+    const entitlementMap = {
+      Practitioners.familyDoctorId: Practitioners.familyDoctorEntitlement,
+      Practitioners.bogheanuId:     Practitioners.bogheanuEntitlement,
+      Practitioners.cardioId:       Practitioners.cardioEntitlement,
+      Practitioners.neuroId:        Practitioners.neuroEntitlement,
+      Practitioners.dermId:         Practitioners.dermEntitlement,
+      Practitioners.orthoId:        Practitioners.orthoEntitlement,
+      Practitioners.ophthaId:       Practitioners.ophthaEntitlement,
+      Practitioners.psychId:        Practitioners.psychEntitlement,
+      Practitioners.gyneId:         Practitioners.gyneEntitlement,
+    };
+    final isFamily   = practitionerRef == null ||
+                       practitionerRef == Practitioners.familyDoctorId;
+    final topLabel   = isFamily ? 'Family Medicine' : specialty;
+    final entitlement = isFamily
+        ? Practitioners.familyDoctorEntitlement
+        : (entitlementMap[practitionerRef] ?? specialty);
+
     return Scaffold(
       backgroundColor: _bg,
-      appBar: _buildAppBar(context, ref, lang),
+      appBar: _buildAppBar(context, ref, lang, topLabel),
       body: Column(
         children: [
           Expanded(
@@ -72,7 +91,7 @@ class DoctorProfileScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    _buildDoctorCard(context, ref, lang, specialty),
+                    _buildDoctorCard(context, ref, lang, specialty, entitlement),
                     const SizedBox(height: 20),
                     if (showSpecialtyPicker) ...[
                       _buildConsultationsSection(context, ref, lang),
@@ -94,7 +113,7 @@ class DoctorProfileScreen extends ConsumerWidget {
   // ── App bar ───────────────────────────────────────────────────────────────
 
   PreferredSizeWidget _buildAppBar(
-      BuildContext context, WidgetRef ref, String lang) {
+      BuildContext context, WidgetRef ref, String lang, String topLabel) {
     return AppBar(
       backgroundColor: _cardBg,
       elevation: 0,
@@ -107,8 +126,6 @@ class DoctorProfileScreen extends ConsumerWidget {
               label: AppStrings.of(lang, 'profil.back_sem'),
               child: InkWell(
                 onTap: () {
-                  // TODO(A4): When specialist sub-screens use Navigator.push,
-                  // Navigator.pop() works correctly. For now fall back to flat nav.
                   if (Navigator.canPop(context)) {
                     Navigator.pop(context);
                   } else {
@@ -126,7 +143,7 @@ class DoctorProfileScreen extends ConsumerWidget {
             )
           : null,
       title: Text(
-        AppStrings.of(lang, 'nav.doctor'),
+        topLabel,
         style: const TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
@@ -144,7 +161,7 @@ class DoctorProfileScreen extends ConsumerWidget {
   // ── Doctor card ───────────────────────────────────────────────────────────
 
   Widget _buildDoctorCard(
-      BuildContext context, WidgetRef ref, String lang, String specialty) {
+      BuildContext context, WidgetRef ref, String lang, String specialty, String entitlement) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -209,9 +226,9 @@ class DoctorProfileScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
 
-          // Specialty
+          // Entitlement (e.g. "Specialist Cardiologist")
           Text(
-            specialty,
+            entitlement,
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w400,
@@ -289,10 +306,19 @@ class DoctorProfileScreen extends ConsumerWidget {
                         ),
                       );
                     } else {
-                      // Family doctor tab: flat nav.
-                      ref
-                          .read(appNavigationProvider.notifier)
-                          .navigateTo(AppRoute.appointments);
+                      // Family doctor tab: push with practitionerRef so only
+                      // family doctor appointments are shown.
+                      if (!context.mounted) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AppointmentsScreen(
+                            practitionerRef: Practitioners.familyDoctorId,
+                            doctorName:      doctorName,
+                            doctorSpecialty: specialty,
+                          ),
+                        ),
+                      );
                     }
                   },
                 ),

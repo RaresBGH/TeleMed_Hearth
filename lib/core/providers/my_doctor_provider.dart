@@ -2,6 +2,7 @@
 // You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'auth_provider.dart';
 import 'medical_session_provider.dart';
 
 final mostRecentEncounterProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
@@ -11,5 +12,6 @@ final mostRecentEncounterProvider = FutureProvider<Map<String, dynamic>?>((ref) 
 
 final mostRecentMedicationProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
   final repository = ref.watch(fhirRepositoryProvider);
-  return repository.getMostRecentMedicationRequest();
+  final cnp        = ref.watch(loginCnpProvider);
+  return repository.getMostRecentMedicationRequest(cnp: cnp);
 });

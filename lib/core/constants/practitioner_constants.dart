@@ -35,4 +35,15 @@ class Practitioners {
   static const ophthaId  = 'Practitioner/45965f71-a4e1-43cc-a0f9-532fc84b9e24';
   static const psychId   = 'Practitioner/94fcc35d-7fcd-4773-ab0f-5f5974435762';
   static const gyneId    = 'Practitioner/c9e9b208-ace2-4b87-b8ea-0c366b194b80';
+
+  // ── Entitlement strings ────────────────────────────────────────────────────
+  static const familyDoctorEntitlement = 'Consultant Family Physician';
+  static const bogheanuEntitlement     = 'Specialist Pediatrician';
+  static const cardioEntitlement       = 'Specialist Cardiologist';
+  static const neuroEntitlement        = 'Specialist Neurologist';
+  static const dermEntitlement         = 'Specialist Dermatologist';
+  static const orthoEntitlement        = 'Specialist Orthopedic Surgeon';
+  static const ophthaEntitlement       = 'Specialist Ophthalmologist';
+  static const psychEntitlement        = 'Specialist Psychiatrist';
+  static const gyneEntitlement         = 'Specialist Gynecologist';
 }
