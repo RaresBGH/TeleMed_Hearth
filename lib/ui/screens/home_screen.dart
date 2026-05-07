@@ -369,7 +369,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.listen<AppRoute>(appNavigationProvider, (prev, next) {
       if (next != AppRoute.home && _isRecording) {
         ref.read(audioRecordingServiceProvider).stopAndRelease();
-        setState(() => _isRecording = false);
+        if (mounted) setState(() => _isRecording = false);
       }
     });
 

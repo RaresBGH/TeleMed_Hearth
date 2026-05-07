@@ -272,7 +272,7 @@ Patient: "$ex3q"
 
   // ── Model lifecycle ────────────────────────────────────────────────────────
 
-  static const String _modelFileName = 'gemma-4-E2B-it.litertlm';
+  static const String _modelFileName = 'gemma-4-E4B-it.litertlm';
   static const String _sdcardPath = '/sdcard/Download/$_modelFileName';
 
   static Future<String?> _getModelPath() async {
