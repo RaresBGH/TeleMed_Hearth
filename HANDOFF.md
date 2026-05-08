@@ -1,8 +1,8 @@
 # TeleMed_K — Handoff Summary
-**Date:** 2026-05-05  
-**Deadline:** May 18, 2026 — **12 days remaining**  
+**Date:** 2026-05-08  
+**Deadline:** May 18, 2026 — **10 days remaining**  
 **Repo:** https://github.com/RaresBGH/TeleMed_K (PRIVATE — must go public before deadline)  
-**Latest commit:** build #76 — in progress. Last pushed: build #75. Last device-tested: build #74.
+**Latest commit:** build #79 — diagnostic dialog. Last pushed: build #79. Last device-tested: build #79 (partial — ENGINE_INIT_ERROR captured, video call fix pending confirmation).
 
 ---
 
@@ -70,18 +70,17 @@ FHIR backend: Google Android FHIR SDK (local encrypted SQLite) + Medplum 5.1.10 
 - Doctor UI (telemed-doctor.duckdns.org) — Medplum auth working; today's appointments listed; date range query fixed
 - WebRTC two-device video call confirmed end-to-end — patient Pixel 9 Pro + doctor Brave browser
 - Waiting room mute/video buttons apply to actual media tracks
-- In-call chat: no keyboard overflow; end call works (single tap when keyboard closed)
 - Triage chat: voice bubble shows play button; photo bubble shows tappable thumbnail
 - AI conversation context maintained across turns (history passed as customPrompt)
-- On-device AI inference confirmed working — Gemma 4 E4B responds in correct language
+- On-device AI inference: BROKEN — ENGINE_INIT_ERROR on initialize(). Model downloads correctly. LiteRT-LM 0.10.2 fails at engine init. Diagnostic build #79 captures error. Fix pending.
 - GitHub Actions secrets MEDPLUM_CLIENT_ID and MEDPLUM_CLIENT_SECRET confirmed set and working
-- Doctor UI sliding panel deployed at https://telemed-doctor.duckdns.org: 3-state panel (Appointments / Patient Report / In-Call); patient triage report with chronic conditions, unreviewed dialogues, Mark reviewed → PATCH reviewed-by extension, Finalize → PATCH status:final; In-Call panel: Chat tab + Activity tab (last 5 Observations); responsive 320px desktop / 280px tablet overlay / full-width mobile; join window -60min to +120min
+- Doctor UI sliding panel deployed at https://telemed-doctor.duckdns.org: 2-state panel outside call (Patient Report / Chat); in-call shows Patient Report only; patient triage report with chronic conditions, unreviewed dialogues, Mark reviewed → PATCH reviewed-by extension, Finalize → PATCH status:final; In-Call panel: Activity tab only (last 5 Observations) — Chat removed in build #76; responsive 320px desktop / 280px tablet overlay / full-width mobile; join window -60min to +120min
 - All practitioner names replaced with approved mock names throughout app and Medplum
 - All 9 specialist Practitioner resources created in Medplum with real UUIDs
 - Appointment join grace window: joinable from 60 minutes before to 120 minutes after scheduled time
 - Doctor UI deployment: source at doctor-ui/index.html in repo; Caddy serves from /home/corb_d/sovereign-factory/doctor-ui/index.html; deploy with cp command documented in CLAUDE.md
 - WaitingRoomScreen STATE B: "See my recent activity" button → bottom sheet with last 5 Observation summaries (date, category chip, AI summary excerpt)
-- VideoConsultationScreen: Activity tab alongside Chat tab in DraggableScrollableSheet; last 5 Observations loaded on initState; read-only cards with category chip
+- VideoConsultationScreen: Activity tab only — Chat removed in build #76; last 5 Observations loaded on initState; read-only cards with category chip
 - MedicalSessionState.lastPractitionerRef: propagated through all 5 state copy sites (clearPreseed, clearPatientMessage, prepareResume, setDoctorContext, _handleResult); written as reviewed-by-target FHIR extension on finalizeConsultation
 
 ---
@@ -92,83 +91,19 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 
 | Feature | Key risk |
 |---|---|
-| Mock patient DB (valid CNPs) | First-launch seed timing |
 | Returning vs new user detection | FHIR query on seed data |
 | Profile completion (new user flow) | FHIR Patient write |
 | Dashboard (FHIR condition/medication/appointment) | FHIR read from local SDK |
 | H3: ML Kit OCR + voice in Ajutor | ML Kit 15s timeout; first-launch warm-up |
-| H4: Legal screens WebView | WebView rendering on-device |
 | H5: Back button + Trimite mesaj routing | Navigator.push/pop stack |
-| H6: Consent screen layout | Checkbox touch target |
-| H7: In-call chat panel | DraggableScrollableSheet keyboard |
 | H8: Voice confirm dialog | Dialog dismiss path |
 | H9: Document attachment + audio replay | FilePicker + just_audio |
-| H11: Medplum sync | Requires GitHub Actions secrets (see below) |
 | H12: WebRTC signaling | Requires both peers on same signaling room |
-| H13: Doctor browser UI | Requires Medplum token + appointment data |
 | AI engine rewrite (system prompt, session isolation, streaming shim) | First inference latency |
 
 ---
 
 ## Outstanding Bugs — Priority Order
-
-### P1 — ALL FIXED. No open P1 items.
-
-### P2 — FIXED in build #69 batch:
-- Appointments join window: -60min / +120min (matches doctor UI)
-- "Request new appointment" button fixed at bottom of screen, outside scrollable area
-- Dashboard "Available now" green chip removed from health card
-- Dashboard "Available now" pill removed from DoctorProfileScreen
-- patientAvatarProvider watch isolated in Consumer widget in _buildHeader() — fixes intermittent _dependents.isEmpty crash
-- Doctor message flow: initialPrompt set to null — no AI inference triggered on entry, no pre-populated bubble
-- Bottom nav labels localised via AppStrings + languageProvider: nav.home / nav.dossier / nav.doctor
-- DialogDetailSheet: "Continue conversation" hidden for status=final observations; replaced with locked indicator
-- history_screen _getFallbackText: hardcoded Romanian strings replaced with AppStrings keys
-- history_screen Semantics label localised via AppStrings
-- finalizeConsultation _finalized reset bug fixed: _finalized=false moved to first line of reset() so stopAndRelease() exceptions no longer permanently block FHIR writes in subsequent sessions
-- ref.invalidate(patientHistoryProvider) added after successful FHIR write in finalizeConsultation()
-- debugPrint tracing added to finalizeConsultation()
-- Medplum conditions patched to English via REST: Ion Popescu → "Type 2 Diabetes", Maria Ionescu → "Arterial Hypertension"
-
-### FIXED in build #75 batch:
-- T-NEW-4a/4b: Red screen on text send and exit — mounted guard on appNavigationProvider listener
-- C1: _dependents.isEmpty — KeyedSubtree + mounted guard (fully resolved)
-- BUG-A/B/C/D: Practitioner name resolution — full lookup map all 9 practitioners
-- BUG-E: WaitingRoomScreen specialty display — doctorSpecialty parameter added
-- BUG-F/G: FHIR local fallback + Kotlin double-prefix — stripped in both layers
-- A-NEW-1: Appointment cards missing specialty — extracted from description, shown as subtitle
-- AP-1: "Request new appointment" always visible — showBookingButton=false by default
-- AP-2: Calendar title not contextual — screenTitle parameter
-- AP-4: Last consultation shows Unknown — Medplum fulfilled appointments path
-- AP-5: Active prescription no context — "Prescribed for: {conditionName}" subtitle
-- AP-6: "Data recenta" Romanian title — "Recent Health Status"
-- Dashboard medication / conditions missing from Medplum — Medplum-first paths added
-- Doctor profile top label and entitlement — specialty as AppBar title, entitlement below name
-- Family doctor appointment scoping — familyDoctorId passed explicitly
-- VC-1/2/3/4: In-call panel, Patient Report from call, chat cleared, video quality — all fixed
-- Flutter in-call chat: both directions wired (incoming + outgoing over WebSocket)
-- Patient image attachments: base64 sent over WebSocket in _attachCallFile
-- Doctor PDF send: Binary + DocumentReference + WebSocket notify
-- Doctor receives patient images: inline display in doctor UI chat
-- Join window corrected: -60min before to +120min after start (was reversed: -2h/+1h)
-- Dashboard appointment filter: accepts 'booked' OR 'confirmed', includes appointments within 2h past start
-- 'Family Doctor' EN string corrected to 'Family Medicine'
-- Doctor UI: isCallActive guard prevents panel reverting to Appointments during active call
-- Doctor UI: frozen remote video frame cleared (srcObject=null) on peer exit
-- Doctor UI: redundant blue PANEL tab removed from DOM
-- Fulfilled appointment timestamps patched in Medplum to distinct dates/times (Apr 14–22)
-
-### FIXED in build #76 batch:
-- UI-1: Exit dialogue black background → white (AlertDialog backgroundColor: Colors.white)
-- In-call chat removed from VideoConsultationScreen — Activity tab (observations) only remains
-- Doctor Communications data layer: getCommunications() in MedplumRepository + FhirRepository
-- saveCommunication() now includes FHIR sender/recipient fields
-- ChatMessage 'doctor' role + 'document' AttachmentType added
-- Doctor messages surface in MedicalResponseScreen as distinct green bubble with doctor name
-- Doctor UI: Appointments panel state removed entirely; panel has 2 states (report, chat)
-- Doctor UI: In-call panel shows Patient Report read-only, no chat during call
-- Doctor UI: Chat state — async Medplum Communications only, no WebSocket
-- Doctor UI: Blue Chat stripe visible outside call, opens chat panel
 
 ### OPEN BUGS — carry forward:
 - T3: AI resets to "Hello. What brings you to the doctor today?" mid-conversation
@@ -178,19 +113,12 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 - P1-5/6/7: Mic release, end-call keyboard, mute chip — pending two-device test
 - Doctor Communications polling: not real-time — patient must reopen to see new messages (post-hackathon)
 
-### POST-HACKATHON ROADMAP:
-- Gemma real-time call summarization (WebRTC audio → STT → Gemma → FHIR Observation)
-- Patient PDF send to doctor via DocumentReference
-- Doctor Communications real-time polling
-- WiFi-triggered background sync via ConnectivityListener
-- Duplicate Observation schema (finalizeConsultation vs _saveCallSummary) — refactor to shared factory
-- main.dart and auth_provider.dart direct FhirRepository() kept intentionally (startup / circular import)
-
-### BUILD #76 STATUS:
-- Commit: 072f10d — 9 files — pushed to main 2026-05-07
-- GitHub Actions building
-- Next session: device test build #76, then Gemma E4B media path investigation
-- Pending: doctor UI Caddy cache issue (browser shows old version despite correct file on server)
+### BUILD STATUS — SESSION CLOSED 2026-05-08
+- Build #77: commit pushed — C1 mounted guards (3 guards in _togglePlayback)
+- Build #78: commit pushed — E4B lastInitError diagnostic pill (cosmetic overflow)
+- Build #79: commit pushed — E4B full error dialog (SelectableText, postFrameCallback)
+- Build #79 installed on device: ENGINE_INIT_ERROR confirmed. Full error string not yet captured.
+- Next session: capture full error string → fix E4B init → confirm TURN video stability → fix C1 Communications path → fix Activity panel dismiss → fix mic release → fix Doctor UI regressions
 
 ---
 
@@ -212,7 +140,7 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 
 - Caddy routes all `telemed-*.duckdns.org` domains via WireGuard to GX10
 - **No SSH key from GX10** → GCP changes must be made from the operator's local laptop
-- coturn (TURN server) NOT yet installed on GCP VM — pending manual SSH install
+- coturn INSTALLED AND RUNNING — active since 2026-05-05, confirmed healthy. GCP VPC firewall rule telemed-turn-relay added 2026-05-08: UDP 49152–65535 + TCP/UDP 5349. Port 3478 was already open. Video stability past 15s awaiting call confirmation.
 
 ### Medplum
 
@@ -301,7 +229,7 @@ PATCH format confirmed: application/json-patch+json (not merge-patch — Medplum
 - **TURN server** — coturn running on GCP VM port 3478.  
   Credentials: username `telemed` / password `TeleMed_TURN_2026!`  
   ICE config already updated in Flutter (`video_consultation_screen.dart`) and doctor UI (`doctor-ui/index.html`).  
-  GCP firewall rule for UDP/TCP 3478, 5349, UDP 49152–65535 still needs to be added.
+  GCP firewall rule telemed-turn-relay ADDED 2026-05-08 — covers UDP 49152–65535 + TCP/UDP 5349. Port 3478 was already open. TURN relay path now unblocked. Awaiting two-device call test confirmation.
 
 - **Signaling server** — Node.js `ws` relay running as a systemd service on GX10 port 8765.  
   Service file: `/etc/systemd/system/telemed-signaling.service` (may need `sudo systemctl enable --now telemed-signaling` if not yet persistent).  
@@ -311,10 +239,12 @@ PATCH format confirmed: application/json-patch+json (not merge-patch — Medplum
 
 ## Immediate Next Actions (in priority order)
 
-1. Device test build #76 APK — confirm E4B text, audio, photo inference paths
-2. Investigate doctor UI Caddy cache issue — browser shows stale panel
-3. Make repo public before May 18 deadline
-4. Record demo video (Maria story)
-5. GCP firewall rule: UDP/TCP 3478, 5349, UDP 49152–65535 for TURN server
-
-**Session closed:** 2026-05-07
+1. **FIRST**: Launch build #79 on device, read the full SelectableText error dialog, copy every word
+2. Fix E4B ENGINE_INIT_ERROR based on full error string (direction unknown until step 1)
+3. Confirm video call holds past 60s with two-device test (TURN fix from this session)
+4. Fix C1 red screen — re-audit Communications async load path in medical_response_screen.dart for missing mounted guards
+5. Fix Activity panel: tap-outside dismiss + swipe-down + title header
+6. Fix mic not released after call ends
+7. Fix Doctor UI regressions: dialogue review, chat Send, back-to-report, in-call panel collapse
+8. Make repo public before May 18 deadline
+9. Record demo video (Maria story)

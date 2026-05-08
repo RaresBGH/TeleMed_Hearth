@@ -52,9 +52,6 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 - patientAvatarProvider (NotifierProvider<Uint8List?>) in auth_provider.dart — shared between PatientProfileScreen and DashboardScreen for live avatar propagation; in-memory only, never persisted to disk
 - lastPractitionerRef in MedicalSessionState — tracks doctor context across all 5 state copy sites; written as reviewed-by-target FHIR extension on finalizeConsultation; defaults to Practitioners.familyDoctorId
 - session-category canonical extension URL: https://telemed-bogheanu.ro/fhir/ext/session-category — all FHIR extension reads use suffix/contains matching
-- Doctor UI sliding panel — 3 states (Appointments / Patient Report / In-Call); Mark reviewed → PATCH reviewed-by; Finalize → PATCH status:final; responsive
-- WaitingRoomScreen STATE B: "See my recent activity" button → bottom sheet with last 5 Observations (date, category chip, excerpt)
-- VideoConsultationScreen: Activity tab in DraggableScrollableSheet alongside Chat tab; loaded on initState, read-only
 - FHIR PATCH: always use application/json-patch+json (RFC 6902 array) — Medplum 5.1.10 rejects merge-patch with 400
 - finalizeConsultation _finalized: reset as first line of reset() before stopAndRelease() — prevents audio exceptions blocking future FHIR writes
 - patientHistoryProvider: invalidated inside notifier after successful FHIR write via try { ref.invalidate(...) } catch (_) {}
@@ -67,23 +64,41 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 - Medplum-first reads: getMostRecentEncounter uses fulfilled Appointments; getMostRecentMedicationRequest and getPatientHistory (Conditions + Observations) all online-first with local fallback
 
 ## Open Issues (carry to next session)
+
+### P0 — BLOCKERS
+- E4B ENGINE_INIT_ERROR: model downloads fine, LiteRT-LM 0.10.2 fails on initialize(). Diagnostic dialog added in build #79. Full error string needed from device — dialog was cut off in screenshot. Fix direction unknown until full string captured.
+- C1 regression: _dependents.isEmpty red screen still occurring on build #79 (text triage → send message). Mounted guards added to _togglePlayback in build #77 — but the async Communications load added in #76 may have additional unguarded paths. Needs re-investigation.
+
+### P1 — Flutter App
+- Activity panel (VideoConsultationScreen): cannot be dismissed by tap-outside or swipe-down once opened; missing title header
+- Mic not released after call ends: microphone stays active until app is fully closed; stopAndRelease() not called on VideoConsultationScreen dispose or call-end path
+
+### P1 — Doctor UI (all regressions from #76 rewrite)
+- Chat Send button mostly unresponsive — architectural issue: patient has no corresponding chat UI (patient only chats with AI in triage); flow decision needed before fix
+- Back-to-report from chat clears panel — only "Patient" text remains, panel content gone
+- In-call Report button does not collapse panel — only X button works
+- Dialogue review (Mark reviewed / Finalize) disappeared — removed unintentionally in #76 panel restructure
+
+### P1 — Infrastructure
+- WebRTC video freeze at ~15s: GCP firewall rule telemed-turn-relay added (UDP 49152–65535, TCP/UDP 5349). Awaiting two-device call confirmation that freeze is resolved.
+
+### Carry-forward from previous sessions
 - T3: AI context reset mid-conversation — "Hello. What brings you..." reappears between turns
 - T4: Triage back button background not white
 - D3: "Could not load photo" error on profile photo upload
 - Patient PDF send: plain text notification only — post-hackathon fix
-- P1-5/6/7: Mic release, end-call keyboard, mute chip — pending two-device test
-- Doctor Communications polling: not real-time — patient must reopen to see new doctor messages (post-hackathon: add polling or push)
+- Doctor Communications polling: not real-time — post-hackathon fix
 
 ## Current State
 See TELEMED_CONTEXT.md for full verified/awaiting-test/broken breakdown.
-Last updated: 2026-05-07
-Latest build: #76 — in progress. Last pushed build: #75. Last device-tested build: #74.
+Last updated: 2026-05-08
+Latest build: #79 (diagnostic dialog). Last pushed build: #79. Last device-tested build: #79.
 GitHub Actions secrets MEDPLUM_CLIENT_ID and MEDPLUM_CLIENT_SECRET are set correctly.
-Medplum sync confirmed working — appointments, observations, and communications reach https://telemed-medplum.duckdns.org/fhir/R4.
+Medplum sync confirmed working.
 Medplum Binary storage confirmed working: file:///var/medplum/storage.
-WebRTC two-device video call confirmed working end-to-end (patient Pixel 9 Pro + doctor Brave browser).
-On-device AI inference confirmed working — Gemma 4 E4B responds to text and voice in correct language.
-Doctor UI at https://telemed-doctor.duckdns.org confirmed working — shows today's appointments, joins video call; async Medplum chat available outside call.
+WebRTC video call: TURN relay ports now open (GCP firewall rule telemed-turn-relay added 2026-05-08) — call stability past 15s awaiting confirmation.
+On-device AI inference: ENGINE_INIT_ERROR confirmed on build #79 — E4B fails to initialize. Full error string not yet captured (dialog text cut off in screenshot). Fix pending next session.
+Doctor UI at https://telemed-doctor.duckdns.org: loading and auth working. Multiple UI regressions introduced in #76 — see Open Issues.
 Signaling server: telemed-signaling.service confirmed running under systemd, auto-restarts on reboot.
 medplum_token alias added to ~/.bashrc for Terminal 2 token refresh.
 
@@ -107,15 +122,27 @@ The doctor UI is a static HTML file served by Caddy.
 - NEVER edit files directly in `/home/corb_d/sovereign-factory/doctor-ui/` — that folder is deploy-only.
 - NEVER create or edit any doctor UI files outside the repository.
 
-## Session Notes — 2026-05-07 (Build #76)
-Build #76 pushed — commit 072f10d — 9 files — GitHub Actions building.
+## Session Notes — 2026-05-08 (Builds #77–#79)
 
-**Pending investigation (next session priority):**
-- Gemma E4B media handling: confirm text baseline, then audio path (WAV→transcript→Gemma), then photo path (LiteRT-LM multimodal)
-- LiteRT-LM 0.10.2 multimodal support for E4B needs device confirmation
-- Doctor UI panel cache: browser shows old version despite correct file on server — investigate Caddy cache headers
+Build #77: C1 mounted guards — 3 guards added to _togglePlayback async paths in medical_response_screen.dart. KeyedSubtree confirmed present (main.dart line 141). C1 still occurring — Communications async load path may have additional unguarded sites.
 
-**Session closed:** 2026-05-07 — next session start with build #76 device test results
+Build #78: E4B diagnostic — lastInitError static field + overflow pill display (cosmetic overflow noted, amber pill text truncated).
+
+Build #79: E4B full error dialog — SelectableText dialog in dashboard initState postFrameCallback. ENGINE_INIT_ERROR confirmed on device. Full error text cut off in screenshot — next session must capture it first.
+
+**GCP TURN fix applied this session:**
+- coturn confirmed running (active since 2026-05-05)
+- GCP VPC firewall rule telemed-turn-relay created: UDP 49152–65535, TCP/UDP 5349, INGRESS, all instances
+- Port 3478 TCP/UDP was already open and reachable
+- Video call freeze at ~15s expected to be resolved — awaiting two-device confirmation
+
+**Doctor UI "cache issue" was a hallucination — removed from pending list.**
+
+**Next session must start with:**
+1. Capture full ENGINE_INIT_ERROR string from build #79 dialog
+2. Confirm video call holds past 60s (TURN fix verification)
+3. Fix E4B init based on error string
+4. Fix C1 regression (Communications async path)
 
 ## Post-Hackathon Roadmap
 - Gemma real-time call summarization (WebRTC audio → STT → Gemma → FHIR Observation)

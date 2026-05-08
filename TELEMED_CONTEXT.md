@@ -1,9 +1,9 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-05-07 (build #76 batch)
+Last updated: 2026-05-08 (builds #77–#79)
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
-Competition: Kaggle Gemma 4 Good Hackathon — deadline May 18, 2026 (12 days remaining).
+Competition: Kaggle Gemma 4 Good Hackathon — deadline May 18, 2026 (10 days remaining).
 Repo: https://github.com/RaresBGH/TeleMed_K (currently PRIVATE — must make public before deadline)
 
 ## Owner
@@ -73,7 +73,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Photo loading indicator** — "Se analizează fotografia..." replaces animated dots while `evaluateMedia()` runs; `_isPhotoAnalyzing` bool tracks photo-specific processing
 - **Audio recording** — WAV 16kHz mono; async WAV→AAC transcode (MediaCodec, no FFmpeg)
 - **Camera capture** — JPEG quality 85 for inference; async MP4 compression for storage
-- **VideoConsultationScreen** — RTCVideoView, PiP, mute, voice visualizer; in-call DraggableScrollableSheet chat panel; WebRTC signaling server deployed on GX10 (H12); remote video works when both peers join same room
+- **VideoConsultationScreen** — RTCVideoView, PiP, mute, voice visualizer; Activity tab only; WebRTC signaling server deployed on GX10 (H12); remote video works when both peers join same room
 - **Legal screens** — GDPR-compliant Romanian content; `LegalDocumentType` enum; accessible touch targets
 - **Lexend font** — `GoogleFonts.lexendTextTheme()` system-wide
 - **Dark theme** — `AppTheme.darkTheme` defined; `MaterialApp(themeMode: ThemeMode.system)` follows device setting automatically; no manual toggle needed
@@ -87,9 +87,9 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Waiting room mute/video** — buttons correctly disable/enable actual MediaStream tracks
 - **Triage chat attachments** — voice bubble shows play/stop button with correct `attachmentPath`; photo bubble shows tappable thumbnail; both open full-screen on tap
 - **AI conversation context** — conversation history passed as `customPrompt` to every `evaluateText`/`evaluateAudio`/`evaluateMedia` call; AI no longer repeats Turn 1 greeting
-- **On-device AI inference** — Gemma 4 E4B confirmed responding on device; text inference working; voice inference working (returns response); `[name]` placeholder removed from system prompt
+- **On-device AI inference** — BROKEN as of build #76+. ENGINE_INIT_ERROR confirmed on build #79. Model downloads and file exists. LiteRT-LM 0.10.2 fails at initialize(). Diagnostic dialog in place. Fix pending full error string capture.
 - **GitHub Actions secrets** — `MEDPLUM_CLIENT_ID` and `MEDPLUM_CLIENT_SECRET` confirmed set with correct values; build #60+ have working Medplum credentials
-- **Doctor UI rewrite** — English interface confirmed loading at telemed-doctor.duckdns.org; doctor dropdown with 9 practitioners; appointment join window -21min to +30min; chat panel present; peer-left overlay present
+- **Doctor UI rewrite** — English interface confirmed loading at telemed-doctor.duckdns.org; doctor dropdown with 9 practitioners; appointment join window -60min/+120min; peer-left overlay present
 - **Practitioner names** — all mock names confirmed in Medplum and Flutter constants; 9 real Medplum Practitioner UUIDs in practitioner_constants.dart
 - **Dashboard doctor card** — label "Family Doctor:", taps to Medic tab; real name from `Practitioners.familyDoctorName`
 - **Specialist screens** — all 8 specialties show real doctor names from Practitioners constants via `_doctorNameFor()`
@@ -98,7 +98,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Doctor message flow** — clean entry with no pre-populated bubble; AppBar shows doctor name; welcome card shows neutral message context
 - **Dosar Medical** — audio and photo attachment paths serialized into FHIR note text; restored as playable/tappable bubbles on replay
 - **Doctor UI join window** — widened to -60min / +120min from appointment start
-- **Doctor UI sliding panel** — deployed and functional at telemed-doctor.duckdns.org; 3-state panel (Appointments / Patient Report / In-Call) confirmed loading
+- **Doctor UI sliding panel** — deployed and functional at telemed-doctor.duckdns.org; 2-state panel ( Patient Report / Chat) confirmed loading
 - **Doctor UI patient report** — Conditions and triage Observations load from Medplum; Mark reviewed PATCHes reviewed-by extension (application/json-patch+json); Finalize PATCHes status:final
 - **Appointments join window** — -60min / +120min confirmed working; matches doctor UI
 - **WaitingRoom activity panel** — "See my recent activity" bottom sheet loads; category chips, date, summary display correctly (build #68 verified)
@@ -108,16 +108,9 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Appointment cards** — specialty shown as subtitle extracted from description; showBookingButton/screenTitle parameters
 - **Dashboard data** — Conditions + Observations from Medplum merged; active medication from Medplum; last consultation from fulfilled appointments
 - **Doctor profile** — specialty as AppBar top label; entitlement string below name; family doctor scoped to familyDoctorId
-- **In-call chat bidirectional** — patient ↔ doctor text and images over WebSocket; doctor PDF via Binary + DocumentReference
 - **Doctor UI VC fixes** — Panel cleared on call entry; Patient Report accessible from in-call panel; video object-fit:contain + 16/9; 1Mbps bitrate cap
 - **telemed-signaling.service** — systemd service confirmed running, auto-restarts on reboot
 - **Medplum Binary storage** — confirmed working at file:///var/medplum/storage
-- **Dashboard doctor card** — tappable; "Family Doctor:" label; navigates to Medic tab
-- **Specialist screens** — all 8 specialties show real doctor names from Practitioners constants
-- **My Profile** — save SnackBar (brand blue); blue back button; avatar sync to dashboard via patientAvatarProvider
-- **Triage chat** — first patient message + AI first response seeded as bubbles on MedicalResponseScreen entry
-- **Doctor message flow** — clean entry with no pre-populated bubble; AppBar shows doctor name; welcome card shows neutral context
-- **Dosar Medical** — audio and photo attachment paths serialized into FHIR note text; restored as playable/tappable bubbles on replay
 
 ### BUILT — AWAITING DEVICE TEST
 
@@ -152,10 +145,9 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **H5 — Back button on triage + Trimite mesaj AI routing** — `PopScope(canPop:false)` + 64dp AppBar back button on home/triage screen; `_onBack()` navigates to dashboard (idle) or shows exit dialog (active session); `MedicalResponseScreen.initialPrompt` auto-triggers AI inference; family doctor "Trimite mesaj" uses `Navigator.push` + `initialPrompt`
 - **H6 — Consent screen layout fix** — WaitingRoomScreen STATE A: "Vă rugăm să citiți..." subtitle inside consent card (16sp italic); STATE B checkbox redesigned (#EBF4FB background, 2px #5BA4CF border, full-row GestureDetector, 64dp min height)
 - **H8 — Voice recording confirmation dialog** — First mic tap shows AlertDialog (48dp mic icon, 64dp stacked buttons); cancel does nothing; stop tap skips dialog
-- **H12 — WebRTC signaling server** — Node.js relay at GX10:8765 (`/home/corb_d/sovereign-factory/signaling/server.js`); rooms keyed by appointmentId; Flutter ICE config updated with STUN + TURN (coturn pending GCP install)
+- **H12 — WebRTC signaling server** — Node.js relay at GX10:8765 (`/home/corb_d/sovereign-factory/signaling/server.js`); rooms keyed by appointmentId; Flutter ICE config updated with STUN + TURN (coturn installed on GCP)
 - **H13 — Doctor browser UI** — `doctor-ui/index.html`; Medplum client_credentials auth + today's appointment list from FHIR; manual entry fallback; join wires to signaling room
 - **H3 — Ajutor button with ML Kit OCR + voice** — `OcrChannel.kt` (ML Kit `TextRecognition`); `OcrService.dart` with `parseCnp()`/`parsePhone()` regex; 15-second countdown dialog; model-not-ready guard; awaiting device test of camera OCR path (ML Kit first-launch warm-up under test)
-- **H7 — In-call chat panel** — `DraggableScrollableSheet` (45%–85% height) overlaid on video; text + file messaging; FHIR Communication via `MedplumRepository.saveCommunication()`; `appointmentId` forwarded end-to-end; Gemma 4 summary on call end
 - **H9 — Document attachment + voice replay + image preview** — `file_picker: ^8.1.2` + `just_audio: ^0.9.42` added; `AttachmentType` enum + `attachmentPath` in `ChatMessage`; `_onAttachDocument()` in `MedicalResponseScreen`; inline audio playback; full-screen `InteractiveViewer`; `saveDocumentReference` in MedplumRepository
 - **H11 — Medplum sync verification + appointmentId fix** — HTTP 200 confirmed; `saveCommunication` + `saveDocumentReference` present; `Communication.about` populated; GitHub Actions secrets pending manual setup
 
@@ -185,7 +177,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Doctor UI no patient list** — replaced manual code entry with Medplum client_credentials auth + today's appointment list from `GET /fhir/R4/Appointment?date=today`; manual entry kept as fallback
 - **Medplum patient creation silent failure** — added 401 retry (clearToken + getValidToken); detailed logging for each failure mode; local FHIR write never blocked
 
-### STILL BROKEN / SKIPPED FOR HACKATHON
+### STILL BROKEN 
 
 - **LiteRT-LM actual on-device inference** — model in `filesDir/models/`; `initializeModel()` wired; AI status indicator will show green if init succeeds — **not yet observed on device**
 - **Text card → inference** — `handleRunInference` implemented in Kotlin; end-to-end path from text card UI → MethodChannel → model output not yet device-tested
@@ -486,7 +478,7 @@ Refactoring completed during audit:
 ### P1 — NEXT
 - [ ] **Make GitHub repo public before May 18 deadline** — currently PRIVATE; required for hackathon submission
 - [ ] **Record competition demo video** — patient story: Maria, 72, chest pain, no car → voice triage → 112 or teleconsult
-- [ ] **Add GitHub Actions secrets** — `MEDPLUM_CLIENT_ID` + `MEDPLUM_CLIENT_SECRET` at Settings → Secrets → Actions (see H11 instructions)
+- [x] **Add GitHub Actions secrets** — `MEDPLUM_CLIENT_ID` + `MEDPLUM_CLIENT_SECRET` at Settings → Secrets → Actions 
 - [ ] **Device test all H1–H9 + H11 items** — install latest APK on Pixel 9 Pro; verify each BUILT item above
 - [ ] Device test Medplum sync — verify online writes reach https://telemed-medplum.duckdns.org/fhir/R4 and are visible in Medplum admin UI
 - [ ] Wire Medplum patient lookup in auth flow — replace local FHIR SDK seed with Medplum Patient search by CNP
@@ -500,32 +492,26 @@ Refactoring completed during audit:
 ### P3 — NEXT
 - [ ] DeviceConflictModal trigger from auth flow
 
-### BUILD #76 — SESSION CLOSED 2026-05-07
-- Commit 072f10d pushed — 9 files — GitHub Actions building
-- Next session priority: device test build #76; investigate doctor UI Caddy cache; Gemma E4B media path confirmation
-- Pending investigation: LiteRT-LM 0.10.2 multimodal support for E4B (audio + photo paths)
+### BUILDS #77–#79 — SESSION CLOSED 2026-05-08
+- Build #77: C1 mounted guards in medical_response_screen.dart (_togglePlayback paths)
+- Build #78: E4B lastInitError diagnostic pill
+- Build #79: E4B full error dialog (SelectableText in dashboard postFrameCallback)
+- ENGINE_INIT_ERROR confirmed on device. Full error string capture is first task next session.
+- GCP TURN firewall fix applied (telemed-turn-relay rule). Video call stability test pending.
+- Doctor UI: 4 regressions identified from #76 rewrite. Fix batch pending.
+- C1 still occurring — additional unguarded async paths suspected in Communications load.
 
-### POST-HACKATHON ROADMAP
-- Gemma real-time call summarization (WebRTC audio → STT → Gemma → FHIR Observation)
-- Patient PDF send to doctor via DocumentReference
-- Doctor Communications real-time polling
-- WiFi-triggered background sync
 
 ---
 
 ## Hackathon
 
-- **Deadline:** May 18, 2026 — **12 days remaining**
+- **Deadline:** May 18, 2026 — **10 days remaining**
 - **Public repo required:** currently PRIVATE — must make public before deadline
 - **Demo video:** not yet recorded
-- **Gemma 4 on-device status:** CONFIRMED WORKING — Gemma 4 E4B responds to text and voice on Pixel 9 Pro; language toggle works; conversation context maintained
-- **Latest tested build:** #64 (commit fb1a104) — installed on Pixel 9 Pro 2026-05-05
-- **Medplum status:** CONFIRMED WORKING — client_credentials auth working; appointments/observations/communications syncing; doctor UI showing live data
-- **WebRTC status:** CONFIRMED WORKING — two-device video call end-to-end tested
-- **Known open issues:** see HANDOFF.md Outstanding Bugs P1/P2 list
+- **Gemma 4 on-device status:** BROKEN — ENGINE_INIT_ERROR on LiteRT-LM initialize(). Diagnostic in place. Fix is next session priority.
+- **Latest tested build:** #79 — installed 2026-05-08
+- **Medplum status:** CONFIRMED WORKING
+- **WebRTC status:** TURN fix applied 2026-05-08 — stability past 15s awaiting two-device confirmation
+- **Known open issues:** see HANDOFF.md Outstanding Bugs section
 
-## Patient Demo Story (for competition video)
-Maria, 72, Brănești, chest pain, no car, hospital 40km away.
-Opens TeleMed_K → voice/photo/text triage → Gemma 4 analyzes on-device →
-urgency detected → one tap calls 112 OR books teleconsultation with Dr. Bogheanu.
-NGO provides the device itself for patients who cannot afford one.
