@@ -90,8 +90,11 @@ class _MedicalResponseScreenState
   StreamSubscription<PlayerState>? _playerSubscription;
   String? _playingMessagePath; // attachmentPath of the currently playing message
 
-  // Readable from any method; build() uses ref.watch for reactivity.
-  String get _lang => ref.read(languageProvider);
+  // ref.watch() here is safe: _lang is only called from synchronous build-path
+  // methods, never from async callbacks. This replaces the former standalone
+  // ref.watch(languageProvider) in build() which caused _dependents.isEmpty
+  // assertion failures during navigation/lifecycle transitions.
+  String get _lang => ref.watch(languageProvider);
   // Set to true when finalize is requested while _isProcessing is true.
   // Checked by inference handlers to abort appending a response mid-finalize.
   bool _cancelRequested  = false;
@@ -670,9 +673,20 @@ class _MedicalResponseScreenState
     if (!mounted) return;
 
     try {
+      final lastAi = _messages
+          .lastWhere((m) => m.role == 'ai',
+              orElse: () => ChatMessage(
+                    role: 'ai',
+                    text: '',
+                    timestamp: DateTime.now(),
+                  ))
+          .text;
       await ref
           .read(medicalSessionProvider.notifier)
-          .finalizeConsultation(List.unmodifiable(_messages));
+          .finalizeConsultation(
+            List.unmodifiable(_messages),
+            lastAiText: lastAi.isEmpty ? null : lastAi,
+          );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -708,7 +722,6 @@ class _MedicalResponseScreenState
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(languageProvider); // register watcher so _lang getter rebuilds on change
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {

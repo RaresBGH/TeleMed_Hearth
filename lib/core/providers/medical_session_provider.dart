@@ -135,7 +135,10 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   // TODO: PRODUCTION: status changes to final only after doctor approval via
   // doctor-side app. Auto-save is intentionally disabled — patient must
   // explicitly finalize.
-  Future<void> finalizeConsultation(List<ChatMessage> messages) async {
+  Future<void> finalizeConsultation(
+    List<ChatMessage> messages, {
+    String? lastAiText,
+  }) async {
     // Guard: prevent duplicate FHIR writes if called more than once per session.
     if (_finalized) return;
     _finalized = true;
@@ -143,7 +146,17 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
     try {
       final String cnp           = ref.read(loginCnpProvider);
       final String timestamp     = DateTime.now().toIso8601String();
-      final String triageResponse = state.lastAiResponse ?? 'Triaj AI';
+      final String triageResponse = lastAiText ?? state.lastAiResponse ?? 'Triaj AI';
+      // Resolve Medplum Patient ID so the Observation subject uses a direct
+      // Patient/{id} reference. Medplum does not match identifier-based subjects
+      // when querying by subject=Patient/{id}, causing new entries to be invisible.
+      String? medplumPatientId;
+      if (cnp.isNotEmpty) {
+        try {
+          final patient = await _fhirRepository.getPatientByCnp(cnp);
+          medplumPatientId = patient?['id'] as String?;
+        } catch (_) {}
+      }
 
       final String sessionLang = state.lastSessionLanguage ?? 'ro';
       final String prefixAi      = AppStrings.of(sessionLang, 'chat.prefix_ai');
@@ -205,12 +218,14 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
           ],
           'text': AppStrings.of(state.lastSessionLanguage ?? 'ro', 'chat.section_label'),
         },
-        'subject': {
-          'identifier': {
-            'system': 'urn:oid:1.2.40.0.10.1.4.3.1',
-            'value': cnp.isNotEmpty ? cnp : 'unknown',
-          }
-        },
+        'subject': medplumPatientId != null
+            ? {'reference': 'Patient/$medplumPatientId'}
+            : {
+                'identifier': {
+                  'system': 'urn:oid:1.2.40.0.10.1.4.3.1',
+                  'value': cnp.isNotEmpty ? cnp : 'unknown',
+                }
+              },
         'effectiveDateTime': timestamp,
         'valueString': triageResponse,
         'extension': extensions,
