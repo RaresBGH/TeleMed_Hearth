@@ -18,7 +18,7 @@ from google.genai import errors as genai_errors
 
 load_dotenv()
 
-MODEL_NAME = "gemini-3-flash-preview"
+MODEL_NAME = "gemini-2.5-flash"
 INPUT_PATH  = Path("/home/corb_d/sovereign-factory/datasets/medical/processed/medical_chatbot_en.jsonl")
 OUTPUT_PATH = Path("/home/corb_d/sovereign-factory/datasets/medical/processed/medical_patient_turns_ro.jsonl")
 TARGET_ROWS = 80
@@ -43,8 +43,7 @@ def translate(client: genai.Client, text: str) -> tuple[str, int, int]:
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
             temperature=0.3,
-            max_output_tokens=1024,
-            thinking_config=types.ThinkingConfig(thinking_budget=0),
+            max_output_tokens=2048,
         ),
     )
     translated = (response.text or "").strip().strip('"').strip("“").strip("”").strip("'")
