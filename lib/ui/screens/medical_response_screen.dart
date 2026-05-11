@@ -212,8 +212,11 @@ class _MedicalResponseScreenState
 
   @override
   void dispose() {
-    // Release microphone if the screen is destroyed while recording or processing.
-    unawaited(ref.read(audioRecordingServiceProvider).stopAndRelease());
+    // Capture the service reference before super.dispose() invalidates ref.
+    // The unawaited Future completes on the captured service object, not on ref
+    // or the widget tree, preventing the deactivated ancestor assertion.
+    final audioService = ref.read(audioRecordingServiceProvider);
+    audioService.stopAndRelease().catchError((_) {});
     _textController.removeListener(_onTextChanged);
     _textController.dispose();
     _scrollController.dispose();
@@ -353,6 +356,7 @@ class _MedicalResponseScreenState
   // ── Image full-screen preview ─────────────────────────────────────────────────
 
   void _showImagePreview(String imagePath) {
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
