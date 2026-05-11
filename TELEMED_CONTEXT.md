@@ -1,9 +1,9 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-05-08 (builds #77–#79)
+Last updated: 2026-05-12 (Latest Flutter build: #86 (2026-05-12))
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
-Competition: Kaggle Gemma 4 Good Hackathon — deadline May 18, 2026 (10 days remaining).
+Competition: Kaggle Gemma 4 Good Hackathon — deadline May 18, 2026 (6 days remaining).
 Repo: https://github.com/RaresBGH/TeleMed_K (currently PRIVATE — must make public before deadline)
 
 ## Owner
@@ -45,7 +45,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 | Artifact | Version | Role |
 |---|---|---|
 | com.google.android.fhir:engine | 1.2.0 | FHIR SDK, encrypted SQLite |
-| com.google.ai.edge.litertlm:litertlm-android | 0.10.2 | On-device Gemma 4 inference |
+| com.google.ai.edge.litertlm:litertlm-android | 0.11.0 | On-device Gemma 4 inference |
 | net.zetetic:sqlcipher-android | 4.6.1 | Encryption at rest |
 | kotlinx-coroutines-android | 1.10.1 | Native bridge coroutines |
 
@@ -87,7 +87,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Waiting room mute/video** — buttons correctly disable/enable actual MediaStream tracks
 - **Triage chat attachments** — voice bubble shows play/stop button with correct `attachmentPath`; photo bubble shows tappable thumbnail; both open full-screen on tap
 - **AI conversation context** — conversation history passed as `customPrompt` to every `evaluateText`/`evaluateAudio`/`evaluateMedia` call; AI no longer repeats Turn 1 greeting
-- **On-device AI inference** — BROKEN as of build #76+. ENGINE_INIT_ERROR confirmed on build #79. Model downloads and file exists. LiteRT-LM 0.10.2 fails at initialize(). Diagnostic dialog in place. Fix pending full error string capture.
+- **On-device AI inference** — WORKING — LiteRT-LM 0.11.0 resolves ENGINE_INIT_ERROR (libLiteRt.so bundled). Voice inference confirmed. Photo: fallback returned, no crash, thumbnail tappable. Vision encoder not yet producing responses within 60s on E4B.
 - **GitHub Actions secrets** — `MEDPLUM_CLIENT_ID` and `MEDPLUM_CLIENT_SECRET` confirmed set with correct values; build #60+ have working Medplum credentials
 - **Doctor UI rewrite** — English interface confirmed loading at telemed-doctor.duckdns.org; doctor dropdown with 9 practitioners; appointment join window -60min/+120min; peer-left overlay present
 - **Practitioner names** — all mock names confirmed in Medplum and Flutter constants; 9 real Medplum Practitioner UUIDs in practitioner_constants.dart
@@ -501,17 +501,114 @@ Refactoring completed during audit:
 - Doctor UI: 4 regressions identified from #76 rewrite. Fix batch pending.
 - C1 still occurring — additional unguarded async paths suspected in Communications load.
 
+### BUILDS #80–#86 — SESSION 2026-05-12
+- Build #80: LiteRT-LM 0.11.0 — ENGINE_INIT_ERROR resolved
+- Build #81: 6 mounted guards + photo error handling
+- Build #82: doctor context exclusion + photo IO dispatcher
+- Build #83: FHIR subject reference + valueString fix confirmed
+- Build #85: photo async deferred (no crash), ref.watch/read split
+- Build #86: C1 dispose fix + _showImagePreview — AWAITING DEVICE CONFIRMATION
+New confirmed working: voice inference, photo fallback, Medical Dossier saves, photo thumbnail.
+C1 still open pending build #86 device test.
+
 
 ---
 
 ## Hackathon
 
-- **Deadline:** May 18, 2026 — **10 days remaining**
+- **Deadline:** May 18, 2026 — **6 days remaining**
 - **Public repo required:** currently PRIVATE — must make public before deadline
 - **Demo video:** not yet recorded
-- **Gemma 4 on-device status:** BROKEN — ENGINE_INIT_ERROR on LiteRT-LM initialize(). Diagnostic in place. Fix is next session priority.
+- **Gemma 4 on-device status:** BROKEN — ENGINE_INIT_ERROR on LiteRT-LM initialize(). Diagnostic in place. Fix is next session priority. NOT addressed 2026-05-11 (data-prep session).
 - **Latest tested build:** #79 — installed 2026-05-08
+- **Latest commit:** dcc5b60 (tools/finetune only, no Flutter changes)
+- **Fine-tune status:** train.jsonl (109) + eval.jsonl (12) ready. Unsloth QLoRA = next session.
 - **Medplum status:** CONFIRMED WORKING
 - **WebRTC status:** TURN fix applied 2026-05-08 — stability past 15s awaiting two-device confirmation
 - **Known open issues:** see HANDOFF.md Outstanding Bugs section
+
+---
+
+## Fine-Tune Data Pipeline — Session 2026-05-11
+
+NO Flutter code modified this session. All work is in tools/finetune/ (Python) and /home/corb_d/sovereign-factory/datasets/.
+
+### Steps completed
+
+**Step 5 — Scaffold (commit e70371a)**
+- tools/finetune/ — uv-managed Python 3.12 project, google-genai + anthropic + datasets + huggingface-hub
+- config.py — DatasetSpec dataclass with 4 datasets pinned by SHA:
+  - OpenLLM-Ro/ro_sft_ultrachat @ 9aaa459 (CC-BY-NC-4.0, 500 rows)
+  - OpenLLM-Ro/ro_sft_magpie_mt @ beae7fe (CC-BY-NC-4.0, 200 rows)
+  - ruslanmv/ai-medical-chatbot @ 138c993 (Apache-2.0/MIT, 600 rows)
+  - openlifescienceai/medmcqa @ 91c6572 (Apache-2.0, 200 rows — eval only)
+- License snapshots: /home/corb_d/sovereign-factory/datasets/license_snapshots/
+
+**Step 6 — Romanian data (commit 060f4b5)**
+- pull_romanian.py → /home/corb_d/sovereign-factory/datasets/romanian/processed/
+  - ro_ultrachat_filtered.jsonl: 500 rows (length/turn filters; 1365 length drops)
+  - ro_magpie_mt_filtered.jsonl: 200 rows (+ code/math filter 458 drops; difficulty/quality tiered)
+- NOT used in first training run (synthetic-only by design)
+
+**Step 7 — Medical EN data (commit 060f4b5)**
+- pull_medical.py → medical_chatbot_en.jsonl: 600 rows
+- Filters: patient 80-1500 chars, doctor 40-1200 chars, PHI (35 drops, all name-context), prescription blocklist (178 drops), --> artifacts (1527 drops)
+
+**Step 8 — Romanian patient-turn seeds (commit 3fc891c)**
+- translate_patient_turns.py: single-pass English→Romanian, no rewriting
+- Hit Gemini 3 Flash free-tier daily quota (~100 RPD) at ~80 rows
+- Switched to gemini-2.5-flash (MODEL_NAME in file); completed 21 high-quality translations
+- Output: medical_patient_turns_ro.jsonl (21 rows) — variety seeds, NOT direct training data
+- Lesson: 1024 max_output_tokens too tight for long patient turns; 2048 correct
+
+**Step 9 — Synthetic dialogues (commit b1590af)**
+- generate_synthetic.py + seed_examples.py
+- 121 dialogues authored inline by Claude Code (no LLM API), reviewed in real-time by Dr. Rareș Bogheanu
+- Themes: hypertension(17), diabetes(17), arthritis(14), heart_failure(14), copd(14), general(12), dermatology(3), gastrointestinal(3), mental_health(3), urinary(3), medication_management(3), vision_hearing(2), emergency(16)
+- Hard rules enforced by validator: ≤30 words/sentence, no "Bună ziua" on AI turns, 1 question per non-close turn, 1 ready_to_finalize:true per dialogue, drug blocklist, dosage regex
+- Emergency dialogues (synth-106..121): 7 subcategories, 2-turn structure
+  - Template A (13): exact "Sunați 112 imediat."
+  - Template B (3, suicidal ideation): exact "Sunați 112 imediat. Sau sunați la 0800 801 200, Telefonul Antisuicid. Nu sunteți singur, există ajutor."
+  - Hotline confirmed: 0800 801 200 = TelVerde Antisuicid (Alianța Română de Prevenție a Suicidului)
+- Each assistant turn is STRINGIFIED JSON matching _fallbackResponse 6-field schema in ai_engine_service.dart
+
+**Step 10 — Train/eval merge (commit dcc5b60)**
+- merge_train_eval.py → /home/corb_d/sovereign-factory/datasets/training/
+  - train.jsonl: 109 dialogues, 688 turns (shuffled, metadata stripped, just {messages:[...]})
+  - eval.jsonl: 12 dialogues, 66 turns (sorted by synth-id, stratified across 9 themes)
+  - merge_manifest.json: full provenance, all synth-IDs, seed=42
+- Eval IDs: synth-032, 039, 052, 053, 068, 073, 083, 089, 097, 106, 116, 119
+- Zero overlap train/eval confirmed
+
+### Architecture discoveries that affect Flutter
+
+1. **Engine JSON schema** (discovered during Step 9 planning):
+   - ai_engine_service.dart line 40 defines _fallbackResponse with 6 fields
+   - Training data matches this schema — fine-tuned model must emit it too
+   - Verify post-training that model outputs valid JSON (not just plain Romanian text)
+
+2. **Emergency routing gap**:
+   - EmergencyFlagException thrown at lines 381/417/457 of ai_engine_service.dart
+   - Caught in medical_session_provider.dart (lines 95/110/125) → SessionState.emergency
+   - app_navigation_provider.dart line 44 → routes to EmergencyScreen
+   - UNVERIFIED: EmergencyScreen → tel:112 via url_launcher (device test needed)
+   - UNVERIFIED: fine-tuned model reliably emits emergency: true flag
+
+3. **Patient-speaks-first product decision**:
+   - Current system prompt: AI greets in Turn 1 ("Bună ziua. Sunt asistentul...")
+   - Decision: patient speaks first; AI responds with confirmation + clarifying question
+   - Training data authored with this pattern (no AI greeting in any dialogue)
+   - System prompt in ai_engine_service.dart must be updated before deploying adapter
+
+4. **Sentence length cap mismatch**:
+   - System prompt: "Maximum 15 cuvinte per propoziție"
+   - Training data: ≤30 words/sentence (validated by generate_synthetic.py)
+   - Must update system prompt to 30 before deploying, or model will be trained on one distribution and prompted for another
+
+### Next: Step 11 — Unsloth QLoRA fine-tune
+- Target: Gemma 4 E4B base model (same weights LiteRT-LM uses)
+- Hardware: GX10 (ARM64, NVIDIA GB10, 128GB unified memory)
+- **RISK: Unsloth aarch64 install is UNTESTED** — first thing to verify next session
+- Planned config: LoRA r=16 alpha=32, target all projection modules, lr=2e-4, 3 epochs, batch=1, grad_accum=4
+- Adapter output: /home/corb_d/sovereign-factory/models/telemed-k-gemma4-e4b-adapter/
 

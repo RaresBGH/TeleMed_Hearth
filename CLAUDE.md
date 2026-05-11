@@ -34,7 +34,7 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 
 ## Tech Stack
 - Flutter/Dart + Kotlin native Android
-- LiteRT-LM 0.10.2 (Gemma 4 E4B on-device inference)
+- LiteRT-LM 0.11.0 (Gemma 4 E4B on-device inference)
 - Google Android FHIR SDK 1.2.0 + SQLCipher (local encrypted storage)
 - OkHttp (model download with resume)
 - Riverpod (state management)
@@ -65,41 +65,52 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 
 ## Open Issues (carry to next session)
 
-### P0 — BLOCKERS
-- E4B ENGINE_INIT_ERROR: model downloads fine, LiteRT-LM 0.10.2 fails on initialize(). Diagnostic dialog added in build #79. Full error string needed from device — dialog was cut off in screenshot. Fix direction unknown until full string captured.
-- C1 regression: _dependents.isEmpty red screen still occurring on build #79 (text triage → send message). Mounted guards added to _togglePlayback in build #77 — but the async Communications load added in #76 may have additional unguarded paths. Needs re-investigation.
+### P0 — AWAITING DEVICE CONFIRMATION
+- C1 (_dependents.isEmpty + deactivated ancestor): root cause confirmed — unawaited stopAndRelease() in dispose() completes after super.dispose() on dead ref; _showImagePreview() missing mounted check. Both fixed in build #86. If confirmed fixed on device, C1 is CLOSED.
 
-### P1 — Flutter App
-- Activity panel (VideoConsultationScreen): cannot be dismissed by tap-outside or swipe-down once opened; missing title header
-- Mic not released after call ends: microphone stays active until app is fully closed; stopAndRelease() not called on VideoConsultationScreen dispose or call-end path
+### P1 — Flutter App (confirmed open as of build #85)
+- Raw file paths in dialogue replay: [Voice:/data/...] and [Photo:/data/...] shown as plain text instead of playable/tappable bubbles
+- "Dr. Doctor" label on doctor Communications bubbles — practitioner name not resolved from Medplum ID
+- Dashboard Recent Activity not updating after new consultation saved
+- T3: AI greeting resets to "Hello. What brings you to the doctor today?" on first voice turn regardless of history
+- Keyboard dismiss: UI freezes with loading indicator (no crash)
+- Activity panel (VideoConsultationScreen): cannot be dismissed by tap-outside or swipe-down; missing title header
+- Mic not released after video call ends
 
-### P1 — Doctor UI (all regressions from #76 rewrite)
-- Chat Send button mostly unresponsive — architectural issue: patient has no corresponding chat UI (patient only chats with AI in triage); flow decision needed before fix
-- Back-to-report from chat clears panel — only "Patient" text remains, panel content gone
-- In-call Report button does not collapse panel — only X button works
-- Dialogue review (Mark reviewed / Finalize) disappeared — removed unintentionally in #76 panel restructure
+### P1 — Doctor UI (regressions from #76)
+- Chat Send button mostly unresponsive
+- Back-to-report from chat clears panel
+- In-call Report button does not collapse panel
+- Dialogue review (Mark reviewed / Finalize) disappeared
+
+### P1 — Flutter App (fine-tune architecture — 2026-05-11)
+- System prompt: patient-first — AI must not greet in Turn 1
+- System prompt: sentence cap — change 15 words to 30 words
+- Verify emergency routing: EmergencyScreen → tel:112 end-to-end
 
 ### P1 — Infrastructure
-- WebRTC video freeze at ~15s: GCP firewall rule telemed-turn-relay added (UDP 49152–65535, TCP/UDP 5349). Awaiting two-device call confirmation that freeze is resolved.
+- WebRTC video freeze: TURN fix applied 2026-05-08, two-device call confirmation still pending
+- iPad Safari: chat stripe tap unresponsive, doctor list empty
 
-### Carry-forward from previous sessions
-- T3: AI context reset mid-conversation — "Hello. What brings you..." reappears between turns
+### Post-hackathon
 - T4: Triage back button background not white
-- D3: "Could not load photo" error on profile photo upload
-- Patient PDF send: plain text notification only — post-hackathon fix
-- Doctor Communications polling: not real-time — post-hackathon fix
+- D3: Could not load photo error on profile photo upload
+- Patient PDF send: plain text notification only
+- Doctor Communications polling: not real-time
 
 ## Current State
 See TELEMED_CONTEXT.md for full verified/awaiting-test/broken breakdown.
-Last updated: 2026-05-08
-Latest build: #79 (diagnostic dialog). Last pushed build: #79. Last device-tested build: #79.
-GitHub Actions secrets MEDPLUM_CLIENT_ID and MEDPLUM_CLIENT_SECRET are set correctly.
-Medplum sync confirmed working.
-Medplum Binary storage confirmed working: file:///var/medplum/storage.
-WebRTC video call: TURN relay ports now open (GCP firewall rule telemed-turn-relay added 2026-05-08) — call stability past 15s awaiting confirmation.
-On-device AI inference: ENGINE_INIT_ERROR confirmed on build #79 — E4B fails to initialize. Full error string not yet captured (dialog text cut off in screenshot). Fix pending next session.
-Doctor UI at https://telemed-doctor.duckdns.org: loading and auth working. Multiple UI regressions introduced in #76 — see Open Issues.
-Signaling server: telemed-signaling.service confirmed running under systemd, auto-restarts on reboot.
+Last updated: 2026-05-12
+Latest build: #86 (C1 dispose fix + deactivated ancestor fix).
+Last pushed build: #86. Last device-tested: #85 (C1 still crashing — #86 fix awaiting device confirmation).
+LiteRT-LM upgraded to 0.11.0 — E4B ENGINE_INIT_ERROR resolved. Green pill confirmed. Voice inference confirmed working.
+Photo inference: no crash, fallback message working, thumbnail tappable and full-screen viewable.
+FHIR write fixed: subject reference mismatch resolved, valueString fixed, new entries appear in Medical Dossier.
+Doctor messages excluded from AI context.
+C1 (_dependents.isEmpty): root cause confirmed as unawaited stopAndRelease() in dispose() accessing ref after super.dispose(). Fix in build #86 — awaiting device confirmation.
+WebRTC TURN fix confirmed (GCP firewall rule added 2026-05-08).
+Diagnostic dialog (lastInitError) still in codebase — remove after C1 confirmed fixed.
+Signaling server: telemed-signaling.service confirmed running.
 medplum_token alias added to ~/.bashrc for Terminal 2 token refresh.
 
 ## ADB Commands
@@ -122,27 +133,75 @@ The doctor UI is a static HTML file served by Caddy.
 - NEVER edit files directly in `/home/corb_d/sovereign-factory/doctor-ui/` — that folder is deploy-only.
 - NEVER create or edit any doctor UI files outside the repository.
 
-## Session Notes — 2026-05-08 (Builds #77–#79)
+## Session Notes — 2026-05-11 (Fine-Tune Data Pipeline, Steps 5–10)
 
-Build #77: C1 mounted guards — 3 guards added to _togglePlayback async paths in medical_response_screen.dart. KeyedSubtree confirmed present (main.dart line 141). C1 still occurring — Communications async load path may have additional unguarded sites.
+NO Flutter code modified this session. All work was in tools/finetune/ (Python) and datasets on the GX10.
 
-Build #78: E4B diagnostic — lastInitError static field + overflow pill display (cosmetic overflow noted, amber pill text truncated).
+**Commits this session (chronological):**
+- e70371a — Step 5: scaffold tools/finetune/ (pyproject.toml, config.py, .env.example, .gitignore, README.md)
+- 060f4b5 — Steps 6–7: pull_romanian.py (500+200 rows) + pull_medical.py (600 rows)
+- 3fc891c — Step 8: translate_patient_turns.py; 21 Romanian patient-turn translations (Gemini 2.5-flash, free tier)
+- b1590af — Step 9: generate_synthetic.py + seed_examples.py; 121 synthetic dialogues (synth-001..121) across 13 themes
+- dcc5b60 — Step 10: merge_train_eval.py; train.jsonl (109) + eval.jsonl (12) + merge_manifest.json
 
-Build #79: E4B full error dialog — SelectableText dialog in dashboard initState postFrameCallback. ENGINE_INIT_ERROR confirmed on device. Full error text cut off in screenshot — next session must capture it first.
+**Fine-tune pipeline state (Step 11 = Unsloth training, NEXT):**
+- tools/finetune/ at repo root, uv-managed Python 3.12 project
+- Training data: /home/corb_d/sovereign-factory/datasets/training/train.jsonl (109 dialogues, 688 turns)
+- Eval data: /home/corb_d/sovereign-factory/datasets/training/eval.jsonl (12 dialogues, 66 turns)
+- Model target: Gemma 4 E4B (same model as LiteRT-LM uses) via Unsloth QLoRA on GX10
+- Adapter output target: /home/corb_d/sovereign-factory/models/telemed-k-gemma4-e4b-adapter/
+- RISK: Unsloth aarch64 install is UNTESTED — first major blocker for Step 11
 
-**GCP TURN fix applied this session:**
-- coturn confirmed running (active since 2026-05-05)
-- GCP VPC firewall rule telemed-turn-relay created: UDP 49152–65535, TCP/UDP 5349, INGRESS, all instances
-- Port 3478 TCP/UDP was already open and reachable
-- Video call freeze at ~15s expected to be resolved — awaiting two-device confirmation
+**Step 8 lessons (Gemini quota):**
+- Free-tier daily limit: ~100 RPD (requests per day) on Gemini 3 Flash; hit wall at ~80 rows
+- Switched to gemini-2.5-flash (~20 RPD limit); completed 21 translations
+- 1024 max_output_tokens was too tight for long patient turns; 2048 worked
+- 21 translations are variety seeds, NOT direct training data
 
-**Doctor UI "cache issue" was a hallucination — removed from pending list.**
+**Architecture discoveries (affect Flutter before deployment):**
+1. JSON schema: engine expects 6-field JSON per turn {response, emergency, confidence, priority, ready_to_finalize, category}
+2. Emergency routing: wired but unverified end-to-end (tel:112 launch from EmergencyScreen TBD)
+3. Patient-first conversation: AI must NOT greet in Turn 1 — system prompt needs updating
+4. Sentence cap: system prompt says 15 words; training data uses 30-word cap — must align
 
-**Next session must start with:**
-1. Capture full ENGINE_INIT_ERROR string from build #79 dialog
-2. Confirm video call holds past 60s (TURN fix verification)
-3. Fix E4B init based on error string
-4. Fix C1 regression (Communications async path)
+**Dr. Bogheanu reviewed all 121 dialogues in real-time (physically present). No deferred review.**
+
+**Next session must:**
+1. Verify Unsloth installs on aarch64 (Step 11 first risk)
+2. Run QLoRA fine-tune on train.jsonl
+3. Evaluate on eval.jsonl (12 dialogues, manual read)
+4. Update system prompt in ai_engine_service.dart (patient-first + 30-word cap)
+5. Verify emergency routing: EmergencyScreen → tel:112 → confirm url_launcher fires
+6. Resume Flutter P0 issues (E4B ENGINE_INIT_ERROR, C1 regression) — NOT touched this session
+
+## Session Notes — 2026-05-12 (Builds #80–#86)
+
+Build #80: LiteRT-LM 0.10.2 → 0.11.0. ENGINE_INIT_ERROR resolved (libLiteRt.so now bundled in 0.11.0). Green pill confirmed on device.
+
+Build #81: 6 mounted guards across async paths in medical_response_screen.dart. Photo inner try/catch added. C1 still occurring.
+
+Build #82: clear() moved outside setState() in _onSendTap(). Doctor messages excluded from AI context (_buildConversationHistory skips role==doctor). Photo IO dispatcher isolation + file validation. C1 still occurring.
+
+Build #83: FHIR subject reference fixed (CNP identifier → Patient/{medplumId} direct reference). valueString fixed (lastAiText parameter). FHIR write confirmed — entries appear in Medical Dossier. Attempted C1 fix via ref.watch removal introduced new bug (ref.watch in async methods).
+
+Build #85: ref.watch/ref.read split corrected (local lang variable in build-path only; ref.read getter in async). Photo crash fixed — async deferred pattern, 60s timeout, native call never cancelled. Photo no longer crashes — returns Romanian fallback message.
+
+Build #86: C1 root cause confirmed — unawaited stopAndRelease() in dispose() completes after super.dispose() on dead ref. Fix: capture audioService before dispose(). Also: _showImagePreview() missing mounted check (deactivated ancestor). AWAITING DEVICE CONFIRMATION.
+
+Confirmed working as of build #85:
+- E4B voice inference: working, AI responds correctly
+- E4B photo inference: no crash, fallback, thumbnail tappable
+- FHIR write: entries in Medical Dossier with correct content
+- Photo full-screen: tappable and viewable
+
+## Session Notes — 2026-05-11 (Fine-Tune Steps 5–10)
+
+NO Flutter code modified. All work in tools/finetune/.
+Commits: e70371a, 060f4b5, 3fc891c, b1590af, dcc5b60
+Training data: train.jsonl (109 dialogues) + eval.jsonl (12)
+Dr. Bogheanu reviewed all 121 synthetic dialogues in real-time.
+Architecture discoveries affect Flutter — see P1 Open Issues above.
+Next: Step 11 Unsloth QLoRA fine-tune on GX10.
 
 ## Post-Hackathon Roadmap
 - Gemma real-time call summarization (WebRTC audio → STT → Gemma → FHIR Observation)

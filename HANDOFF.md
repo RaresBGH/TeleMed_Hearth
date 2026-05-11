@@ -1,8 +1,8 @@
 # TeleMed_K — Handoff Summary
-**Date:** 2026-05-08  
-**Deadline:** May 18, 2026 — **10 days remaining**  
+**Date:** 2026-05-11 (updated from May 8)  
+**Deadline:** May 18, 2026 — **7 days remaining**  
 **Repo:** https://github.com/RaresBGH/TeleMed_K (PRIVATE — must go public before deadline)  
-**Latest commit:** build #79 — diagnostic dialog. Last pushed: build #79. Last device-tested: build #79 (partial — ENGINE_INIT_ERROR captured, video call fix pending confirmation).
+**Latest commit:** dcc5b60 (fine-tune Step 10). Last Flutter commit: build #86 (998c80b). Last device-tested: build #85 — C1 still crashing. Build #86 fix awaiting device confirmation.
 
 ---
 
@@ -11,7 +11,7 @@
 Flutter telemedicine app for rural Romania. Dr. Rareș Bogheanu's clinic in Brănești, Dâmbovița.  
 Target users: elderly patients (70s–80s) with low tech literacy; NGO provides devices.  
 Competition: Kaggle Gemma 4 Good Hackathon.  
-Primary AI: Gemma 4 E4B (3.5GB model, LiteRT-LM 0.10.2) — runs fully on-device.  
+Primary AI: Gemma 4 E4B (3.5GB model, LiteRT-LM 0.11.0) — runs fully on-device.  
 FHIR backend: Google Android FHIR SDK (local encrypted SQLite) + Medplum 5.1.10 (self-hosted, dual-write).
 
 ---
@@ -72,7 +72,7 @@ FHIR backend: Google Android FHIR SDK (local encrypted SQLite) + Medplum 5.1.10 
 - Waiting room mute/video buttons apply to actual media tracks
 - Triage chat: voice bubble shows play button; photo bubble shows tappable thumbnail
 - AI conversation context maintained across turns (history passed as customPrompt)
-- On-device AI inference: BROKEN — ENGINE_INIT_ERROR on initialize(). Model downloads correctly. LiteRT-LM 0.10.2 fails at engine init. Diagnostic build #79 captures error. Fix pending.
+- On-device AI inference: WORKING — LiteRT-LM 0.11.0, ENGINE_INIT_ERROR resolved. Green pill confirmed. Voice inference confirmed working. Photo: fallback message returned, no crash, thumbnail tappable. Vision encoder not yet producing responses within 60s timeout.
 - GitHub Actions secrets MEDPLUM_CLIENT_ID and MEDPLUM_CLIENT_SECRET confirmed set and working
 - Doctor UI sliding panel deployed at https://telemed-doctor.duckdns.org: 2-state panel outside call (Patient Report / Chat); in-call shows Patient Report only; patient triage report with chronic conditions, unreviewed dialogues, Mark reviewed → PATCH reviewed-by extension, Finalize → PATCH status:final; In-Call panel: Activity tab only (last 5 Observations) — Chat removed in build #76; responsive 320px desktop / 280px tablet overlay / full-width mobile; join window -60min to +120min
 - All practitioner names replaced with approved mock names throughout app and Medplum
@@ -103,24 +103,83 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 
 ---
 
-## Outstanding Bugs — Priority Order
+## Outstanding Bugs
 
-### OPEN BUGS — carry forward:
-- T3: AI resets to "Hello. What brings you to the doctor today?" mid-conversation
-- T4: Triage back button not white background
-- D3: "Could not load photo" error on profile photo upload
-- Patient PDF send: plain text notification only — post-hackathon fix
-- P1-5/6/7: Mic release, end-call keyboard, mute chip — pending two-device test
-- Doctor Communications polling: not real-time — patient must reopen to see new messages (post-hackathon)
+### P0 — AWAITING DEVICE CONFIRMATION
+- C1 _dependents.isEmpty + deactivated ancestor: root cause confirmed, fix in build #86. Device test pending.
 
-### BUILD STATUS — SESSION CLOSED 2026-05-08
-- Build #77: commit pushed — C1 mounted guards (3 guards in _togglePlayback)
-- Build #78: commit pushed — E4B lastInitError diagnostic pill (cosmetic overflow)
-- Build #79: commit pushed — E4B full error dialog (SelectableText, postFrameCallback)
-- Build #79 installed on device: ENGINE_INIT_ERROR confirmed. Full error string not yet captured.
-- Next session: capture full error string → fix E4B init → confirm TURN video stability → fix C1 Communications path → fix Activity panel dismiss → fix mic release → fix Doctor UI regressions
+### P1 — CONFIRMED OPEN (as of build #85)
+- Raw file paths in dialogue replay
+- Dr. Doctor label on Communications bubbles
+- Dashboard Recent Activity not updating after new save
+- T3: AI greeting resets mid-conversation
+- Keyboard dismiss: UI freezes with loading indicator
+- Activity panel: can't dismiss, missing title
+- Mic not released after video call ends
+- Doctor UI: 4 regressions from #76 (dialogue review, chat Send, back-to-report, in-call panel collapse)
+- iPad Safari: chat stripe tap unresponsive, doctor list empty
+- System prompt: patient-first flip needed
+- System prompt: sentence cap 15 → 30 words
+- Emergency routing: unverified end-to-end
+
+### BUILD STATUS — FLUTTER
+- Build #80: LiteRT-LM 0.11.0 upgrade
+- Build #81: 6 mounted guards + photo error handling
+- Build #82: clear() outside setState, doctor context exclusion, photo IO dispatcher
+- Build #83: FHIR subject/valueString fix — Medical Dossier working
+- Build #85: ref.watch/ref.read split, photo async deferred
+- Build #86: C1 dispose fix + _showImagePreview mounted check — AWAITING DEVICE CONFIRMATION
+
+### BUILD STATUS — FINE-TUNE (tools/finetune/ only)
+- e70371a: scaffold uv project
+- 060f4b5: pull_romanian.py + pull_medical.py
+- 3fc891c: translate_patient_turns.py
+- b1590af: generate_synthetic.py (121 dialogues)
+- dcc5b60: merge_train_eval.py (train.jsonl 109 + eval.jsonl 12)
 
 ---
+
+## Fine-Tune Pipeline State (2026-05-11)
+
+### Completed steps
+
+| Step | Script | Output | Status |
+|---|---|---|---|
+| 5 — Scaffold | tools/finetune/ (uv project) | config.py, pyproject.toml, .env.example | ✅ done |
+| 6 — Romanian data | pull_romanian.py | ro_ultrachat_filtered.jsonl (500) + ro_magpie_mt_filtered.jsonl (200) | ✅ done (NOT in first run) |
+| 7 — Medical EN | pull_medical.py | medical_chatbot_en.jsonl (600) | ✅ done (NOT in first run) |
+| 8 — Seed translations | translate_patient_turns.py | medical_patient_turns_ro.jsonl (21 rows) | ✅ done (seeds only) |
+| 9 — Synthetic dialogues | generate_synthetic.py | 121 dialogues across 5 files | ✅ done |
+| 10 — Merge/split | merge_train_eval.py | train.jsonl (109) + eval.jsonl (12) | ✅ done |
+| **11 — Unsloth QLoRA** | **TBD** | **adapter weights** | **⏳ NEXT SESSION** |
+
+### Dataset files (all on GX10)
+
+```
+/home/corb_d/sovereign-factory/datasets/
+  synthetic/
+    synthetic_triage_ro_dry_run.jsonl          5 rows  (synth-001..005)
+    synthetic_triage_ro_batch_25a.jsonl        25 rows (synth-006..030)
+    synthetic_triage_ro_batch_25b.jsonl        25 rows (synth-031..055)
+    synthetic_triage_ro_batch_50c.jsonl        50 rows (synth-056..105)
+    synthetic_triage_ro_emergency_batch.jsonl  16 rows (synth-106..121)
+  training/
+    train.jsonl          109 dialogues, 688 turns
+    eval.jsonl           12 dialogues, 66 turns
+    merge_manifest.json  full provenance, seed=42
+```
+
+### Key design decisions (first training run)
+- **Synthetic-only** — no OpenLLM-Ro in first run; base Gemma 4 E4B already fluent in Romanian
+- **Assistant turns are stringified JSON** — 6-field schema matching _fallbackResponse in ai_engine_service.dart
+- **Emergency dialogues are 2-turn** — patient red-flag → exact template ("Sunați 112 imediat.")
+- **Eval is stratified** — 9 themes covered, 3 emergency patterns, 2 vague-patient dialogues
+- **seed=42** throughout; merge_manifest.json records all synth-IDs in each split
+
+### Risks for Step 11
+- Unsloth aarch64 install: **UNKNOWN** — never tested on GX10 ARM64
+- Training time: unknown (first QLoRA run on GB10)
+- Memory: 121 dialogues × avg 7 turns × ~200 tokens = ~170k tokens total; should fit in 128GB
 
 ## Infrastructure State
 
@@ -239,12 +298,16 @@ PATCH format confirmed: application/json-patch+json (not merge-patch — Medplum
 
 ## Immediate Next Actions (in priority order)
 
-1. **FIRST**: Launch build #79 on device, read the full SelectableText error dialog, copy every word
-2. Fix E4B ENGINE_INIT_ERROR based on full error string (direction unknown until step 1)
-3. Confirm video call holds past 60s with two-device test (TURN fix from this session)
-4. Fix C1 red screen — re-audit Communications async load path in medical_response_screen.dart for missing mounted guards
-5. Fix Activity panel: tap-outside dismiss + swipe-down + title header
-6. Fix mic not released after call ends
-7. Fix Doctor UI regressions: dialogue review, chat Send, back-to-report, in-call panel collapse
-8. Make repo public before May 18 deadline
-9. Record demo video (Maria story)
+1. Install build #88 APK — test text Send (C1 confirmation)
+2. If C1 confirmed fixed: remove diagnostic lastInitError dialog from dashboard_screen.dart
+3. Fix raw file paths in dialogue replay
+4. Fix Dr. Doctor label — resolve practitioner name from Communications sender reference
+5. Fix dashboard Recent Activity not updating
+6. Fix Activity panel dismiss + title (VideoConsultationScreen)
+7. Fix mic release after video call ends
+8. Fix Doctor UI 4 regressions
+9. Fix iPad Safari chat stripe + doctor list
+10. Update system prompt: patient-first + 30-word cap
+11. Verify emergency routing end-to-end
+12. Make repo public before May 18
+13. Record demo video (Maria story)
