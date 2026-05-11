@@ -271,16 +271,19 @@ class _MedicalResponseScreenState
     try {
       final Map<String, dynamic> aiResult;
       if (attachType == AttachmentType.image) {
-        aiResult = await ref.read(aiEngineServiceProvider).evaluateMedia(File(path));
+        aiResult = await ref.read(aiEngineServiceProvider).evaluateMedia(File(path),
+            customPrompt: _buildConversationHistory());
       } else {
         // PDF: attempt OCR, fall back to filename-only message
         final ocrText = await OcrService.extractText(path);
         if (ocrText.isNotEmpty) {
-          aiResult = await ref.read(aiEngineServiceProvider).evaluateText(ocrText);
+          aiResult = await ref.read(aiEngineServiceProvider).evaluateText(ocrText,
+              customPrompt: _buildConversationHistory());
         } else {
           final fallback = AppStrings.of(lang, 'attachment.fallback_msg')
               .replaceAll('{filename}', fileName);
-          aiResult = await ref.read(aiEngineServiceProvider).evaluateText(fallback);
+          aiResult = await ref.read(aiEngineServiceProvider).evaluateText(fallback,
+              customPrompt: _buildConversationHistory());
         }
       }
       if (!mounted || _cancelRequested) {
@@ -418,6 +421,7 @@ class _MedicalResponseScreenState
     final buffer = StringBuffer('\nCONVERSATION SO FAR:\n');
     for (final msg in _messages) {
       if (msg.attachmentType != null) continue; // skip media placeholders
+      if (msg.role == 'doctor') continue;
       final text = msg.text.trim();
       if (text.isEmpty) continue;
       final speaker = msg.role == 'ai' ? 'Assistant' : 'Patient';
@@ -603,10 +607,10 @@ class _MedicalResponseScreenState
     final text = _textController.text.trim();
     if (text.isEmpty || _isProcessing) return;
 
+    _textController.clear();
     setState(() {
       _messages.add(ChatMessage(
           role: 'patient', text: text, timestamp: DateTime.now()));
-      _textController.clear();
       _isProcessing = true;
     });
     _scrollToBottom();

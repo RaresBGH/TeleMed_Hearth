@@ -402,15 +402,33 @@ Răspunsul tău JSON trebuie să conțină mereu:
                     return@launch
                 }
 
+                // Pre-compute video flag here so it can be used both for validation
+                // and inside the response expression below without re-evaluation.
+                val isVideo = filePath.endsWith(".mp4", ignoreCase = true) ||
+                              filePath.endsWith(".webm", ignoreCase = true) ||
+                              filePath.endsWith(".mov", ignoreCase = true)
+
+                // Validate image file before passing its path to the native LiteRT-LM
+                // layer. The native layer SIGSEGVs on corrupt, empty, or non-JPEG inputs.
+                if (!isVideo) {
+                    val ext = filePath.substringAfterLast('.', "").lowercase()
+                    if (mediaFile.length() <= 0L || !mediaFile.canRead() ||
+                        (ext != "jpg" && ext != "jpeg")) {
+                        Log.e(TAG, "IMAGE_INVALID — file=$filePath ext=$ext " +
+                            "size=${mediaFile.length()} canRead=${mediaFile.canRead()}")
+                        withContext(Dispatchers.Main) {
+                            result.error("IMAGE_INVALID",
+                                "Image file invalid or unreadable: $filePath", null)
+                        }
+                        return@launch
+                    }
+                }
+
                 var imageInferenceError: Exception? = null
                 val response = if (isEngineReady && engine != null) {
                     Log.d(TAG, "New conversation created — evaluateMedia session isolated")
                     // Use the Dart-provided system prompt directly (same reason as evaluateAudio).
                     val effectivePrompt = systemPrompt
-
-                    val isVideo = filePath.endsWith(".mp4", ignoreCase = true) ||
-                                  filePath.endsWith(".webm", ignoreCase = true) ||
-                                  filePath.endsWith(".mov", ignoreCase = true)
 
                     if (isVideo) {
                         // ⚠ UNCERTAINTY: The LiteRT-LM docs (2026-04-24) document only
@@ -424,15 +442,19 @@ Răspunsul tău JSON trebuie să conțină mereu:
                     } else {
                         // Image: 30-second timeout — Gemma 4 image encoding can stall
                         // indefinitely on some Android CPU configurations.
+                        // sendMessageAsync runs inside withContext(Dispatchers.IO) to isolate
+                        // the native call in its own dispatcher context away from the outer scope.
                         try {
                             withTimeout(30_000L) {
-                                runEngineInference(
-                                    systemPrompt = effectivePrompt,
-                                    contents = listOf(
-                                        Content.ImageFile(filePath),
-                                        Content.Text(effectivePrompt)
+                                withContext(Dispatchers.IO) {
+                                    runEngineInference(
+                                        systemPrompt = effectivePrompt,
+                                        contents = listOf(
+                                            Content.ImageFile(filePath),
+                                            Content.Text(effectivePrompt)
+                                        )
                                     )
-                                )
+                                }
                             }
                         } catch (e: TimeoutCancellationException) {
                             Log.w(TAG, "Photo analysis timed out after 30 s")
