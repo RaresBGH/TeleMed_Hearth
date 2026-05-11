@@ -90,11 +90,11 @@ class _MedicalResponseScreenState
   StreamSubscription<PlayerState>? _playerSubscription;
   String? _playingMessagePath; // attachmentPath of the currently playing message
 
-  // ref.watch() here is safe: _lang is only called from synchronous build-path
-  // methods, never from async callbacks. This replaces the former standalone
-  // ref.watch(languageProvider) in build() which caused _dependents.isEmpty
-  // assertion failures during navigation/lifecycle transitions.
-  String get _lang => ref.watch(languageProvider);
+  // ref.read() is safe in all contexts including async callbacks.
+  // Language reactivity in the build path is handled by
+  // ref.watch(languageProvider) at the top of build(), whose result is
+  // passed as a `lang` parameter to every synchronous build-path method.
+  String get _lang => ref.read(languageProvider);
   // Set to true when finalize is requested while _isProcessing is true.
   // Checked by inference handlers to abort appending a response mid-finalize.
   bool _cancelRequested  = false;
@@ -722,6 +722,7 @@ class _MedicalResponseScreenState
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(languageProvider);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -730,7 +731,7 @@ class _MedicalResponseScreenState
       child: Scaffold(
         backgroundColor: Colors.white,
         resizeToAvoidBottomInset: true,
-        appBar: _buildAppBar(),
+        appBar: _buildAppBar(lang),
         body: Column(
           children: [
             Expanded(
@@ -740,23 +741,23 @@ class _MedicalResponseScreenState
                 children: [
                   // Show welcome card until the first AI response arrives.
                   if (!_hasFirstAiResponse && !_isProcessing)
-                    _buildWelcomeCard()
+                    _buildWelcomeCard(lang)
                   else if (_hasFirstAiResponse)
-                    _buildTriageCard(),
+                    _buildTriageCard(lang),
                   const SizedBox(height: 24),
-                  if (_hasFirstAiResponse) _buildSectionDivider(),
+                  if (_hasFirstAiResponse) _buildSectionDivider(lang),
                   const SizedBox(height: 16),
-                  ..._messages.map(_buildBubble),
+                  ..._messages.map((m) => _buildBubble(m, lang)),
                   // Streaming typewriter bubble (shows while words are emitting).
                   if (_isProcessing && _streamingText.isNotEmpty)
                     _buildStreamingBubble(_streamingText),
                   if (_isProcessing && _streamingText.isEmpty)
-                    _buildTypingIndicator(),
+                    _buildTypingIndicator(lang),
                   const SizedBox(height: 8),
                 ],
               ),
             ),
-            _buildInputBar(),
+            _buildInputBar(lang),
           ],
         ),
       ),
@@ -765,14 +766,14 @@ class _MedicalResponseScreenState
 
   // ── AppBar ────────────────────────────────────────────────────────────────────
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(String lang) {
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 1,
       shadowColor: Colors.black12,
       leading: Semantics(
         button: true,
-        label: AppStrings.of(_lang, 'profil.back_sem'),
+        label: AppStrings.of(lang, 'profil.back_sem'),
         child: InkWell(
           onTap: _onBack,
           child: const SizedBox(
@@ -787,7 +788,7 @@ class _MedicalResponseScreenState
         final doctorName = ref.read(medicalSessionProvider).lastDoctorName;
         final title = (doctorName != null && doctorName.isNotEmpty)
             ? doctorName
-            : AppStrings.of(_lang, 'chat.appbar_title');
+            : AppStrings.of(lang, 'chat.appbar_title');
         return Text(
           title,
           style: const TextStyle(
@@ -802,7 +803,7 @@ class _MedicalResponseScreenState
 
   // ── Welcome card (shown before first AI response) ─────────────────────────────
 
-  Widget _buildWelcomeCard() {
+  Widget _buildWelcomeCard(String lang) {
     final doctorName = ref.read(medicalSessionProvider).lastDoctorName;
     final isDoctorContext = doctorName != null && doctorName.isNotEmpty;
     return Container(
@@ -823,7 +824,7 @@ class _MedicalResponseScreenState
             color: _brandBlue, size: 48),
           const SizedBox(height: 16),
           Text(
-            isDoctorContext ? doctorName : AppStrings.of(_lang, 'assistant.title'),
+            isDoctorContext ? doctorName : AppStrings.of(lang, 'assistant.title'),
             style: const TextStyle(
               fontSize: 20, fontWeight: FontWeight.bold, color: _onSurface),
             textAlign: TextAlign.center,
@@ -831,8 +832,8 @@ class _MedicalResponseScreenState
           const SizedBox(height: 8),
           Text(
             isDoctorContext
-                ? AppStrings.of(_lang, 'chat.doctor_message_subtitle')
-                : AppStrings.of(_lang, 'assistant.subtitle'),
+                ? AppStrings.of(lang, 'chat.doctor_message_subtitle')
+                : AppStrings.of(lang, 'assistant.subtitle'),
             style: const TextStyle(fontSize: 16, color: _muted, height: 1.5),
             textAlign: TextAlign.center,
           ),
@@ -876,7 +877,7 @@ class _MedicalResponseScreenState
 
   // ── Triage card ───────────────────────────────────────────────────────────────
 
-  Widget _buildTriageCard() {
+  Widget _buildTriageCard(String lang) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -913,7 +914,7 @@ class _MedicalResponseScreenState
               ),
               const SizedBox(width: 10),
               Text(
-                AppStrings.of(_lang, 'chat.section_label'),
+                AppStrings.of(lang, 'chat.section_label'),
                 style: const TextStyle(
                   color: _muted,
                   fontSize: 14,
@@ -928,7 +929,7 @@ class _MedicalResponseScreenState
           Text(
             widget.initialResponse.isNotEmpty
                 ? widget.initialResponse
-                : AppStrings.of(_lang, 'chat.default_response'),
+                : AppStrings.of(lang, 'chat.default_response'),
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -938,13 +939,13 @@ class _MedicalResponseScreenState
           ),
           const SizedBox(height: 16),
           // Priority chip
-          _buildPriorityChip(),
+          _buildPriorityChip(lang),
         ],
       ),
     );
   }
 
-  Widget _buildPriorityChip() {
+  Widget _buildPriorityChip(String lang) {
     if (widget.isEmergency) {
       return GestureDetector(
         onTap: _onEmergencyTap,
@@ -961,7 +962,7 @@ class _MedicalResponseScreenState
               const Icon(Icons.emergency, color: Color(0xFFBA1A1A), size: 16),
               const SizedBox(width: 6),
               Text(
-                AppStrings.of(_lang, 'chat.emergency_chip'),
+                AppStrings.of(lang, 'chat.emergency_chip'),
                 style: TextStyle(
                   color: Color(0xFFBA1A1A),
                   fontSize: 14,
@@ -987,7 +988,7 @@ class _MedicalResponseScreenState
           const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 16),
           const SizedBox(width: 6),
           Text(
-            AppStrings.of(_lang, 'chat.priority_normal'),
+            AppStrings.of(lang, 'chat.priority_normal'),
             style: const TextStyle(
               color: Color(0xFF2E7D32),
               fontSize: 14,
@@ -1001,14 +1002,14 @@ class _MedicalResponseScreenState
 
   // ── Section divider ───────────────────────────────────────────────────────────
 
-  Widget _buildSectionDivider() {
+  Widget _buildSectionDivider(String lang) {
     return Row(
       children: [
         const Expanded(child: Divider(color: Color(0xFFE0E2E7))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
-            AppStrings.of(_lang, 'chat.divider_label'),
+            AppStrings.of(lang, 'chat.divider_label'),
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
@@ -1024,7 +1025,7 @@ class _MedicalResponseScreenState
 
   // ── Chat bubbles ──────────────────────────────────────────────────────────────
 
-  Widget _buildBubble(ChatMessage msg) {
+  Widget _buildBubble(ChatMessage msg, String lang) {
     // Doctor bubble — distinct left-aligned warm grey card with doctor label.
     if (msg.role == 'doctor') {
       final doctorName = ref.read(medicalSessionProvider).lastDoctorName ?? 'Doctor';
@@ -1078,7 +1079,7 @@ class _MedicalResponseScreenState
     }
 
     final bool isAi = msg.role == 'ai';
-    final Widget content = _buildBubbleContent(msg, isAi);
+    final Widget content = _buildBubbleContent(msg, isAi, lang);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Align(
@@ -1115,7 +1116,7 @@ class _MedicalResponseScreenState
     );
   }
 
-  Widget _buildBubbleContent(ChatMessage msg, bool isAi) {
+  Widget _buildBubbleContent(ChatMessage msg, bool isAi, String lang) {
     final textStyle = TextStyle(
       fontSize: 16,
       fontWeight: FontWeight.w500,
@@ -1141,7 +1142,7 @@ class _MedicalResponseScreenState
               onPressed: () => _togglePlayback(msg),
             ),
             const SizedBox(width: 8),
-            Text(AppStrings.of(_lang, 'voice.message_label'), style: textStyle),
+            Text(AppStrings.of(lang, 'voice.message_label'), style: textStyle),
           ],
         );
 
@@ -1181,7 +1182,7 @@ class _MedicalResponseScreenState
 
   // ── Typing indicator ──────────────────────────────────────────────────────────
 
-  Widget _buildTypingIndicator() {
+  Widget _buildTypingIndicator(String lang) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Align(
@@ -1204,7 +1205,7 @@ class _MedicalResponseScreenState
                     const Icon(Icons.photo_camera, size: 16, color: _brandBlue),
                     const SizedBox(width: 8),
                     Text(
-                      AppStrings.of(_lang, 'chat.analyzing_photo'),
+                      AppStrings.of(lang, 'chat.analyzing_photo'),
                       style: const TextStyle(
                         fontSize: 15,
                         color: _muted,
@@ -1221,7 +1222,7 @@ class _MedicalResponseScreenState
 
   // ── Input bar ─────────────────────────────────────────────────────────────────
 
-  Widget _buildInputBar() {
+  Widget _buildInputBar(String lang) {
     final double bottomInset = MediaQuery.of(context).padding.bottom;
     final bool canSend =
         _textController.text.trim().isNotEmpty && !_isProcessing;
@@ -1266,7 +1267,7 @@ class _MedicalResponseScreenState
                             color: Colors.white, strokeWidth: 2.5),
                       )
                     : Text(
-                        AppStrings.of(_lang, 'chat.finalize_btn'),
+                        AppStrings.of(lang, 'chat.finalize_btn'),
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -1320,7 +1321,7 @@ class _MedicalResponseScreenState
                 style: const TextStyle(fontSize: 16, color: _onSurface),
                 decoration: InputDecoration(
                   border: InputBorder.none,
-                  hintText: AppStrings.of(_lang, 'chat.hint'),
+                  hintText: AppStrings.of(lang, 'chat.hint'),
                   hintStyle: TextStyle(color: _muted, fontSize: 16),
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(vertical: 8),

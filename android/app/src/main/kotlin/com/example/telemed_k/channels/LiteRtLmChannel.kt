@@ -17,6 +17,7 @@ import com.google.ai.edge.litertlm.EngineConfig
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
@@ -440,27 +441,30 @@ Răspunsul tău JSON trebuie să conțină mereu:
                         Log.w(TAG, "Video input — Content.VideoFile not in LiteRT-LM API; using fallback")
                         buildFallbackResponse("video input not supported by LiteRT-LM API")
                     } else {
-                        // Image: 30-second timeout — Gemma 4 image encoding can stall
-                        // indefinitely on some Android CPU configurations.
-                        // sendMessageAsync runs inside withContext(Dispatchers.IO) to isolate
-                        // the native call in its own dispatcher context away from the outer scope.
+                        // Image: 60-second timeout using scope.async so the native JNI call
+                        // runs as an independent Job under scope — NOT as a child of the
+                        // timeout scope. withTimeout(60_000L) only cancels the await(); it
+                        // never cancels the native sendMessageAsync() call itself. The
+                        // abandoned native call completes silently on the IO thread pool.
+                        val inferenceDeferred = scope.async(Dispatchers.IO) {
+                            runEngineInference(
+                                systemPrompt = effectivePrompt,
+                                contents = listOf(
+                                    Content.ImageFile(filePath),
+                                    Content.Text(effectivePrompt)
+                                )
+                            )
+                        }
                         try {
-                            withTimeout(30_000L) {
-                                withContext(Dispatchers.IO) {
-                                    runEngineInference(
-                                        systemPrompt = effectivePrompt,
-                                        contents = listOf(
-                                            Content.ImageFile(filePath),
-                                            Content.Text(effectivePrompt)
-                                        )
-                                    )
-                                }
+                            withTimeout(60_000L) {
+                                inferenceDeferred.await()
                             }
                         } catch (e: TimeoutCancellationException) {
-                            Log.w(TAG, "Photo analysis timed out after 30 s")
+                            Log.w(TAG, "Photo analysis timed out — result will be discarded when native call completes")
+                            inferenceDeferred.invokeOnCompletion { }
                             buildPhotoTimeoutFallback()
                         } catch (e: Exception) {
-                            Log.e(TAG, "Image inference error — sending IMAGE_INFERENCE_ERROR to Flutter", e)
+                            Log.e(TAG, "Image inference error", e)
                             imageInferenceError = e
                             null
                         }
@@ -621,7 +625,7 @@ Răspunsul tău JSON trebuie să conțină mereu:
         return EMERGENCY_KEYWORDS_RO.any { lower.contains(it) }
     }
 
-    /** Returned when photo analysis exceeds the 30-second timeout. */
+    /** Returned when photo analysis exceeds the 60-second timeout. */
     private fun buildPhotoTimeoutFallback(): String = JSONObject().apply {
         put("emergency", false)
         put("confidence", 0.0)
