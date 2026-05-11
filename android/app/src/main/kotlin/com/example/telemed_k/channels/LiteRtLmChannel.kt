@@ -402,6 +402,7 @@ Răspunsul tău JSON trebuie să conțină mereu:
                     return@launch
                 }
 
+                var imageInferenceError: Exception? = null
                 val response = if (isEngineReady && engine != null) {
                     Log.d(TAG, "New conversation created — evaluateMedia session isolated")
                     // Use the Dart-provided system prompt directly (same reason as evaluateAudio).
@@ -436,6 +437,10 @@ Răspunsul tău JSON trebuie să conțină mereu:
                         } catch (e: TimeoutCancellationException) {
                             Log.w(TAG, "Photo analysis timed out after 30 s")
                             buildPhotoTimeoutFallback()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Image inference error — sending IMAGE_INFERENCE_ERROR to Flutter", e)
+                            imageInferenceError = e
+                            null
                         }
                     }
                 } else {
@@ -443,7 +448,14 @@ Răspunsul tău JSON trebuie să conțină mereu:
                     buildFallbackResponse("engine not initialized — media")
                 }
 
-                withContext(Dispatchers.Main) { result.success(response) }
+                val imgErr = imageInferenceError
+                if (imgErr != null) {
+                    withContext(Dispatchers.Main) {
+                        result.error("IMAGE_INFERENCE_ERROR", imgErr.message ?: imgErr.toString(), null)
+                    }
+                    return@launch
+                }
+                withContext(Dispatchers.Main) { result.success(response!!) }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Media evaluation error", e)

@@ -419,6 +419,12 @@ Patient: "$ex3q"
       return result;
     } on PlatformException catch (e) {
       debugPrint('AiEngineService.evaluateMedia PlatformException: ${e.code}');
+      if (e.code == 'IMAGE_INFERENCE_ERROR') {
+        return {
+          ...Map<String, dynamic>.from(_fallbackResponse),
+          'response': 'Nu am putut analiza fotografia. Vă rugăm descrieți simptomele prin voce sau text.',
+        };
+      }
       return Map<String, dynamic>.from(_fallbackResponse);
     } catch (e) {
       debugPrint('AiEngineService.evaluateMedia error: $e');

@@ -164,11 +164,16 @@ class _MedicalResponseScreenState
         ));
       }
     }
-    _textController.addListener(() => setState(() {}));
+    _textController.addListener(_onTextChanged);
     // Load doctor Communications after the initial message list is set.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _loadDoctorCommunications();
     });
+  }
+
+  void _onTextChanged() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   Future<void> _loadDoctorCommunications() async {
@@ -206,6 +211,7 @@ class _MedicalResponseScreenState
   void dispose() {
     // Release microphone if the screen is destroyed while recording or processing.
     unawaited(ref.read(audioRecordingServiceProvider).stopAndRelease());
+    _textController.removeListener(_onTextChanged);
     _textController.dispose();
     _scrollController.dispose();
     _playerSubscription?.cancel();
@@ -435,11 +441,11 @@ class _MedicalResponseScreenState
   // ── AI response append ──────────────────────────────────────────────────────
 
   void _appendAiResponse(Map<String, dynamic> result) {
+    if (!mounted) return;
     final String text =
         (result['response'] as String?)?.trim().isNotEmpty == true
             ? result['response'] as String
             : AppStrings.of(_lang, 'chat.no_understand');
-    if (!mounted) return;
     setState(() {
       _isProcessing = false;
       _isPhotoAnalyzing = false;
@@ -454,11 +460,11 @@ class _MedicalResponseScreenState
   /// the full [ChatMessage] and updates metadata.
   /// TODO: replace with native EventChannel streaming when available.
   Future<void> _streamAndAppendAiResponse(Map<String, dynamic> result) async {
+    if (!mounted) return;
     final String text =
         (result['response'] as String?)?.trim().isNotEmpty == true
             ? result['response'] as String
             : AppStrings.of(_lang, 'chat.no_understand');
-    if (!mounted) return;
 
     // Stream the words progressively.
     await for (final chunk in AiEngineService.streamWords(text)) {
@@ -514,6 +520,7 @@ class _MedicalResponseScreenState
           if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
           return;
         }
+        if (!mounted) return;
         _appendAiResponse(result);
       } catch (_) {
         audioService.deleteWavFile(wavPath);
@@ -576,6 +583,7 @@ class _MedicalResponseScreenState
         if (mounted) setState(() { _isProcessing = false; _isPhotoAnalyzing = false; _cancelRequested = false; });
         return;
       }
+      if (!mounted) return;
       _appendAiResponse(result);
     } catch (_) {
       cameraService.deleteTempFile(imagePath);
@@ -611,6 +619,7 @@ class _MedicalResponseScreenState
         if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
         return;
       }
+      if (!mounted) return;
       // Use streaming shim for typewriter effect on text responses.
       await _streamAndAppendAiResponse(result);
     } catch (_) {
