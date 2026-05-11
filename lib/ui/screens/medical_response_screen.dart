@@ -170,7 +170,8 @@ class _MedicalResponseScreenState
     _textController.addListener(_onTextChanged);
     // Load doctor Communications after the initial message list is set.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadDoctorCommunications();
+      // DIAGNOSTIC: disabled to test C1
+      // if (mounted) _loadDoctorCommunications();
     });
   }
 
