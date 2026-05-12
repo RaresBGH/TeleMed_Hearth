@@ -331,10 +331,15 @@ class AiEngineService {
       await _channel.invokeMethod<void>('loadModel', {'modelPath': modelPath});
       _isInitialized = true;
       debugPrint('LiteRT-LM: engine initialized — $modelPath');
-      // Warmup: forces model weights into memory on first load. Result discarded.
       try {
-        await evaluateText('test', customPrompt: '');
+        await _channel.invokeMethod<String>('runInference', {
+          'text': 'test',
+          'systemPrompt': 'You are a helpful assistant.',
+          'customPrompt': '',
+        });
       } catch (_) {}
+      // Warmup: direct MethodChannel call only — no FHIR
+      // round-trip, forces native model weights into memory.
       return true;
     } on PlatformException catch (e) {
       lastInitError = '${e.code}: ${e.message}';
