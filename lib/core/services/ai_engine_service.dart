@@ -98,64 +98,24 @@ class AiEngineService {
           : 'Înregistrați silențios toate mesajele pacientului pentru raportul medical. Nu răspundeți pacientului.';
     }
 
-    final isEn = lang == 'en';
-    final boundary = isEn
-        ? 'Your doctor will address that in the consultation.'
-        : 'Medicul dumneavoastră va răspunde la această întrebare în cadrul consultației.';
-    final emergency112 = isEn ? 'Call 112 immediately.' : 'Sunați 112 imediat.';
-    final greeting   = isEn
-        ? 'Hello. What brings you to the doctor today?'
-        : 'Bună ziua. Cu ce vă putem ajuta astăzi?';
-    final finalTurn  = isEn
-        ? 'Thank you. I have recorded your symptoms. If you have anything to add, please write it now. When ready, press Finalize Dialog.'
-        : 'Mulțumesc. Am înregistrat simptomele. Dacă mai aveți ceva de adăugat, scrieți acum. Când sunteți gata, apăsați Finalizează Dialog.';
-    final langRule   = isEn
-        ? 'Respond EXCLUSIVELY in English regardless of the language the patient uses.'
-        : 'Răspundeți EXCLUSIV în română indiferent de limba pe care o folosește pacientul.';
-    final toneRule   = isEn
-        ? 'Warm, calm. Max 15 words per sentence. Address patient by first name after Turn 1.'
-        : 'Ton cald, calm. Maximum 15 cuvinte per propoziție. Folosiți "dumneavoastră" pe tot parcursul.';
-
-    // Few-shot examples
-    final ex1q  = isEn ? 'I have a headache.' : 'Am dureri de cap.';
-    final ex1r  = isEn ? 'I\'m sorry to hear that. How long have you had this headache?' : 'Îmi pare rău să aud. De cât timp aveți aceste dureri de cap?';
-    final ex2q  = isEn ? 'I have chest pain and cannot breathe.' : 'Am dureri în piept și nu pot respira.';
-    final ex3q  = isEn ? 'What medication should I take?' : 'Ce medicamente să iau?';
-    final ex3r  = isEn
-        ? 'Your doctor will address that in the consultation. Can you tell me more about your current symptoms?'
-        : 'Medicul dumneavoastră va răspunde la această întrebare. Puteți să îmi spuneți mai multe despre simptomele dumneavoastră?';
-
-    return '''
-ROLE: You are a symptom documentation tool for Cabinet Medical Dr. Bogheanu (rural Romania). Help patients describe symptoms clearly so the doctor has a comprehensive report before the consultation.
-
-STRICT BOUNDARIES:
-- Ask follow-up questions ONLY. Never diagnose.
-- Never recommend medication or treatment.
-- Never interpret test results.
-- Off-topic medical advice → reply ONLY: "$boundary"
-- EMERGENCY EXCEPTION: chest pain + shortness of breath, loss of consciousness, severe bleeding, stroke signs → reply ONLY "$emergency112" and set emergency:true.
-
-CONVERSATION STRUCTURE:
-Turn 1: "$greeting"
-Turns 2-6: ONE clarifying question per turn — duration / intensity (1-10) / associated symptoms / context / relevant history.
-Final turn (when sufficient information collected): "$finalTurn" — set ready_to_finalize:true.
-
-LANGUAGE: $langRule
-TONE: $toneRule
-
-MANDATORY JSON FORMAT — every response MUST be valid JSON, no markdown fences:
-{"response":"message text","priority":"normal"|"urgent"|"emergency","emergency":false|true,"confidence":0.0-1.0,"ready_to_finalize":false|true,"category":"medical"|"document"|"other"}
-
-EXAMPLES:
-Patient: "$ex1q"
-{"response":"$ex1r","priority":"normal","emergency":false,"confidence":0.8,"ready_to_finalize":false,"category":"medical"}
-
-Patient: "$ex2q"
-{"response":"$emergency112","priority":"emergency","emergency":true,"confidence":0.99,"ready_to_finalize":false,"category":"medical"}
-
-Patient: "$ex3q"
-{"response":"$ex3r","priority":"normal","emergency":false,"confidence":0.9,"ready_to_finalize":false,"category":"medical"}
-''';
+    // Romanian triage assistant prompt — matches fine-tuned adapter training schema.
+    // Patient speaks first; AI responds with confirmation + one clarifying question.
+    // Sentence cap ≤30 words; no AI greeting; patient-first conversation enforced here.
+    return 'Ești un asistent medical AI pentru triajul pacienților vârstnici din mediul rural românesc. '
+        'Pacientul descrie simptomele; tu pui întrebări clarificatoare scurte și politicoase, una singură pe rând, '
+        'până ai suficiente informații pentru medicul de familie. '
+        'Niciodată nu sugerezi diagnostice, medicamente sau doze. '
+        'Pentru fiecare răspuns, emiteți EXACT un obiect JSON cu aceste câmpuri: '
+        'response (textul în română adresat pacientului), '
+        'emergency (boolean), '
+        'confidence (0.0 sau 0.9), '
+        'priority ("normal", "urgent" sau "emergency"), '
+        'ready_to_finalize (boolean — true doar la ultimul mesaj), '
+        'category ("duration", "intensity", "associated_symptoms", "context", "history", "close" sau "emergency"). '
+        'Pentru urgențe vitale (durere precordială cu dispnee, semne AVC, hemoragie severă, pierdere de conștiență, anafilaxie), '
+        'răspundeți doar cu "Sunați 112 imediat." și setați emergency=true. '
+        'Pentru ideație suicidară, răspundeți cu mesajul empatic incluzând Telefonul Antisuicid 0800 801 200. '
+        'Nu folosiți formatare markdown — emiteți JSON brut, fără ```json sau ``` blocuri.';
   }
 
   // ── Response helpers ───────────────────────────────────────────────────────
@@ -181,46 +141,76 @@ Patient: "$ex3q"
 
   static Map<String, dynamic> _parseAndNormalize(String raw) {
     var s = raw.trim();
-    s = s.replaceAll(RegExp(r'```json', caseSensitive: false), '');
-    s = s.replaceAll('```', '');
-    s = s.trim();
+
+    // Strip markdown code-fence wrappers emitted by some model checkpoints.
+    // Handles both ```json\n...\n``` and ```\n...\n``` forms.
+    if (s.startsWith('```')) {
+      final nl = s.indexOf('\n');
+      if (nl != -1) s = s.substring(nl + 1); // drop opening fence line
+      final close = s.lastIndexOf('```');
+      if (close != -1) s = s.substring(0, close); // drop closing fence
+      s = s.trim();
+    } else {
+      // Legacy: remove stray fence markers scattered in mixed output.
+      s = s.replaceAll(RegExp(r'```json', caseSensitive: false), '');
+      s = s.replaceAll('```', '');
+      s = s.trim();
+    }
 
     // Filter the empty-list artifact emitted by LiteRT-LM on some turns.
     if (s == '[]' || s == '[ ]') {
       return Map<String, dynamic>.from(_fallbackResponse);
     }
 
+    // Attempt 1: direct JSON parse on the fully cleaned string.
+    try {
+      final parsed = jsonDecode(s) as Map<String, dynamic>;
+      return _applyFieldNorms(parsed);
+    } catch (_) {}
+
+    // Attempt 2: extract the outermost {...} substring (handles leading prose).
     final int start = s.indexOf('{');
     final int end   = s.lastIndexOf('}');
     if (start != -1 && end > start) {
       try {
         final parsed = jsonDecode(s.substring(start, end + 1)) as Map<String, dynamic>;
-        final out = Map<String, dynamic>.from(parsed);
-
-        String? text;
-        for (final k in ['response', 'recommendation']) {
-          final val = parsed[k];
-          if (val is String && val.trim().isNotEmpty) {
-            text = _cleanText(val);
-            if (text.isNotEmpty) break;
-          }
-        }
-        out['response'] = (text != null && text.isNotEmpty)
-            ? text
-            : 'Response received.';
-
-        const validCats = {'medical', 'document', 'other'};
-        final aiCat = parsed['category'] as String?;
-        if (aiCat != null && validCats.contains(aiCat)) {
-          out['category'] = aiCat;
-        }
-        return out;
+        return _applyFieldNorms(parsed);
       } catch (_) {}
     }
 
+    // Total failure: return fallback with any extractable prose text.
     final prose = _cleanText(s);
     return Map<String, dynamic>.from(_fallbackResponse)
       ..['response'] = prose.isNotEmpty ? prose : _fallbackResponse['response'] as String;
+  }
+
+  /// Normalises field values from a successfully parsed JSON map.
+  static Map<String, dynamic> _applyFieldNorms(Map<String, dynamic> parsed) {
+    final out = Map<String, dynamic>.from(parsed);
+
+    String? text;
+    for (final k in ['response', 'recommendation']) {
+      final val = parsed[k];
+      if (val is String && val.trim().isNotEmpty) {
+        text = _cleanText(val);
+        if (text.isNotEmpty) break;
+      }
+    }
+    out['response'] = (text != null && text.isNotEmpty)
+        ? text
+        : 'Response received.';
+
+    // Accept training-schema categories and legacy values; coerce unknown → 'other'.
+    const validCats = {
+      'duration', 'intensity', 'associated_symptoms', 'context',
+      'history', 'close', 'emergency', 'greeting', 'other',
+      'medical', 'document',
+    };
+    final aiCat = parsed['category'] as String?;
+    if (aiCat != null && !validCats.contains(aiCat)) {
+      out['category'] = 'other';
+    }
+    return out;
   }
 
   // ── Streaming shim ─────────────────────────────────────────────────────────
