@@ -29,6 +29,24 @@ TRAIN_PATH  = OUTPUT_DIR / "train.jsonl"
 EVAL_PATH   = OUTPUT_DIR / "eval.jsonl"
 MANIFEST    = OUTPUT_DIR / "merge_manifest.json"
 
+# System message prepended to every dialogue before writing (exact text — do not edit)
+SYSTEM_MESSAGE = (
+    "Ești un asistent medical AI pentru triajul pacienților vârstnici din mediul rural românesc. "
+    "Pacientul descrie simptomele; tu pui întrebări clarificatoare scurte și politicoase, una singură pe rând, "
+    "până ai suficiente informații pentru medicul de familie. "
+    "Niciodată nu sugerezi diagnostice, medicamente sau doze. "
+    "Pentru fiecare răspuns, emiteți EXACT un obiect JSON cu aceste câmpuri: "
+    "response (textul în română adresat pacientului), "
+    "emergency (boolean), "
+    "confidence (0.0 sau 0.9), "
+    "priority (\"normal\", \"urgent\" sau \"emergency\"), "
+    "ready_to_finalize (boolean — true doar la ultimul mesaj), "
+    "category (\"duration\", \"intensity\", \"associated_symptoms\", \"context\", \"history\", \"close\" sau \"emergency\"). "
+    "Pentru urgențe vitale (durere precordială cu dispnee, semne AVC, hemoragie severă, pierdere de conștiență, anafilaxie), "
+    "răspundeți doar cu \"Sunați 112 imediat.\" și setați emergency=true. "
+    "Pentru ideație suicidară, răspundeți cu mesajul empatic incluzând Telefonul Antisuicid 0800 801 200."
+)
+
 # Required 6-field schema in every assistant turn
 _REQUIRED_FIELDS = {"response", "emergency", "confidence", "priority", "ready_to_finalize", "category"}
 
@@ -194,8 +212,9 @@ def _pick_eval(dialogues: list[dict], rng: random.Random) -> tuple[list[dict], l
 # ---------------------------------------------------------------------------
 
 def _to_training_row(d: dict) -> dict:
-    """Strip metadata, keep only messages."""
-    return {"messages": d["messages"]}
+    """Strip metadata, prepend system message, return only messages."""
+    system_turn = {"role": "system", "content": SYSTEM_MESSAGE}
+    return {"messages": [system_turn] + d["messages"]}
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +229,46 @@ def _theme_counts(dialogues: list[dict]) -> dict[str, int]:
 
 
 def _total_turns(dialogues: list[dict]) -> int:
+    """Count turns in raw source dialogues (excludes injected system turn)."""
     return sum(len(d.get("messages", [])) for d in dialogues)
+
+
+def _validate_system_injection(rows: list[dict], split_label: str, original: list[dict]) -> list[str]:
+    """Post-split checks: system message injected correctly, content unchanged."""
+    errors: list[str] = []
+    for i, (row, orig) in enumerate(zip(rows, original)):
+        sid = orig.get("synthetic_id", f"#{i}")
+        msgs = row["messages"]
+
+        # First turn must be system
+        if not msgs or msgs[0].get("role") != "system":
+            errors.append(f"[{split_label}][{sid}] first turn role is not 'system'")
+            continue
+
+        # Content must be byte-equal to SYSTEM_MESSAGE
+        if msgs[0]["content"] != SYSTEM_MESSAGE:
+            errors.append(
+                f"[{split_label}][{sid}] system message content mismatch "
+                f"(got {len(msgs[0]['content'])} chars, expected {len(SYSTEM_MESSAGE)})"
+            )
+
+        # Must have ≥2 user/assistant turns after system
+        rest = msgs[1:]
+        if len(rest) < 2:
+            errors.append(f"[{split_label}][{sid}] fewer than 2 user/assistant turns after system")
+            continue
+
+        # First turn after system must be user
+        if rest[0].get("role") != "user":
+            errors.append(f"[{split_label}][{sid}] turn[1] role is '{rest[0].get('role')}', expected 'user'")
+
+        # Sanity check: first user content matches original first user turn
+        orig_first_user = next((m["content"] for m in orig["messages"] if m["role"] == "user"), None)
+        row_first_user  = next((m["content"] for m in rest if m["role"] == "user"), None)
+        if orig_first_user != row_first_user:
+            errors.append(f"[{split_label}][{sid}] first user turn content changed after injection")
+
+    return errors
 
 
 # ---------------------------------------------------------------------------
@@ -264,16 +322,40 @@ def main() -> None:
 
     print(f"Split: train={len(train_set)}, eval={len(eval_set)}")
 
+    # --- Transform (inject system message) ---
+    train_rows = [_to_training_row(d) for d in train_set]
+    eval_rows  = [_to_training_row(d) for d in eval_set]
+
+    # --- Post-split injection validation ---
+    inj_errors: list[str] = []
+    inj_errors.extend(_validate_system_injection(train_rows, "train", train_set))
+    inj_errors.extend(_validate_system_injection(eval_rows,  "eval",  eval_set))
+
+    if len(train_rows) + len(eval_rows) != 121:
+        inj_errors.append(f"train ({len(train_rows)}) + eval ({len(eval_rows)}) ≠ 121 after injection")
+
+    if inj_errors:
+        print(f"INJECTION VALIDATION FAILED ({len(inj_errors)} errors):")
+        for e in inj_errors:
+            print(f"  {e}")
+        sys.exit(1)
+
+    print(f"Injection validation passed — system message prepended to all {len(train_rows)+len(eval_rows)} dialogues.")
+
+    # Compute turn counts from transformed rows (includes system turn)
+    train_turns_with_system = sum(len(r["messages"]) for r in train_rows)
+    eval_turns_with_system  = sum(len(r["messages"]) for r in eval_rows)
+
     # --- Write ---
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     with TRAIN_PATH.open("w", encoding="utf-8") as f:
-        for d in train_set:
-            f.write(json.dumps(_to_training_row(d), ensure_ascii=False) + "\n")
+        for row in train_rows:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     with EVAL_PATH.open("w", encoding="utf-8") as f:
-        for d in eval_set:
-            f.write(json.dumps(_to_training_row(d), ensure_ascii=False) + "\n")
+        for row in eval_rows:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     manifest = {
         "total_dialogues": len(dialogues),
@@ -283,8 +365,11 @@ def main() -> None:
         "eval_synth_ids": [d.get("synthetic_id") for d in eval_set],
         "train_theme_counts": _theme_counts(train_set),
         "eval_theme_counts": _theme_counts(eval_set),
-        "train_total_turns": _total_turns(train_set),
-        "eval_total_turns": _total_turns(eval_set),
+        "train_total_turns": train_turns_with_system,
+        "eval_total_turns": eval_turns_with_system,
+        "system_message_injected": True,
+        "system_message_preview": SYSTEM_MESSAGE[:100],
+        "system_message_len": len(SYSTEM_MESSAGE),
         "seed": SEED,
         "source_files": [str(p) for p in SOURCE_FILES],
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -293,38 +378,36 @@ def main() -> None:
     with MANIFEST.open("w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
 
+    # Token-count estimate for system message overhead
+    approx_tokens_per_char = 1 / 4.0  # rough average for Romanian
+    sys_msg_approx_tokens = int(len(SYSTEM_MESSAGE) * approx_tokens_per_char)
+    total_sys_overhead = sys_msg_approx_tokens * 121
+
     # --- Stats ---
     print(f"\n{'='*60}")
-    print(f"TRAIN ({len(train_set)} dialogues, {manifest['train_total_turns']} turns)")
+    print(f"TRAIN ({len(train_set)} dialogues, {train_turns_with_system} turns incl. system)")
     print(f"  themes: {manifest['train_theme_counts']}")
-    print(f"\nEVAL ({len(eval_set)} dialogues, {manifest['eval_total_turns']} turns)")
+    print(f"\nEVAL ({len(eval_set)} dialogues, {eval_turns_with_system} turns incl. system)")
     print(f"  ids:    {manifest['eval_synth_ids']}")
     print(f"  themes: {manifest['eval_theme_counts']}")
+    print(f"\nSystem message: {len(SYSTEM_MESSAGE)} chars (~{sys_msg_approx_tokens} tokens/dialogue)")
+    print(f"  Total overhead across 121 dialogues: ~{total_sys_overhead} tokens")
     print(f"\nOutput files:")
     print(f"  {TRAIN_PATH}")
     print(f"  {EVAL_PATH}")
     print(f"  {MANIFEST}")
     print(f"{'='*60}")
 
-    # --- Sample ---
-    print("\n--- Sample train dialogue ---")
-    sample_train = train_set[0]
-    print(f"[{sample_train.get('synthetic_id')}] theme={sample_train.get('theme')}")
-    for msg in sample_train["messages"][:4]:
-        if msg["role"] == "user":
-            print(f"  PATIENT  : {msg['content'][:120]}")
-        else:
-            try:
-                p = json.loads(msg["content"])
-                print(f"  ASSISTANT: {p['response'][:120]}")
-            except Exception:
-                print(f"  ASSISTANT: {msg['content'][:80]}")
-
-    print("\n--- Sample eval dialogue ---")
-    sample_eval = eval_set[0]
-    print(f"[{sample_eval.get('synthetic_id')}] theme={sample_eval.get('theme')}")
-    for msg in sample_eval["messages"][:4]:
-        if msg["role"] == "user":
+    # --- Sample (train — show system + first 2 turns) ---
+    print("\n--- Sample train dialogue (with system message) ---")
+    sample_train_row = train_rows[0]
+    sample_train_meta = train_set[0]
+    print(f"[{sample_train_meta.get('synthetic_id')}] theme={sample_train_meta.get('theme')}")
+    for msg in sample_train_row["messages"][:3]:
+        role = msg["role"]
+        if role == "system":
+            print(f"  SYSTEM   : {msg['content'][:100]}…")
+        elif role == "user":
             print(f"  PATIENT  : {msg['content'][:120]}")
         else:
             try:
