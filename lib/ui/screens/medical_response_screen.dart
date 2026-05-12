@@ -170,14 +170,16 @@ class _MedicalResponseScreenState
     _textController.addListener(_onTextChanged);
     // Load doctor Communications after the initial message list is set.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // DIAGNOSTIC: disabled to test C1
-      // if (mounted) _loadDoctorCommunications();
+      if (mounted) _loadDoctorCommunications();
     });
   }
 
   void _onTextChanged() {
     if (!mounted) return;
-    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {});
+    });
   }
 
   Future<void> _loadDoctorCommunications() async {
@@ -428,7 +430,10 @@ class _MedicalResponseScreenState
   String _buildConversationHistory() {
     final buffer = StringBuffer('\nCONVERSATION SO FAR:\n');
     for (final msg in _messages) {
-      if (msg.attachmentType != null) continue; // skip media placeholders
+      // Skip document/pdf filename placeholders; include audio "[Voice message]"
+      // and image "[Photo]" so the AI has patient-turn context on those rounds.
+      if (msg.attachmentType == AttachmentType.pdf ||
+          msg.attachmentType == AttachmentType.document) continue;
       if (msg.role == 'doctor') continue;
       final text = msg.text.trim();
       if (text.isEmpty) continue;
@@ -511,7 +516,7 @@ class _MedicalResponseScreenState
         // Show patient's own bubble immediately while AI processes.
         _messages.add(ChatMessage(
             role: 'patient',
-            text: AppStrings.of(_lang, 'chat.voice_bubble'),
+            text: '[Voice message]',
             timestamp: DateTime.now(),
             attachmentPath: wavPath.isNotEmpty ? wavPath : null,
             attachmentType: wavPath.isNotEmpty ? AttachmentType.audio : null));
@@ -579,7 +584,7 @@ class _MedicalResponseScreenState
       // Show patient's own bubble immediately while AI processes.
       _messages.add(ChatMessage(
           role: 'patient',
-          text: AppStrings.of(_lang, 'chat.photo_bubble'),
+          text: '[Photo]',
           timestamp: DateTime.now(),
           attachmentPath: imagePath,
           attachmentType: AttachmentType.image));
