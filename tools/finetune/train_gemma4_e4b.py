@@ -114,8 +114,8 @@ def main() -> None:
     eval_ds  = eval_ds.map(formatting_func,  remove_columns=eval_ds.column_names)
 
     # Max sequence length seen in training set
-    enc = tokenizer(train_ds["text"], truncation=False, padding=False)
-    max_len_seen = max(len(ids) for ids in enc["input_ids"])
+    # enc = tokenizer(train_ds["text"], truncation=False, padding=False)  # disabled: Gemma 4 chat template returns non-string structure
+    max_len_seen = "N/A (skipped)"
 
     # --- Pre-training summary ---
     print("\n" + "=" * 60)
