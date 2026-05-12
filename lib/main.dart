@@ -88,7 +88,9 @@ class TeleMedApp extends ConsumerWidget {
         final msState = ref.read(medicalSessionProvider);
         screen = MedicalResponseScreen(
           initialResponse:
-              msState.lastAiResponse ?? 'Simptomele au fost înregistrate.',
+              msState.lastPatientMessage ??
+              msState.lastAiResponse ??
+              'Simptomele au fost înregistrate.',
           isEmergency: msState.lastIsEmergency,
           initialMessages: msState.lastResumeMessages,
         );

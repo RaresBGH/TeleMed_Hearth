@@ -331,6 +331,10 @@ class AiEngineService {
       await _channel.invokeMethod<void>('loadModel', {'modelPath': modelPath});
       _isInitialized = true;
       debugPrint('LiteRT-LM: engine initialized — $modelPath');
+      // Warmup: forces model weights into memory on first load. Result discarded.
+      try {
+        await evaluateText('test', customPrompt: '');
+      } catch (_) {}
       return true;
     } on PlatformException catch (e) {
       lastInitError = '${e.code}: ${e.message}';
