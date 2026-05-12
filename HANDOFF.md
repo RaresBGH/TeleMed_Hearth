@@ -1,14 +1,18 @@
 # TeleMed_K — Handoff Summary
-**Date:** 2026-05-11 (updated from May 8)  
-**Deadline:** May 18, 2026 — **7 days remaining**  
-**Repo:** https://github.com/RaresBGH/TeleMed_K (PRIVATE — must go public before deadline)  
-**Latest commit:** dcc5b60 (fine-tune Step 10). Last Flutter commit: build #86 (998c80b). Last device-tested: build #85 — C1 still crashing. Build #86 fix awaiting device confirmation.
+**Date:** 2026-05-12 (updated from May 11)  
+**Deadline:** May 18, 2026 — **6 days remaining**  
+**Repo:** https://github.com/RaresBGH/TeleMed_K (still PRIVATE — must go public before deadline)  
+**Latest commit:** b2161ea (Step 13b — system prompt + JSON fence-stripping deployed in Flutter engine).  
+**Latest Flutter commit:** 16f07db (build #91 — C1 postFrameCallback + audio/photo missing-context fix + doctor comms re-enabled).  
+**Latest device-tested build:** #91 awaiting confirmation; build #85 confirmed C1 still crashing pre-fix.  
+**HuggingFace adapter:** https://huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical (public, model card + eval artifacts uploaded).
 
 ---
 
 ## Context
 
-Flutter telemedicine app for rural Romania. Dr. Rareș Bogheanu's clinic in Brănești, Dâmbovița.  
+Flutter telemedicine app for rural Romania. Clinica Medicală Dr. Bogheanu in Brănești, Dâmbovița (clinical partners: Dr. Adriana Bogheanu, consultant pediatrician; Dr. Mariana Andronescu, family medicine consultant).  
+Rareș Bogheanu (RaresBGH) — project lead and Senior QA architect — 20 years enterprise QA experience; designed and ran the TeleMed_K data-synthesis, fine-tuning, evaluation, and Flutter-integration pipelines.  
 Target users: elderly patients (70s–80s) with low tech literacy; NGO provides devices.  
 Competition: Kaggle Gemma 4 Good Hackathon.  
 Primary AI: Gemma 4 E4B (3.5GB model, LiteRT-LM 0.11.0) — runs fully on-device.  
@@ -118,9 +122,9 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 - Mic not released after video call ends
 - Doctor UI: 4 regressions from #76 (dialogue review, chat Send, back-to-report, in-call panel collapse)
 - iPad Safari: chat stripe tap unresponsive, doctor list empty
-- System prompt: patient-first flip needed
-- System prompt: sentence cap 15 → 30 words
-- Emergency routing: unverified end-to-end
+- System prompt: patient-first flip needed — RESOLVED in commit b2161ea
+- System prompt: sentence cap 15 → 30 words — RESOLVED in commit b2161ea
+- Emergency routing: unverified end-to-end — backend logic confirmed in code, awaiting device-test confirmation of tel:112 dialer launch
 
 ### BUILD STATUS — FLUTTER
 - Build #80: LiteRT-LM 0.11.0 upgrade
@@ -136,10 +140,15 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 - 3fc891c: translate_patient_turns.py
 - b1590af: generate_synthetic.py (121 dialogues)
 - dcc5b60: merge_train_eval.py (train.jsonl 109 + eval.jsonl 12)
+- 54c25e8: Step 10b — inject SYSTEM_MESSAGE into every train/eval row (was needed: first training pass produced plain text, not JSON; investigation confirmed Gemma 4 chat template preserved JSON literally but signal too weak against base prior — explicit system prompt resolved it)
+- 7962b42: Step 11 — Gemma 4 E4B QLoRA training script (train_loss 0.6100, mid-eval 2.184, weights clean: 884 tensors, 0 NaN, 0 Inf, 42.4M trainable = 0.67% of 6.34B)
+- fb922ad: Step 12 — comprehensive adapter evaluation script (JSON parse 12/12, schema 12/12, emergency TP 3/3 FN=0 FP=0, blocklist 0, greeting 0, avg 18.2 words)
+- dbc8f4b: Step 13 — HuggingFace push script (adapter live at huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical)
+- b2161ea: Step 13b — Flutter system prompt updated + JSON fence-stripping in _parseAndNormalize (training/inference parity achieved)
 
 ---
 
-## Fine-Tune Pipeline State (2026-05-11)
+## Fine-Tune Pipeline State (2026-05-12)
 
 ### Completed steps
 
@@ -151,7 +160,11 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 | 8 — Seed translations | translate_patient_turns.py | medical_patient_turns_ro.jsonl (21 rows) | ✅ done (seeds only) |
 | 9 — Synthetic dialogues | generate_synthetic.py | 121 dialogues across 5 files | ✅ done |
 | 10 — Merge/split | merge_train_eval.py | train.jsonl (109) + eval.jsonl (12) | ✅ done |
-| **11 — Unsloth QLoRA** | **TBD** | **adapter weights** | **⏳ NEXT SESSION** |
+| 10b — System message injection | merge_train_eval.py (modified) | train.jsonl (109), eval.jsonl (12) with SYSTEM_MESSAGE prepended to every row | ✅ done |
+| 11 — QLoRA training | train_gemma4_e4b.py | /home/corb_d/sovereign-factory/models/telemed-k-gemma4-e4b-adapter/adapter/ (162MB safetensors) | ✅ done |
+| 12 — Evaluation | evaluate_adapter.py | eval_outputs.jsonl, eval_report.md, eval_metrics.json | ✅ done |
+| 13 — HF push | tools/finetune/scripts/push_adapter_to_hf.py | huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical | ✅ done |
+| 13b — Flutter integration | lib/core/services/ai_engine_service.dart | System prompt + JSON fence-stripping deployed | ✅ done (awaiting device test) |
 
 ### Dataset files (all on GX10)
 
@@ -180,6 +193,33 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 - Unsloth aarch64 install: **UNKNOWN** — never tested on GX10 ARM64
 - Training time: unknown (first QLoRA run on GB10)
 - Memory: 121 dialogues × avg 7 turns × ~200 tokens = ~170k tokens total; should fit in 128GB
+
+## Architectural Decision: Path A3 (2026-05-12)
+
+After Step 12 eval succeeded, investigated three deployment paths for the fine-tuned adapter:
+
+- **Path A1** — convert PEFT adapter → LiteRT-LM format via MediaPipe converter.
+  RULED OUT: mediapipe 0.10.18 supports only GEMMA_2B, GEMMA_7B, GEMMA2_2B, PHI_2 model types. No Gemma 4 support. LoRA-applicable models even narrower: GEMMA_2B, GEMMA2_2B, PHI_2 only. The HF discussion (litert-community/gemma-4-E2B-it-litert-lm#7) claimed `model_type="GEMMA_4_E2B"` works but source-code inspection confirmed it does not. Open GitHub issue google-ai-edge/LiteRT#6852 from one month ago asks exactly this question, still unresolved.
+
+- **Path A2** — switch app to MediaPipe LLM Inference API (.task format).
+  NOT NEEDED: investigation pending the question of "does base model alone get us there?"
+
+- **Path A3 (CHOSEN)** — keep unmodified `gemma-4-E4B-it.litertlm` on device; drive it with the same engineered system prompt that conditioned the trained adapter.
+
+  Verified empirically on GX10 by running BASE model (no adapter) with the production system prompt on three test prompts (hypertension, chest pain + dyspnea, knee arthritis). All three produced clean structured JSON with all 6 schema fields. Chest pain output matched canonical emergency phrase "Sunați 112 imediat." exactly — actually beats the fine-tuned adapter which paraphrased ("Vă rog să sunați imediat 112. Aceasta este o urgență medicală.") on the same prompt. Only quirk: base wraps output in ```json...``` code fences (resolved by the fence-stripping logic added to `_parseAndNormalize` in Step 13b plus the "Nu folosiți formatare markdown" clause appended to the system prompt).
+
+### Implication for hackathon writeup
+
+The fine-tuned adapter is a published artifact on HuggingFace (proof of work, clinical-data fine-tune methodology validated). The on-device deployment uses the base model + engineered system prompt — honest, defensible, and matches the "sovereign, on-device, no internet" story. The fine-tune story positions as: "we trained a domain adapter and validated it generalizes correctly on held-out eval (Step 12 metrics); we publish the adapter for clinics that want stronger domain adaptation; for the demo, the engineered system prompt drives the unmodified on-device base model with production-quality JSON output."
+
+### Stackable tracks alignment
+
+- Main Track (up to $50k) — qualifies (full submission)
+- Impact: Health & Sciences ($10k) — exact match (medical triage, rural family medicine)
+- Unsloth Special Tech ($10k) — qualifies via the HuggingFace adapter trained with Unsloth
+- LiteRT Special Tech ($10k) — qualifies because the on-device `.litertlm` base model is unchanged and runs via LiteRT-LM 0.11.0
+
+---
 
 ## Infrastructure State
 
@@ -296,18 +336,12 @@ PATCH format confirmed: application/json-patch+json (not merge-patch — Medplum
 
 ---
 
-## Immediate Next Actions (in priority order)
+## Next Actions (2026-05-13 onward — 6 days to deadline)
 
-1. Install build #88 APK — test text Send (C1 confirmation)
-2. If C1 confirmed fixed: remove diagnostic lastInitError dialog from dashboard_screen.dart
-3. Fix raw file paths in dialogue replay
-4. Fix Dr. Doctor label — resolve practitioner name from Communications sender reference
-5. Fix dashboard Recent Activity not updating
-6. Fix Activity panel dismiss + title (VideoConsultationScreen)
-7. Fix mic release after video call ends
-8. Fix Doctor UI 4 regressions
-9. Fix iPad Safari chat stripe + doctor list
-10. Update system prompt: patient-first + 30-word cap
-11. Verify emergency routing end-to-end
-12. Make repo public before May 18
-13. Record demo video (Maria story)
+1. **Device test build #91** with new system prompt + fence stripping — verify base on-device model produces JSON, emergency routing fires, tel:112 dialer launches.
+2. **APK build path** — GitHub Actions artifact quota exhausted (recalc 6–12h); fall back to local `flutter build apk --debug` on GX10 if quota doesn't free before next build needed.
+3. **Video shoot** in Brănești (aerial of Clinica Medicală Dr. Bogheanu, elder patient demo, physician testimonials from Dr. Adriana Bogheanu and Dr. Mariana Andronescu, split-screen consultation).
+4. **Video edit** with English VO via ElevenLabs.
+5. **Writeup polish** (≤1500 words) reflecting Path A3 honest story.
+6. **Repo public** on GitHub.
+7. **Submit** by May 18, 2026.

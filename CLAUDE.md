@@ -84,9 +84,9 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 - Dialogue review (Mark reviewed / Finalize) disappeared
 
 ### P1 — Flutter App (fine-tune architecture — 2026-05-11)
-- System prompt: patient-first — AI must not greet in Turn 1
-- System prompt: sentence cap — change 15 words to 30 words
-- Verify emergency routing: EmergencyScreen → tel:112 end-to-end
+- System prompt: patient-first — AI must not greet in Turn 1 — RESOLVED commit b2161ea
+- System prompt: sentence cap — change 15 words to 30 words — RESOLVED commit b2161ea
+- Verify emergency routing: EmergencyScreen → tel:112 end-to-end — backend confirmed in code; awaiting device-test of tel:112 dialer launch
 
 ### P1 — Infrastructure
 - WebRTC video freeze: TURN fix applied 2026-05-08, two-device call confirmation still pending
@@ -101,8 +101,8 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 ## Current State
 See TELEMED_CONTEXT.md for full verified/awaiting-test/broken breakdown.
 Last updated: 2026-05-12
-Latest build: #86 (C1 dispose fix + deactivated ancestor fix).
-Last pushed build: #86. Last device-tested: #85 (C1 still crashing — #86 fix awaiting device confirmation).
+Latest build: #91 (C1 postFrameCallback + audio/photo missing-context fix + doctor comms re-enabled).
+Last pushed build: #91. Last device-tested: #85 (C1 crashing pre-fix); #91 awaiting device confirmation.
 LiteRT-LM upgraded to 0.11.0 — E4B ENGINE_INIT_ERROR resolved. Green pill confirmed. Voice inference confirmed working.
 Photo inference: no crash, fallback message working, thumbnail tappable and full-screen viewable.
 FHIR write fixed: subject reference mismatch resolved, valueString fixed, new entries appear in Medical Dossier.
@@ -164,7 +164,7 @@ NO Flutter code modified this session. All work was in tools/finetune/ (Python) 
 3. Patient-first conversation: AI must NOT greet in Turn 1 — system prompt needs updating
 4. Sentence cap: system prompt says 15 words; training data uses 30-word cap — must align
 
-**Dr. Bogheanu reviewed all 121 dialogues in real-time (physically present). No deferred review.**
+**Clinical review: Rareș Bogheanu (project lead, Senior QA architect) + Dr. Adriana Bogheanu + Dr. Mariana Andronescu reviewed all 121 dialogues in real-time (physically present). No deferred review.**
 
 **Next session must:**
 1. Verify Unsloth installs on aarch64 (Step 11 first risk)

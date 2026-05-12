@@ -55,9 +55,24 @@ jobs:
         env:
           GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
 
+      - name: Build Release APK
+        run: |
+          flutter build apk --release \
+            --dart-define=MEDPLUM_CLIENT_ID=${{ secrets.MEDPLUM_CLIENT_ID }} \
+            --dart-define=MEDPLUM_CLIENT_SECRET=${{ secrets.MEDPLUM_CLIENT_SECRET }}
+        env:
+          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
+
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: telemed-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: telemed-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 7

@@ -6,8 +6,14 @@ Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Br�
 Competition: Kaggle Gemma 4 Good Hackathon — deadline May 18, 2026 (6 days remaining).
 Repo: https://github.com/RaresBGH/TeleMed_K (currently PRIVATE — must make public before deadline)
 
-## Owner
-Rareș Bogheanu (RaresBGH) — QA engineer, 20 years experience, owns medical clinic Dr. Bogheanu in Brănești.
+## Owner / Clinical Partners
+
+**Rareș Bogheanu (RaresBGH)** — project lead and Senior QA architect — 20 years enterprise QA experience (IBM SAN/storage, O2 Telefónica UK billing migration, Ubisoft AAA multiplayer QA, government CRM digitalization); designed and ran the TeleMed_K data-synthesis, fine-tuning, evaluation, and Flutter-integration pipelines. Rareș is not a physician.
+
+**Clinic:** Clinica Medicală Dr. Bogheanu, Brănești, Dâmbovița County, Romania.
+- Dr. Adriana Bogheanu — consultant pediatrician; reviews synthetic dialogues for medical safety and Romanian-language register appropriate for elderly rural patients.
+- Dr. Mariana Andronescu — family medicine consultant; validates triage logic and patient-question phrasing against actual rural family-practice consultation patterns.
+
 NGO provides devices + digital literacy to elderly patients who cannot afford good enough smartphones.
 
 ---
@@ -563,7 +569,7 @@ NO Flutter code modified this session. All work is in tools/finetune/ (Python) a
 
 **Step 9 — Synthetic dialogues (commit b1590af)**
 - generate_synthetic.py + seed_examples.py
-- 121 dialogues authored inline by Claude Code (no LLM API), reviewed in real-time by Dr. Rareș Bogheanu
+- 121 dialogues authored inline by Claude Code (no LLM API), reviewed in real-time by Rareș Bogheanu (project lead, Senior QA architect) alongside Dr. Adriana Bogheanu and Dr. Mariana Andronescu (clinical partners)
 - Themes: hypertension(17), diabetes(17), arthritis(14), heart_failure(14), copd(14), general(12), dermatology(3), gastrointestinal(3), mental_health(3), urinary(3), medication_management(3), vision_hearing(2), emergency(16)
 - Hard rules enforced by validator: ≤30 words/sentence, no "Bună ziua" on AI turns, 1 question per non-close turn, 1 ready_to_finalize:true per dialogue, drug blocklist, dosage regex
 - Emergency dialogues (synth-106..121): 7 subcategories, 2-turn structure
@@ -605,10 +611,41 @@ NO Flutter code modified this session. All work is in tools/finetune/ (Python) a
    - Training data: ≤30 words/sentence (validated by generate_synthetic.py)
    - Must update system prompt to 30 before deploying, or model will be trained on one distribution and prompted for another
 
-### Next: Step 11 — Unsloth QLoRA fine-tune
-- Target: Gemma 4 E4B base model (same weights LiteRT-LM uses)
-- Hardware: GX10 (ARM64, NVIDIA GB10, 128GB unified memory)
-- **RISK: Unsloth aarch64 install is UNTESTED** — first thing to verify next session
-- Planned config: LoRA r=16 alpha=32, target all projection modules, lr=2e-4, 3 epochs, batch=1, grad_accum=4
-- Adapter output: /home/corb_d/sovereign-factory/models/telemed-k-gemma4-e4b-adapter/
+### Steps 11–13b — Training, evaluation, and deployment (2026-05-12)
+
+**Step 10b — System message injection (commit 54c25e8)**
+- merge_train_eval.py modified to prepend SYSTEM_MESSAGE to every train/eval row
+- Required because first training pass produced plain Romanian text, not JSON
+- Gemma 4 chat template preserved JSON literals correctly but signal was too weak against base prior without explicit system prompt
+
+**Step 11 — QLoRA fine-tune (commit 7962b42)**
+- Unsloth QLoRA on GX10 (NVIDIA GB10, 128GB unified memory) — aarch64 confirmed working
+- train_loss 0.6100, mid-eval loss 2.184
+- Adapter: 884 tensors, 42.4M trainable parameters = 0.67% of 6.34B, 0 NaN, 0 Inf
+- Saved to /home/corb_d/sovereign-factory/models/telemed-k-gemma4-e4b-adapter/ (162MB safetensors)
+
+**Step 12 — Evaluation (commit fb922ad)**
+- evaluate_adapter.py: greedy inference on all 12 eval dialogues (system + first user turn → model output)
+- Results: JSON parse 12/12, schema compliance 12/12, emergency TP 3/3, FN=0, FP=0
+- Medication blocklist hits 0, greeting violations 0, avg response length 18.2 words
+- eval_outputs.jsonl + eval_report.md + eval_metrics.json written to /workspace/output/
+
+**Step 13 — HuggingFace push (commit dbc8f4b)**
+- Adapter published at huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical
+- Model card + eval metrics + training config included
+
+**Step 13b — Flutter integration (commit b2161ea)**
+- buildSystemPrompt() in ai_engine_service.dart: replaced legacy EN/RO multi-variant prompt with production Romanian system message matching training schema
+- _parseAndNormalize(): added explicit code-fence stripping (```json...``` → clean JSON) + direct jsonDecode attempt before fallback extraction; category set updated to training schema
+- flutter analyze: 0 errors
+
+### Fine-tuned domain adapter (deliverable artifact)
+
+A LoRA adapter fine-tuned via Unsloth on 121 synthetic Romanian rural-elderly triage dialogues co-developed with practicing physicians at Clinica Medicală Dr. Bogheanu. Published at huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical with full eval metrics (12/12 JSON parse, 3/3 emergency true positives, 0 false negatives, 0 false positives, 0 medication blocklist hits, 0 greeting violations, 18.2 words avg response length).
+
+On-device deployment in the TeleMed_K app uses the unmodified base `gemma-4-E4B-it.litertlm` from Google's litert-community repo, driven by the same engineered system prompt that conditioned the adapter training. This keeps the sovereign on-device story while making the trained adapter available as a downloadable artifact for clinics wanting stronger domain adaptation.
+
+### Deployment path: Path A3
+
+Path A1 (MediaPipe PEFT→LiteRT converter) ruled out — mediapipe 0.10.18 does not support Gemma 4 model types. Path A3 chosen: keep unmodified `.litertlm` on-device, drive with engineered system prompt. Base model confirmed to produce clean structured JSON with correct 6-field schema and exact emergency template on all three tested prompts. Code-fence wrapping from base model resolved by fence-stripping in `_parseAndNormalize` + "Nu folosiți formatare markdown" clause in system prompt.
 
