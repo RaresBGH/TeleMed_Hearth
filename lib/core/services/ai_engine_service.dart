@@ -235,19 +235,26 @@ class AiEngineService {
     }
   }
 
-  // ── History context ────────────────────────────────────────────────────────
+  // ── Prompt construction ────────────────────────────────────────────────────
 
-  Future<String> _buildHistoryContext(String? customPrompt) async {
+  /// Returns the role/rules/format system prompt ONLY — no conversation
+  /// history, no FHIR data, no patient messages.
+  /// Passed as systemInstruction to the LiteRT-LM ConversationConfig.
+  String buildSystemPromptOnly(String lang, bool doctorPresent) {
+    return buildSystemPrompt(lang, doctorPresent);
+  }
+
+  /// Returns the conversation history + FHIR data block — everything that
+  /// was in _buildHistoryContext() EXCEPT the system prompt line.
+  /// Injected into the user turn alongside the patient's actual input.
+  Future<String> buildConversationContext(String? customPrompt) async {
     final buffer = StringBuffer();
-
-    // New structured system prompt (Step 1).
-    buffer.writeln(buildSystemPrompt(_lang, _doctorPresent));
 
     if (customPrompt != null && customPrompt.isNotEmpty) {
       buffer.writeln(customPrompt);
     }
 
-    // Session isolation (Step 3): inject full FHIR history only once.
+    // Session isolation: inject full FHIR history only once per session.
     if (!_historyInjectedThisSession) {
       final history = await _fhirRepository.getPatientHistory();
       if (history.isNotEmpty) {
@@ -356,13 +363,15 @@ class AiEngineService {
     if (!_isInitialized) return Map<String, dynamic>.from(_fallbackResponse);
 
     try {
-      final String systemPrompt = await _buildHistoryContext(customPrompt);
+      final String sysPrompt = buildSystemPromptOnly(_lang, _doctorPresent);
+      final String ctx = await buildConversationContext(customPrompt);
+      final String userTurn = ctx.isNotEmpty ? '$ctx\n[Voice message]' : '[Voice message]';
 
       final String? jsonResponse =
           await _channel.invokeMethod<String>('evaluateAudio', {
         'audioPath': audioFile.path,
-        'text': 'Continue the conversation based on the history above.',
-        'systemPrompt': systemPrompt,
+        'text': userTurn,
+        'systemPrompt': sysPrompt,
         'constraintFormat': 'json',
       });
 
@@ -392,13 +401,15 @@ class AiEngineService {
     if (!_isInitialized) return Map<String, dynamic>.from(_fallbackResponse);
 
     try {
-      final String systemPrompt = await _buildHistoryContext(customPrompt);
+      final String sysPrompt = buildSystemPromptOnly(_lang, _doctorPresent);
+      final String ctx = await buildConversationContext(customPrompt);
+      final String userTurn = ctx.isNotEmpty ? '$ctx\n[Photo]' : '[Photo]';
 
       final String? jsonResponse =
           await _channel.invokeMethod<String>('evaluateMedia', {
         'mediaPath': mediaFile.path,
-        'text': 'Continue the conversation based on the history above.',
-        'systemPrompt': systemPrompt,
+        'text': userTurn,
+        'systemPrompt': sysPrompt,
         'constraintFormat': 'json',
         'maxDurationSeconds': 60,
       });
@@ -435,12 +446,14 @@ class AiEngineService {
     if (!_isInitialized) return Map<String, dynamic>.from(_fallbackResponse);
 
     try {
-      final String systemPrompt = await _buildHistoryContext(customPrompt);
+      final String sysPrompt = buildSystemPromptOnly(_lang, _doctorPresent);
+      final String ctx = await buildConversationContext(customPrompt);
+      final String userTurn = ctx.isNotEmpty ? '$ctx\n$text' : text;
 
       final String? jsonResponse =
           await _channel.invokeMethod<String>('runInference', {
-        'text': 'Continue the conversation based on the history above.',
-        'systemPrompt': systemPrompt,
+        'text': userTurn,
+        'systemPrompt': sysPrompt,
       });
 
       if (jsonResponse == null || jsonResponse.isEmpty) {
