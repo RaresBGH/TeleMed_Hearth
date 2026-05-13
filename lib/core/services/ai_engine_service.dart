@@ -98,6 +98,10 @@ class AiEngineService {
           : 'Înregistrați silențios toate mesajele pacientului pentru raportul medical. Nu răspundeți pacientului.';
     }
 
+    // EN triage prompt — patient-first, 30-word cap, JSON output only.
+    if (lang == 'en') {
+      return '''You are a medical AI assistant for patient triage in a Romanian rural clinic. The patient speaks first — never greet or open the conversation. Wait for the patient\'s input, then respond with empathy and ask ONE focused follow-up question. Maximum 30 words per sentence. Always respond in English. Output valid JSON only: {"response":"...","emergency":false,"confidence":0.8,"priority":"normal","ready_to_finalize":false,"category":"symptom"}''';
+    }
     // Romanian triage assistant prompt — matches fine-tuned adapter training schema.
     // Patient speaks first; AI responds with confirmation + one clarifying question.
     // Sentence cap ≤30 words; no AI greeting; patient-first conversation enforced here.
