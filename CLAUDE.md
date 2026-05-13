@@ -18,6 +18,7 @@ GX10 ethernet IP: 192.168.0.144 (enP7s7) — no rate limiting
 DuckDNS token: stored as DUCKDNS_TOKEN env in caddy-telemed.service
 GCP reverse proxy VM: telemed-proxy, e2-micro, Frankfurt (34.185.191.34)
 WireGuard tunnel: GCP peer 10.0.0.1 ↔ GX10 peer 10.0.0.2 (wg-quick@wg0 on both)
+GCP VM Caddy (telemed-proxy): running as PID outside systemd — use `sudo caddy reload --config /etc/caddy/Caddyfile`, NOT systemctl. The `caddy-telemed` systemd service above is the GX10's own Caddy only.
 Medplum FHIR: https://telemed-medplum.duckdns.org/fhir/R4 (Medplum 5.1.10, self-hosted on GX10)
 Medplum admin: admin@telemed-bogheanu.ro / TeleMed_Sovereign_2026!
 Medplum client ID: c18b54d9-f511-46db-903e-882b47dc3c63
@@ -65,8 +66,13 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 
 ## Open Issues (carry to next session)
 
-### P0 — AWAITING DEVICE CONFIRMATION
-- C1 (_dependents.isEmpty + deactivated ancestor): root cause confirmed — unawaited stopAndRelease() in dispose() completes after super.dispose() on dead ref; _showImagePreview() missing mounted check. Both fixed in build #86. If confirmed fixed on device, C1 is CLOSED.
+### P0 — RESOLVED
+- C1 (_dependents.isEmpty + deactivated ancestor): debug-only Flutter assertion. Release build confirmed working (build #102). Not user-facing. Multiple root causes addressed across builds #81–#90.
+- Release APK crash on inference: RESOLVED build #102 — ProGuard keep rules for LiteRT-LM JNI callbacks (R8 was renaming onMessage/onDone, causing NoSuchMethodError).
+- Release APK model download DNS failure: RESOLVED build #99 — network_security_config.xml domain-config for duckdns.org.
+
+### P0 — STILL OPEN
+- Diagnostic lastInitError dialog in dashboard_screen.dart — remove in next build (TODO comment present).
 
 ### P1 — Flutter App (confirmed open as of build #85)
 - Raw file paths in dialogue replay: [Voice:/data/...] and [Photo:/data/...] shown as plain text instead of playable/tappable bubbles
@@ -100,16 +106,14 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 
 ## Current State
 See TELEMED_CONTEXT.md for full verified/awaiting-test/broken breakdown.
-Last updated: 2026-05-12
-Latest build: #91 (C1 postFrameCallback + audio/photo missing-context fix + doctor comms re-enabled).
-Last pushed build: #91. Last device-tested: #85 (C1 crashing pre-fix); #91 awaiting device confirmation.
-LiteRT-LM upgraded to 0.11.0 — E4B ENGINE_INIT_ERROR resolved. Green pill confirmed. Voice inference confirmed working.
-Photo inference: no crash, fallback message working, thumbnail tappable and full-screen viewable.
-FHIR write fixed: subject reference mismatch resolved, valueString fixed, new entries appear in Medical Dossier.
-Doctor messages excluded from AI context.
-C1 (_dependents.isEmpty): root cause confirmed as unawaited stopAndRelease() in dispose() accessing ref after super.dispose(). Fix in build #86 — awaiting device confirmation.
+Last updated: 2026-05-13
+Latest build: #102 (ProGuard JNI fix — release APK confirmed working). Last pushed build: #102. Last device-tested: #102 release — text/voice/photo inference all working, no crash.
+LiteRT-LM 0.11.0 confirmed. E4B inference working in release.
+C1 (_dependents.isEmpty): debug-only Flutter assertion. NOT present in release build. Root causes addressed across builds #81–#90. Release build confirmed crash-free on all input types.
+Diagnostic lastInitError dialog still in codebase — MUST REMOVE in next build (TODO comment in dashboard_screen.dart).
+Release APK DNS: fixed in build #99 via network_security_config domain-config for duckdns.org.
+FHIR write confirmed working. Medical Dossier entries saving.
 WebRTC TURN fix confirmed (GCP firewall rule added 2026-05-08).
-Diagnostic dialog (lastInitError) still in codebase — remove after C1 confirmed fixed.
 Signaling server: telemed-signaling.service confirmed running.
 medplum_token alias added to ~/.bashrc for Terminal 2 token refresh.
 
@@ -193,6 +197,31 @@ Confirmed working as of build #85:
 - E4B photo inference: no crash, fallback, thumbnail tappable
 - FHIR write: entries in Medical Dossier with correct content
 - Photo full-screen: tappable and viewable
+
+## Session Notes — 2026-05-13 (Builds #87–#102)
+
+Build #89: diagnostic — _loadDoctorCommunications disabled to isolate C1 race (C1 persisted — race ruled out).
+
+Build #90/#91: postFrameCallback deferral for _onTextChanged; audio/photo patient message added before inference call; doctor comms re-enabled. C1 persisted in debug.
+
+Build #95: release APK added to CI workflow (assembleRelease + upload telemed-release-apk artifact).
+
+Build #96: Symptom Analysis card changed to show lastPatientMessage (patient's complaint) instead of lastAiResponse (AI's reply). Broken warmup introduced (crashed post-download) — removed in #97/#98.
+
+Build #99: EN triage system prompt restored (was removed in fine-tune commit b2161ea — triage prompt became Romanian-only). Release DNS fixed (network_security_config domain-config). Patient message deduplication attempted in Kotlin (caused crash).
+
+Builds #100–#101: inference pipeline refactored to split systemPrompt from conversation context. Still crashing — root cause not yet found.
+
+Build #102: ProGuard keep rules added for LiteRT-LM JNI callbacks. RELEASE CONFIRMED WORKING. Text/voice/photo all return AI responses without crash.
+
+Key diagnosis: crash was R8 minification renaming JniMessageCallback.onMessage()/onDone() — native JNI could not find the methods by reflection in release build. Debug never showed this because ProGuard is disabled in debug.
+
+Confirmed working in release build #102:
+- Text inference: AI responds in English correctly
+- Voice inference: AI responds correctly
+- Photo inference: fallback message returned, no crash
+- Model download: works in release
+- FHIR write / Medical Dossier: confirmed working
 
 ## Session Notes — 2026-05-11 (Fine-Tune Steps 5–10)
 

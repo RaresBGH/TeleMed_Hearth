@@ -1,18 +1,19 @@
 # TeleMed_K — Handoff Summary
-**Date:** 2026-05-12 (updated from May 11)  
-**Deadline:** May 18, 2026 — **6 days remaining**  
+**Date:** 2026-05-13 (updated from 2026-05-12)  
+**Deadline:** May 18, 2026 — **5 days remaining**  
 **Repo:** https://github.com/RaresBGH/TeleMed_K (still PRIVATE — must go public before deadline)  
-**Latest commit:** b2161ea (Step 13b — system prompt + JSON fence-stripping deployed in Flutter engine).  
-**Latest Flutter commit:** 16f07db (build #91 — C1 postFrameCallback + audio/photo missing-context fix + doctor comms re-enabled).  
-**Latest device-tested build:** #91 awaiting confirmation; build #85 confirmed C1 still crashing pre-fix.  
-**HuggingFace adapter:** https://huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical (public, model card + eval artifacts uploaded).
+**Latest Flutter commit:** build #102 (ProGuard JNI fix).  
+**Latest device-tested:** build #102 release — text/voice/photo confirmed working, no crash. C1 debug assertion not present in release.  
+**Kaggle Writeup:** drafted at /home/corb_d/sovereign-factory/mobile-workspace/TeleMed_K_Writeup.md, finalized to 1498 words, currently at 6/7 on the Kaggle submission checklist (video pending).  
+**HuggingFace adapter:** https://huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical (public).
 
 ---
 
 ## Context
 
-Flutter telemedicine app for rural Romania. Clinica Medicală Dr. Bogheanu in Brănești, Dâmbovița (clinical partners: Dr. Adriana Bogheanu, consultant pediatrician; Dr. Mariana Andronescu, family medicine consultant).  
-Rareș Bogheanu (RaresBGH) — project lead and Senior QA architect — 20 years enterprise QA experience; designed and ran the TeleMed_K data-synthesis, fine-tuning, evaluation, and Flutter-integration pipelines.  
+Flutter telemedicine app for rural Romania. Clinica Medicală Dr. Bogheanu in Brănești, Dâmbovița.  
+**Authors:** Rareș Bogheanu (project lead, Senior QA architect — 20 years enterprise QA experience at IBM, O2 Telefónica UK, Ubisoft, government digitalization) and Andra Inovan (creative direction, video, design).  
+**Clinical partners:** Clinica Medicală Dr. Bogheanu, Brănești, Dâmbovița County: Dr. Adriana Bogheanu (consultant pediatrician), Dr. Mariana Andronescu (family-medicine physician).  
 Target users: elderly patients (70s–80s) with low tech literacy; NGO provides devices.  
 Competition: Kaggle Gemma 4 Good Hackathon.  
 Primary AI: Gemma 4 E4B (3.5GB model, LiteRT-LM 0.11.0) — runs fully on-device.  
@@ -109,42 +110,40 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 
 ## Outstanding Bugs
 
-### P0 — AWAITING DEVICE CONFIRMATION
-- C1 _dependents.isEmpty + deactivated ancestor: root cause confirmed, fix in build #86. Device test pending.
+### P0 — RESOLVED THIS SESSION
+- C1 _dependents.isEmpty: debug-only. Release confirmed working build #102. Not user-facing.
+- Release APK crash: RESOLVED build #102 — ProGuard JNI keep rules for LiteRT-LM.
+- Release APK DNS: RESOLVED build #99 — duckdns.org domain-config in network_security_config.xml.
 
-### P1 — CONFIRMED OPEN (as of build #85)
-- Raw file paths in dialogue replay
-- Dr. Doctor label on Communications bubbles
+### P0 — STILL OPEN
+- Diagnostic lastInitError dialog: still in dashboard_screen.dart — remove next build.
+
+### P1 — CONFIRMED OPEN (as of build #102)
+- Raw file paths in dialogue replay ([Voice:/data/...], [Photo:/data/...] as plain text)
+- "Dr. Doctor" label on Communications bubbles — practitioner name not resolved from Medplum ID
 - Dashboard Recent Activity not updating after new save
-- T3: AI greeting resets mid-conversation
-- Keyboard dismiss: UI freezes with loading indicator
-- Activity panel: can't dismiss, missing title
+- T3: AI context lost between turns ("Hello. What brings you..." reappears)
+- Activity panel: can't dismiss by tap-outside or swipe-down; missing title header
 - Mic not released after video call ends
 - Doctor UI: 4 regressions from #76 (dialogue review, chat Send, back-to-report, in-call panel collapse)
 - iPad Safari: chat stripe tap unresponsive, doctor list empty
-- System prompt: patient-first flip needed — RESOLVED in commit b2161ea
-- System prompt: sentence cap 15 → 30 words — RESOLVED in commit b2161ea
-- Emergency routing: unverified end-to-end — backend logic confirmed in code, awaiting device-test confirmation of tel:112 dialer launch
+- Emergency routing: tel:112 dialer launch unverified on device
 
-### BUILD STATUS — FLUTTER
+### BUILD STATUS — FLUTTER (complete)
 - Build #80: LiteRT-LM 0.11.0 upgrade
 - Build #81: 6 mounted guards + photo error handling
 - Build #82: clear() outside setState, doctor context exclusion, photo IO dispatcher
-- Build #83: FHIR subject/valueString fix — Medical Dossier working
-- Build #85: ref.watch/ref.read split, photo async deferred
-- Build #86: C1 dispose fix + _showImagePreview mounted check — AWAITING DEVICE CONFIRMATION
-
-### BUILD STATUS — FINE-TUNE (tools/finetune/ only)
-- e70371a: scaffold uv project
-- 060f4b5: pull_romanian.py + pull_medical.py
-- 3fc891c: translate_patient_turns.py
-- b1590af: generate_synthetic.py (121 dialogues)
-- dcc5b60: merge_train_eval.py (train.jsonl 109 + eval.jsonl 12)
-- 54c25e8: Step 10b — inject SYSTEM_MESSAGE into every train/eval row (was needed: first training pass produced plain text, not JSON; investigation confirmed Gemma 4 chat template preserved JSON literally but signal too weak against base prior — explicit system prompt resolved it)
-- 7962b42: Step 11 — Gemma 4 E4B QLoRA training script (train_loss 0.6100, mid-eval 2.184, weights clean: 884 tensors, 0 NaN, 0 Inf, 42.4M trainable = 0.67% of 6.34B)
-- fb922ad: Step 12 — comprehensive adapter evaluation script (JSON parse 12/12, schema 12/12, emergency TP 3/3 FN=0 FP=0, blocklist 0, greeting 0, avg 18.2 words)
-- dbc8f4b: Step 13 — HuggingFace push script (adapter live at huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical)
-- b2161ea: Step 13b — Flutter system prompt updated + JSON fence-stripping in _parseAndNormalize (training/inference parity achieved)
+- Build #83: FHIR subject/valueString fix — Medical Dossier confirmed working
+- Build #85: ref.watch/ref.read split, photo async deferred (no crash)
+- Build #86: C1 dispose fix + _showImagePreview mounted check
+- Build #89: diagnostic — _loadDoctorCommunications disabled (C1 race ruled out)
+- Build #90/#91: postFrameCallback _onTextChanged, audio/photo context fix, comms re-enabled
+- Build #95: release APK added to CI workflow
+- Build #96: Symptom Analysis card → lastPatientMessage
+- Build #97/#98: warmup removed (was crashing engine)
+- Build #99: EN triage prompt restored, DNS fix, message deduplication attempt
+- Build #100/#101: inference pipeline refactor attempts
+- Build #102: ProGuard JNI keep rules — RELEASE CONFIRMED WORKING
 
 ---
 
@@ -218,6 +217,61 @@ The fine-tuned adapter is a published artifact on HuggingFace (proof of work, cl
 - Impact: Health & Sciences ($10k) — exact match (medical triage, rural family medicine)
 - Unsloth Special Tech ($10k) — qualifies via the HuggingFace adapter trained with Unsloth
 - LiteRT Special Tech ($10k) — qualifies because the on-device `.litertlm` base model is unchanged and runs via LiteRT-LM 0.11.0
+
+---
+
+## GCP `telemed-proxy` VM operational state (2026-05-13)
+
+### IAM incident and recovery
+- The Compute default service account `866957367169-compute@developer.gserviceaccount.com` was found removed from project IAM, causing:
+  - OpenTelemetry collector spam on the VM's serial console (PermissionDenied on `monitoring.timeSeries.create`)
+  - SSH-in-browser failures with generic "SSH authentication has failed" (OS Login backend depended on the service account)
+  - No logs (including sshd) reaching Cloud Logging (logging agent couldn't write)
+- Restored: granted `roles/editor` to the Compute default service account via GCP Console → IAM & Admin → IAM → Grant Access. The Google-provided role grants checkbox was needed to see the existing principals.
+- The instance-level SSH keys metadata had a stale persistent key (`rares.bogheanu` ed25519, dot-form) and two expired temp keys (`rares_bogheanu` underscore-form). All replaced with a single fresh persistent key pushed via gcloud from Cloud Shell.
+- VM reset was required to make services pick up the restored IAM — `gcloud compute instances reset telemed-proxy --zone=europe-west3-c`.
+
+### Architecture clarification
+- `telemed-proxy` (GCP VM, 34.185.191.34, europe-west3-c) is a Caddy reverse-proxy fronting 5 domains:
+  - `telemed-b.duckdns.org` → static file server at `/home/rares_bogheanu/` (model downloads)
+  - `telemed-medplum.duckdns.org` → `10.0.0.2:8103` (Medplum FHIR API on GX10 via WireGuard)
+  - `telemed-medplum-ui.duckdns.org` → `10.0.0.2:8104` (Medplum admin UI)
+  - `telemed-doctor.duckdns.org` → `10.0.0.2:8106` (Doctor UI, served by Caddy on GX10)
+  - `telemed-signal.duckdns.org` → `10.0.0.2:8765` (WebRTC signaling)
+- All four reverse-proxy targets point at the GX10 (10.0.0.2) over the WireGuard tunnel.
+- Caddy on `telemed-proxy` is currently running as PID 366 outside the systemd unit (the systemd `caddy.service` failed at boot because PID 366 owns the ports). Reloads must use `sudo caddy reload --config /etc/caddy/Caddyfile`, not `systemctl reload caddy`. Next VM reboot should resolve this naturally.
+
+### Caddy basic_auth gate on Doctor UI (2026-05-13)
+- Added a `basic_auth` block to the `telemed-doctor.duckdns.org` directive in `/etc/caddy/Caddyfile`:
+  - Username: `demo`
+  - Password: `telemed2026`
+  - Bcrypt hash applied via `caddy hash-password --plaintext "telemed2026"`
+- Verified: anonymous request returns HTTP/2 401 with `WWW-Authenticate: Basic realm="restricted"`; authenticated request with `demo:telemed2026` returns HTTP/2 200 + Doctor UI HTML.
+- Credentials match what's published in the Kaggle Writeup demo section.
+
+---
+
+## Kaggle Writeup finalization (2026-05-13)
+
+### Content shape
+- Drafted at `/home/corb_d/sovereign-factory/mobile-workspace/TeleMed_K_Writeup.md` (filename has underscore, not space).
+- Final word count: 1498 (under the 1500-word penalty threshold).
+- Head-to-head comparison added: adapter vs. base + system prompt across 12 eval dialogues. Both achieve perfect JSON parse, schema, and emergency-flag accuracy. Adapter wins on greeting-rule compliance (0 vs 3 violations) and response conciseness (18.2 vs 22.7 avg words). Base wins on canonical-phrase fidelity (2/3 vs 0/3 — base reproduces "Sunați 112 imediat." verbatim; adapter paraphrases). On the anaphylaxis case (synth-116), the adapter stays anchored to the patient's stated symptoms while the base drifts to off-symptom chest-pain clarification.
+- Engineering takeaway in writeup: 121 synthetic dialogues teach Gemma 4 E4B conversational discipline reliably, but cannot consistently override its pre-training priors on canonical safety phrases.
+- Deployment decision in writeup: ship the unmodified base on device. Safety routing parity (3/3 TP for both systems) plus LiteRT-LM compatibility (PEFT-to-litertlm conversion path not publicly documented for Gemma 4) make the base the practical choice.
+
+### Base-model evaluation script
+- New tool: `tools/finetune/evaluate_base.py` — same protocol as `evaluate_adapter.py` but evaluates the unmodified base. Adds a `canonical_phrase_fidelity` metric (exact substring match for medical emergency / suicidal-ideation canonical phrases).
+- Output artifacts: `eval_base_outputs.jsonl`, `eval_base_report.md`, `eval_base_metrics.json` in `/workspace/output/`, alongside the adapter eval artifacts.
+
+### Track selection
+- Primary: Impact Track — Health & Sciences.
+- Special Technology eligibility: LiteRT (unmodified `.litertlm` runs on device via LiteRT-LM 0.11.0).
+- Unsloth Special Tech: not claimed in the writeup. Rules permit "a Main Track Prize and a Special Technology Prize" (singular), and LiteRT is the better fit for what we actually deployed. The fine-tuned adapter remains a published deliverable on HuggingFace.
+
+### Cover image
+- Andra (Andra Inovan, creative co-author) delivered a designed cover combining a real photograph of Clinica Medicală Dr. Bogheanu (golden-hour, elderly woman in traditional Romanian ia blouse at the garden arch, the "CLINICA MEDICALĂ DR. BOGHEANU" sign visible) with text overlay: "TeleMed_K / Sovereign telehealth for rural family medicine / From symptom intake to video consultation / On-device AI · Self-hosted FHIR / Built with Gemma 4 E4B". The clinic photo was originally captured by Rareș, then run through nano banana for golden-hour relighting and the addition of the foreground figure.
+- Aspect ratio note: Kaggle Writeup card image field specifies 560×280 (2:1). Andra's cover was designed at 16:9; Kaggle accepted the upload (writeup checklist advanced to 6/7) and likely center-crops smaller for thumbnails. To verify final render, click Preview at top-right of the Kaggle Writeup form.
 
 ---
 
@@ -336,12 +390,21 @@ PATCH format confirmed: application/json-patch+json (not merge-patch — Medplum
 
 ---
 
-## Next Actions (2026-05-13 onward — 6 days to deadline)
+## Next Actions (2026-05-13 — 5 days to deadline)
 
-1. **Device test build #91** with new system prompt + fence stripping — verify base on-device model produces JSON, emergency routing fires, tel:112 dialer launches.
-2. **APK build path** — GitHub Actions artifact quota exhausted (recalc 6–12h); fall back to local `flutter build apk --debug` on GX10 if quota doesn't free before next build needed.
-3. **Video shoot** in Brănești (aerial of Clinica Medicală Dr. Bogheanu, elder patient demo, physician testimonials from Dr. Adriana Bogheanu and Dr. Mariana Andronescu, split-screen consultation).
-4. **Video edit** with English VO via ElevenLabs.
-5. **Writeup polish** (≤1500 words) reflecting Path A3 honest story.
-6. **Repo public** on GitHub.
-7. **Submit** by May 18, 2026.
+### IMMEDIATE — Flutter (Claude Code, next session)
+1. Remove diagnostic lastInitError dialog from dashboard_screen.dart (TODO comment present)
+2. Fix raw file paths in dialogue replay
+3. Fix "Dr. Doctor" label on Communications bubbles
+4. Fix dashboard Recent Activity not updating
+5. Fix Activity panel: tap-outside dismiss + title
+6. Fix mic not released after video call ends
+7. Fix Doctor UI 4 regressions from #76
+8. Fix iPad Safari: chat stripe tap + doctor list
+9. Verify emergency routing: EmergencyScreen → tel:112
+
+### SUBMISSION (May 13–18)
+10. Make repo public on GitHub
+11. Record demo video (Maria story, RO + EN VO)
+12. YouTube upload → paste URL into Kaggle writeup
+13. Final Kaggle submission before May 18

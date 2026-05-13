@@ -332,6 +332,7 @@ Răspunsul tău JSON trebuie să conțină mereu:
         val filePath = call.argument<String>("audioPath")
             ?: call.argument<String>("filePath")
         val systemPrompt = call.argument<String>("systemPrompt") ?: ""
+        val conversationContext = call.argument<String>("text") ?: ""
 
         if (filePath == null) {
             result.error("INVALID_ARG", "Missing key 'audioPath' or 'filePath'", null)
@@ -357,12 +358,16 @@ Răspunsul tău JSON trebuie să conțină mereu:
                     val effectivePrompt = systemPrompt
                     // Content.AudioFile(path) — documented as supported alongside AudioBytes.
                     // Using AudioFile avoids loading ~MB of audio into JVM heap.
+                    // Pass conversation history as second content item if available;
+                    // otherwise send audio alone (system prompt is the instruction).
+                    val audioContents = if (conversationContext.isNotEmpty()) {
+                        listOf(Content.AudioFile(filePath), Content.Text(conversationContext))
+                    } else {
+                        listOf(Content.AudioFile(filePath))
+                    }
                     runEngineInference(
                         systemPrompt = effectivePrompt,
-                        contents = listOf(
-                            Content.AudioFile(filePath),
-                            Content.Text(effectivePrompt)
-                        )
+                        contents = audioContents
                     )
                 } else {
                     Log.w(TAG, "Engine not ready — keyword fallback for audio")
@@ -387,6 +392,7 @@ Răspunsul tău JSON trebuie să conțină mereu:
         val filePath = call.argument<String>("mediaPath")
             ?: call.argument<String>("filePath")
         val systemPrompt = call.argument<String>("systemPrompt") ?: ""
+        val conversationContext = call.argument<String>("text") ?: ""
 
         if (filePath == null) {
             result.error("INVALID_ARG", "Missing key 'mediaPath' or 'filePath'", null)
@@ -446,13 +452,17 @@ Răspunsul tău JSON trebuie să conțină mereu:
                         // timeout scope. withTimeout(60_000L) only cancels the await(); it
                         // never cancels the native sendMessageAsync() call itself. The
                         // abandoned native call completes silently on the IO thread pool.
+                        // Pass conversation history as second content item if available;
+                        // otherwise send image alone (system prompt is the instruction).
+                        val imageContents = if (conversationContext.isNotEmpty()) {
+                            listOf(Content.ImageFile(filePath), Content.Text(conversationContext))
+                        } else {
+                            listOf(Content.ImageFile(filePath))
+                        }
                         val inferenceDeferred = scope.async(Dispatchers.IO) {
                             runEngineInference(
                                 systemPrompt = effectivePrompt,
-                                contents = listOf(
-                                    Content.ImageFile(filePath),
-                                    Content.Text(effectivePrompt)
-                                )
+                                contents = imageContents
                             )
                         }
                         try {

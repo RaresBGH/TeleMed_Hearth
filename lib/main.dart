@@ -91,6 +91,7 @@ class TeleMedApp extends ConsumerWidget {
               msState.lastPatientMessage ??
               msState.lastAiResponse ??
               'Simptomele au fost înregistrate.',
+          initialAiResponse: msState.lastAiResponse,
           isEmergency: msState.lastIsEmergency,
           initialMessages: msState.lastResumeMessages,
         );

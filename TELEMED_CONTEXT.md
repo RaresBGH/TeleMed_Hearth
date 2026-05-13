@@ -1,14 +1,16 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-05-12 (Latest Flutter build: #86 (2026-05-12))
+Last updated: 2026-05-13 (Latest Flutter build: #102)
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
-Competition: Kaggle Gemma 4 Good Hackathon — deadline May 18, 2026 (6 days remaining).
+Competition: Kaggle Gemma 4 Good Hackathon — deadline May 18, 2026 (5 days remaining).
 Repo: https://github.com/RaresBGH/TeleMed_K (currently PRIVATE — must make public before deadline)
 
 ## Owner / Clinical Partners
 
 **Rareș Bogheanu (RaresBGH)** — project lead and Senior QA architect — 20 years enterprise QA experience (IBM SAN/storage, O2 Telefónica UK billing migration, Ubisoft AAA multiplayer QA, government CRM digitalization); designed and ran the TeleMed_K data-synthesis, fine-tuning, evaluation, and Flutter-integration pipelines. Rareș is not a physician.
+
+**Andra Inovan** — creative co-author; cover image design, video direction and editing.
 
 **Clinic:** Clinica Medicală Dr. Bogheanu, Brănești, Dâmbovița County, Romania.
 - Dr. Adriana Bogheanu — consultant pediatrician; reviews synthetic dialogues for medical safety and Romanian-language register appropriate for elderly rural patients.
@@ -265,16 +267,17 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 ### GCP Reverse Proxy VM
 - **VM:** telemed-proxy, e2-micro, Frankfurt (34.185.191.34)
 - **Services:** caddy.service + wg-quick@wg0.service
-- **Caddy config** (routes all domains through WireGuard tunnel):
-    telemed-b.duckdns.org → reverse_proxy https://10.0.0.2:443
-      (tls_server_name: telemed-b.duckdns.org)
-    telemed-medplum.duckdns.org → reverse_proxy 10.0.0.2:8103
-    telemed-medplum-ui.duckdns.org → reverse_proxy 10.0.0.2:8104
-    telemed-doctor.duckdns.org → reverse_proxy https://10.0.0.2:443
-      (tls_server_name: telemed-doctor.duckdns.org) — Doctor WebRTC UI
-    telemed-signal.duckdns.org → reverse_proxy 10.0.0.2:8765 — WebSocket signaling relay
+- **Caddy config** (routes all domains through WireGuard tunnel to GX10 at 10.0.0.2):
+    telemed-b.duckdns.org → static file server at /home/rares_bogheanu/ (model downloads)
+    telemed-medplum.duckdns.org → 10.0.0.2:8103 (Medplum FHIR API)
+    telemed-medplum-ui.duckdns.org → 10.0.0.2:8104 (Medplum admin UI)
+    telemed-doctor.duckdns.org → 10.0.0.2:8106 (Doctor UI served by GX10 Caddy)
+    telemed-signal.duckdns.org → 10.0.0.2:8765 (WebRTC signaling relay)
+  All targets are on the GX10 via WireGuard. The Doctor UI is NOT hosted on the proxy VM.
 - **WireGuard:** VPS peer 10.0.0.1 ↔ GX10 peer 10.0.0.2
   wg-quick@wg0.service on both ends
+- **Caddy on telemed-proxy (2026-05-13 note):** currently running as PID 366 outside systemd (caddy.service boot-failed due to port conflict). Use `sudo caddy reload --config /etc/caddy/Caddyfile` for config reloads — do NOT use `systemctl reload caddy`.
+- **Doctor UI basic_auth gate (2026-05-13):** `telemed-doctor.duckdns.org` is protected by HTTP Basic Auth at the Caddy reverse-proxy layer (credentials `demo` / `telemed2026`, published in Kaggle Writeup demo section). Anonymous requests return HTTP/2 401; authenticated requests proxy through to the Doctor UI on the GX10. The basic_auth is at the TLS-termination layer; the Doctor UI's own Medplum OAuth2 (client_credentials) runs underneath and is unaffected by the gate.
 
 ### GX10 Services
 - **GX10 LAN IP (WiFi):** 192.168.0.101
@@ -605,11 +608,13 @@ NO Flutter code modified this session. All work is in tools/finetune/ (Python) a
    - Decision: patient speaks first; AI responds with confirmation + clarifying question
    - Training data authored with this pattern (no AI greeting in any dialogue)
    - System prompt in ai_engine_service.dart must be updated before deploying adapter
+   - RESOLVED in commit b2161ea — system prompt updated.
 
 4. **Sentence length cap mismatch**:
    - System prompt: "Maximum 15 cuvinte per propoziție"
    - Training data: ≤30 words/sentence (validated by generate_synthetic.py)
    - Must update system prompt to 30 before deploying, or model will be trained on one distribution and prompted for another
+   - RESOLVED in commit b2161ea — cap updated to 30 words.
 
 ### Steps 11–13b — Training, evaluation, and deployment (2026-05-12)
 
@@ -648,4 +653,26 @@ On-device deployment in the TeleMed_K app uses the unmodified base `gemma-4-E4B-
 ### Deployment path: Path A3
 
 Path A1 (MediaPipe PEFT→LiteRT converter) ruled out — mediapipe 0.10.18 does not support Gemma 4 model types. Path A3 chosen: keep unmodified `.litertlm` on-device, drive with engineered system prompt. Base model confirmed to produce clean structured JSON with correct 6-field schema and exact emergency template on all three tested prompts. Code-fence wrapping from base model resolved by fence-stripping in `_parseAndNormalize` + "Nu folosiți formatare markdown" clause in system prompt.
+
+### BUILDS #87–#102 — SESSION 2026-05-13
+
+Key outcome: release APK confirmed working.
+
+- Build #89: C1 race diagnostic (communications load ruled out as cause)
+- Build #90/#91: postFrameCallback + audio/photo context + comms re-enabled
+- Build #95: release APK CI step added
+- Build #96: Symptom Analysis shows patient complaint
+- Build #97/#98: warmup removed (crashed native engine)
+- Build #99: EN triage prompt restored; DNS fix; deduplication attempt
+- Build #100/#101: inference pipeline refactor (still crashing — ProGuard not yet identified)
+- Build #102: ProGuard keep rules for LiteRT-LM JNI callbacks — RELEASE CONFIRMED WORKING
+
+Root cause of release crash: R8 minification renamed JniMessageCallback.onMessage()/onDone() — native JNI lookup by name failed with NoSuchMethodError → SIGABRT. Fix: -keep rules for com.google.ai.edge.litertlm.** and explicit keepclassmembers for JniMessageCallback methods.
+
+Confirmed working in release #102:
+- Text/voice/photo inference: no crash, AI responds
+- Model download: working in release
+- FHIR write: Medical Dossier entries confirmed
+
+Still open: diagnostic dialog removal, raw file paths, Dr. Doctor label, Recent Activity, Activity panel, mic release, Doctor UI regressions, iPad Safari, tel:112 test.
 

@@ -39,6 +39,10 @@ const Color _surfContainer = Color(0xFFECEEF2);
 
 class MedicalResponseScreen extends ConsumerStatefulWidget {
   final String initialResponse;
+  /// The AI's actual first triage response text (from lastAiResponse).
+  /// Separate from initialResponse so the triage card and AI bubble can show
+  /// the AI's assessment rather than the patient placeholder ('[Voice message]').
+  final String? initialAiResponse;
   final bool isEmergency;
   /// When resuming a saved dialog from Dosar Medical, the prior messages are
   /// passed here and used to pre-populate the chat instead of the default
@@ -51,6 +55,7 @@ class MedicalResponseScreen extends ConsumerStatefulWidget {
   const MedicalResponseScreen({
     super.key,
     required this.initialResponse,
+    this.initialAiResponse,
     required this.isEmergency,
     this.initialMessages,
     this.initialPrompt,
@@ -146,10 +151,15 @@ class _MedicalResponseScreenState
           role: 'patient',
           text: session.lastPatientMessage!,
           timestamp: DateTime.now(),
+          attachmentType: session.lastPatientMessage == '[Voice message]'
+              ? AttachmentType.audio
+              : session.lastPatientMessage == '[Photo]'
+                  ? AttachmentType.image
+                  : null,
         ));
         _messages.add(ChatMessage(
           role: 'ai',
-          text: widget.initialResponse,
+          text: widget.initialAiResponse ?? widget.initialResponse,
           timestamp: DateTime.now(),
         ));
         _hasFirstAiResponse = true;
@@ -935,11 +945,13 @@ class _MedicalResponseScreenState
             ],
           ),
           const SizedBox(height: 14),
-          // Initial AI response text
+          // Initial AI response text — prefer actual AI assessment over patient placeholder
           Text(
-            widget.initialResponse.isNotEmpty
-                ? widget.initialResponse
-                : AppStrings.of(lang, 'chat.default_response'),
+            widget.initialAiResponse?.isNotEmpty == true
+                ? widget.initialAiResponse!
+                : widget.initialResponse.isNotEmpty
+                    ? widget.initialResponse
+                    : AppStrings.of(lang, 'chat.default_response'),
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
