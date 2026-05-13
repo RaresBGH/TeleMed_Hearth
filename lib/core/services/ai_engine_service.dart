@@ -84,7 +84,10 @@ class AiEngineService {
   /// Resets session-isolation state so the next inference injects full
   /// FHIR history again. Call from [MedicalSessionNotifier.reset] and
   /// [MedicalResponseScreen.initState].
-  void resetSession() => _historyInjectedThisSession = false;
+  void resetSession() {
+    _historyInjectedThisSession = false;
+    _doctorPresent = false;
+  }
 
   // ── System prompt ──────────────────────────────────────────────────────────
 
@@ -100,7 +103,7 @@ class AiEngineService {
 
     // EN triage prompt — patient-first, 30-word cap, JSON output only.
     if (lang == 'en') {
-      return '''You are a medical AI assistant for patient triage in a Romanian rural clinic. The patient speaks first — never greet or open the conversation. Wait for the patient\'s input, then respond with empathy and ask ONE focused follow-up question. Maximum 30 words per sentence. Always respond in English. Output valid JSON only: {"response":"...","emergency":false,"confidence":0.8,"priority":"normal","ready_to_finalize":false,"category":"symptom"}''';
+      return '''You are a medical AI assistant for patient triage in a Romanian rural clinic. The patient speaks first — never greet or open the conversation. Wait for the patient\'s input, then respond with empathy and ask ONE focused follow-up question. Maximum 30 words per sentence. Always respond in English. Ask a maximum of 3 focused follow-up questions per complaint. After the 3rd question, provide a brief 1-sentence summary of what the patient described, then add: \'If you have no other details to add, please tap Finalize Dialog.\' If the patient adds new information after this, treat it as a new complaint, ask up to 3 more questions, then update the summary to include all complaints. Set ready_to_finalize: true only after you have delivered the summary prompt. Output valid JSON only: {"response":"...","emergency":false,"confidence":0.8,"priority":"normal","ready_to_finalize":false,"category":"symptom"}''';
     }
     // Romanian triage assistant prompt — matches fine-tuned adapter training schema.
     // Patient speaks first; AI responds with confirmation + one clarifying question.
@@ -119,7 +122,13 @@ class AiEngineService {
         'Pentru urgențe vitale (durere precordială cu dispnee, semne AVC, hemoragie severă, pierdere de conștiență, anafilaxie), '
         'răspundeți doar cu "Sunați 112 imediat." și setați emergency=true. '
         'Pentru ideație suicidară, răspundeți cu mesajul empatic incluzând Telefonul Antisuicid 0800 801 200. '
-        'Nu folosiți formatare markdown — emiteți JSON brut, fără ```json sau ``` blocuri.';
+        'Nu folosiți formatare markdown — emiteți JSON brut, fără ```json sau ``` blocuri. '
+        'Pune maximum 3 întrebări de urmărire per acuză. '
+        'După a 3-a întrebare, oferă un rezumat scurt de 1 propoziție despre ce a descris pacientul, '
+        'apoi adaugă: \'Dacă nu ai alte detalii de adăugat, te rog apasă Finalizează Dialogul.\' '
+        'Dacă pacientul adaugă informații noi după aceasta, tratează-le ca o acuză nouă, '
+        'pune până la 3 întrebări noi, apoi actualizează rezumatul pentru a include toate acuzele. '
+        'Setează ready_to_finalize: true doar după ce ai livrat solicitarea de rezumat.';
   }
 
   // ── Response helpers ───────────────────────────────────────────────────────
@@ -287,7 +296,12 @@ class AiEngineService {
           await _channel.invokeMethod<String>('getModelPath');
 
       if (nativePath != null && nativePath != _sdcardPath) {
-        if (File(nativePath).existsSync()) return nativePath;
+        try {
+          if (File(nativePath).existsSync()) return nativePath;
+        } catch (e) {
+          debugPrint('Model path check error: $e');
+          return null;
+        }
       }
 
       final sdcard = File(_sdcardPath);

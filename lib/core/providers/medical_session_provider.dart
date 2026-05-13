@@ -13,6 +13,7 @@ import '../models/chat_message.dart';
 import '../services/ai_engine_service.dart';
 import '../services/audio_recording_service.dart';
 import '../utils/date_formatter.dart';
+import '../utils/fhir_extension_utils.dart';
 import '../../data/repositories/fhir_repository.dart';
 import 'auth_provider.dart';
 import 'medplum_auth_provider.dart';
@@ -44,6 +45,10 @@ class MedicalSessionState {
   /// The patient's most recent input text (or '[Voice message]' / '[Photo]').
   /// Used by MedicalResponseScreen to seed the patient bubble on entry.
   final String? lastPatientMessage;
+  /// File path of the patient's home-screen voice recording (WAV).
+  /// Passed to MedicalResponseScreen so the seeded voice bubble has an
+  /// attachmentPath for the audio player.
+  final String? lastAudioPath;
 
   const MedicalSessionState({
     required this.sessionState,
@@ -57,6 +62,7 @@ class MedicalSessionState {
     this.lastSessionCategory,
     this.lastSessionLanguage,
     this.lastPatientMessage,
+    this.lastAudioPath,
   });
 
   static const idle = MedicalSessionState(sessionState: SessionState.idle);
@@ -91,7 +97,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
     state = const MedicalSessionState(sessionState: SessionState.processing);
     try {
       final result = await _aiEngineService.evaluateAudio(audioFile);
-      await _handleResult(result, patientMessage: '[Voice message]');
+      await _handleResult(result, patientMessage: '[Voice message]', patientAudioPath: audioFile.path);
     } on EmergencyFlagException catch (_) {
       state = const MedicalSessionState(sessionState: SessionState.emergency);
     } catch (e) {
@@ -106,7 +112,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
     state = const MedicalSessionState(sessionState: SessionState.processing);
     try {
       final result = await _aiEngineService.evaluateMedia(mediaFile);
-      await _handleResult(result, patientMessage: '[Photo]');
+      await _handleResult(result, patientMessage: '[Photo]', patientAudioPath: null);
     } on EmergencyFlagException catch (_) {
       state = const MedicalSessionState(sessionState: SessionState.emergency);
     } catch (e) {
@@ -121,7 +127,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
     state = const MedicalSessionState(sessionState: SessionState.processing);
     try {
       final result = await _aiEngineService.evaluateText(text);
-      await _handleResult(result, patientMessage: text);
+      await _handleResult(result, patientMessage: text, patientAudioPath: null);
     } on EmergencyFlagException catch (_) {
       state = const MedicalSessionState(sessionState: SessionState.emergency);
     } catch (e) {
@@ -191,16 +197,16 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
 
       final extensions = <Map<String, dynamic>>[
         {
-          'url': 'https://telemed-bogheanu.ro/fhir/ext/session-category',
+          'url': FhirExtensionUtils.sessionCategoryUrl,
           'valueString': category,
         },
         if (doctorName != null && doctorName.isNotEmpty)
           {
-            'url': 'http://telemed-k.example.com/fhir/extension/doctor-name',
+            'url': FhirExtensionUtils.doctorNameUrl,
             'valueString': doctorName,
           },
         {
-          'url': 'https://telemed-bogheanu.ro/fhir/ext/reviewed-by-target',
+          'url': FhirExtensionUtils.reviewedByTargetUrl,
           'valueString': state.lastPractitionerRef ?? Practitioners.familyDoctorId,
         },
       ];
@@ -291,6 +297,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       lastDoctorName: state.lastDoctorName,
       lastPractitionerRef: state.lastPractitionerRef,
       lastSessionCategory: state.lastSessionCategory,
+      lastAudioPath: state.lastAudioPath,
     );
   }
 
@@ -317,6 +324,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       lastPractitionerRef: state.lastPractitionerRef,
       lastSessionCategory: state.lastSessionCategory,
       lastSessionLanguage: state.lastSessionLanguage,
+      lastAudioPath: state.lastAudioPath,
       // lastPatientMessage intentionally omitted → null
     );
   }
@@ -345,7 +353,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   }
 
   Future<void> _handleResult(Map<String, dynamic> result,
-      {String? patientMessage}) async {
+      {required String patientMessage, String? patientAudioPath}) async {
     final String? response  = result['response'] as String?;
     final bool isEmergency  = result['emergency'] == true;
     if (isEmergency) {
@@ -368,6 +376,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       lastSessionCategory: category,
       lastSessionLanguage: _lang,
       lastPatientMessage: patientMessage,
+      lastAudioPath: patientAudioPath,
     );
   }
 }

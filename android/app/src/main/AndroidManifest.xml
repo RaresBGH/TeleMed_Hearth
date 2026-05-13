@@ -7,12 +7,16 @@
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- Required for audio playback of AAC files via just_audio on some Android versions.
+         AudioRecordingService writes to app-internal cache (tmpDir) only;
+         READ_MEDIA_AUDIO kept for just_audio plugin compatibility on API 33+. -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Required for tel: URI launch via url_launcher on some Android versions.
+         Technically optional on API 28+ but kept for maximum device compatibility. -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
 
     <application
-        android:label="telemed_k"
+        android:label="TeleMed Hearth"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:networkSecurityConfig="@xml/network_security_config">

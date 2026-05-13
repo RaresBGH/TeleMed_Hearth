@@ -373,13 +373,13 @@ const String kTermsHtmlEn = r'''<!DOCTYPE html>
 </header>
 <main class="pt-24 pb-32 px-6 max-w-3xl mx-auto">
   <div class="bg-surface-container-low rounded-xl p-8 mb-10">
-    <h2 class="text-2xl font-extrabold mb-3">Terms of Use — TeleMed K</h2>
+    <h2 class="text-2xl font-extrabold mb-3">Terms of Use — TeleMed Hearth</h2>
     <p class="text-[16px] leading-relaxed text-on-surface-variant">Cabinet Medical Dr. Bogheanu · Brănești, Dâmbovița, Romania</p>
   </div>
   <section class="space-y-10">
     <article>
       <h3 class="text-xl font-bold mb-3 text-primary">1. Acceptance of Terms</h3>
-      <p class="text-[17px] leading-relaxed text-on-surface">By using this application you agree to these Terms of Use. TeleMed K is a telemedicine platform operated by Cabinet Medical Dr. Bogheanu, registered in Romania and subject to Romanian and European Union law.</p>
+      <p class="text-[17px] leading-relaxed text-on-surface">By using this application you agree to these Terms of Use. TeleMed Hearth is a telemedicine platform operated by Cabinet Medical Dr. Bogheanu, registered in Romania and subject to Romanian and European Union law.</p>
     </article>
     <article>
       <h3 class="text-xl font-bold mb-3 text-primary">2. Medical Services</h3>

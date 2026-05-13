@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>TeleMed_K — Doctor Interface</title>
+<title>TeleMed Hearth — Doctor Interface</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -252,7 +252,7 @@
   <!-- JOIN SCREEN -->
   <div id="joinScreen">
     <div class="card">
-      <p class="card-title">TeleMed_K — Doctor Interface</p>
+      <p class="card-title">TeleMed Hearth — Doctor Interface</p>
       <p class="card-subtitle">Video consultation management</p>
 
       <label class="field-label" for="doctorSelect">Select doctor:</label>
@@ -313,11 +313,16 @@
 <script>
   const SIGNALING_URL = 'wss://telemed-signal.duckdns.org';
   const MEDPLUM_BASE  = 'https://telemed-medplum.duckdns.org';
-  const CLIENT_ID     = 'c18b54d9-f511-46db-903e-882b47dc3c63';
-  const CLIENT_SECRET = '7f86f3b5c08e94d711f61a4565c7d577cb303e78a5d57b5d340b74baf8c0b283';
+  // CREDENTIALS: populated at deploy time.
+  // Never commit real values to this file.
+  const CLIENT_ID     = ''; // injected at deploy time
+  const CLIENT_SECRET = ''; // injected at deploy time
+  const TURN_PASSWORD = ''; // injected at deploy time
+  const TURN_USERNAME = ''; // injected at deploy time
   const ICE_SERVERS   = [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'turn:34.185.191.34:3478', username: 'telemed', credential: 'TeleMed_TURN_2026!' }
+    // TODO: Replace hardcoded IP with a DNS name when GCP VM gets a stable hostname.
+    { urls: 'turn:34.185.191.34:3478', username: TURN_USERNAME, credential: TURN_PASSWORD }
   ];
   const DOCTORS = [
     { name: 'Dr. Elena Ionescu',     specialty: 'Family Doctor',  id: '733e1972-b42d-4bd0-82c7-66db72b2d311' },
@@ -627,8 +632,15 @@
           entry.className = 'observation-entry' + (reviewed ? ' reviewed' : '');
           const val  = obs.valueString || '';
           const date = obs.effectiveDateTime ? new Date(obs.effectiveDateTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+          const obsExts = obs.extension || [];
+          const reviewedByTargetRef = obsExts.find(e => e.url && e.url.includes('reviewed-by-target'))?.valueString || null;
+          const assignedDoctor = reviewedByTargetRef ? DOCTORS.find(d => reviewedByTargetRef.includes(d.id)) : null;
+          const assignedLabel = assignedDoctor ? assignedDoctor.name : (reviewedByTargetRef ? reviewedByTargetRef : null);
+          const recordedByName = obsExts.find(e => e.url === 'https://telemed-bogheanu.ro/fhir/ext/doctor-name')?.valueString || null;
           entry.innerHTML = '<div>' + esc(val.substring(0, 160)) + (val.length > 160 ? '…' : '') + '</div>' +
-            '<div class="observation-date">' + esc(date) + (reviewed ? ' · Reviewed' : '') + '</div>';
+            '<div class="observation-date">' + esc(date) + (reviewed ? ' · Reviewed' : '') +
+            (assignedLabel ? ' · Assigned to: ' + esc(assignedLabel) : '') + '</div>' +
+            (recordedByName ? '<div class="observation-date" style="color:#5BA4CF;">Recorded by: ' + esc(recordedByName) + '</div>' : '');
           if (!reviewed && !isCallActive) { const btn = document.createElement('button'); btn.className = 'btn-mark-reviewed'; btn.textContent = 'Mark as reviewed'; btn.addEventListener('click', () => markReviewed(obs.id, btn, entry)); entry.appendChild(btn); }
           obsEl.appendChild(entry);
         });

@@ -160,11 +160,17 @@ class DialogDetailSheet {
                           .where((l) => l.trim().isNotEmpty)
                           .map((line) {
                         final isAi = line.startsWith('[AI]');
-                        final displayText = line
+                        final rawText = line
                             .replaceFirst(
-                                RegExp(r'^\[(AI|Pacient)\]\s*\d+:\d+:\s*'), '')
+                                RegExp(r'^\[(AI|Pacient|Patient)\]\s*\d+:\d+:\s*'), '')
                             .trim();
-                        if (displayText.isEmpty) return const SizedBox.shrink();
+                        if (rawText.isEmpty) return const SizedBox.shrink();
+                        // Replace raw file path markers with human-readable labels.
+                        final displayText = rawText.startsWith('[Voice:')
+                            ? AppStrings.of(lang, 'chat.voice_bubble')
+                            : rawText.startsWith('[Photo:')
+                                ? AppStrings.of(lang, 'chat.photo_bubble')
+                                : rawText;
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: Align(

@@ -41,11 +41,22 @@ class EmergencyScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 64),
               AccessibleTouchTarget(
-                semanticLabel: 'Suna acum la 112',
+                semanticLabel: AppStrings.of(lang, 'emergency.call_sem'),
                 onTap: () async {
                   final uri = Uri(scheme: 'tel', path: '112');
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri);
+                  try {
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(
+                          AppStrings.of(lang, 'emergency.dial_error'))));
+                    }
+                  } catch (e) {
+                    debugPrint('Emergency dial error: $e');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(
+                        AppStrings.of(lang, 'emergency.dial_error'))));
                   }
                 },
                 child: Container(
@@ -65,7 +76,7 @@ class EmergencyScreen extends ConsumerWidget {
               const SizedBox(height: 32),
               // CRITICAL OVERRIDE: 2px solid black border implemented
               AccessibleTouchTarget(
-                semanticLabel: 'Anulează apelul de urgență',
+                semanticLabel: AppStrings.of(lang, 'emergency.cancel_sem'),
                 onTap: () {
                   ref.read(medicalSessionProvider.notifier).reset();
                 },

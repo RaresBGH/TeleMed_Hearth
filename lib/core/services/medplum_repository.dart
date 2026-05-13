@@ -9,12 +9,17 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'medplum_auth_service.dart';
+import '../utils/fhir_extension_utils.dart';
 
 /// FHIR R4 REST client for the self-hosted Medplum server.
 /// Every public method returns null / empty-list on failure — never throws.
 /// All methods guard on [auth.isOnline]; callers fall back to local FHIR SDK.
 class MedplumRepository {
   static const _base = 'https://telemed-medplum.duckdns.org/fhir/R4';
+
+  /// Public accessor so callers (e.g. FhirRepository) can build URLs without
+  /// duplicating the base URL string.
+  static String get base => _base;
 
   final MedplumAuthService auth;
   final http.Client client;
@@ -298,6 +303,8 @@ class MedplumRepository {
     required String text,
     required bool isPatient,
     required DateTime timestamp,
+    // TODO: attachmentPath not yet serialized into FHIR payload — post-hackathon:
+    // add as Attachment content in payload body.
     String? attachmentPath,
     String? mimeType,
     String? attachmentTitle,
@@ -340,7 +347,7 @@ class MedplumRepository {
         ],
         // Keep isPatient extension for backwards compatibility.
         'extension': [
-          {'url': 'isPatient', 'valueBoolean': isPatient},
+          {'url': FhirExtensionUtils.isPatientUrl, 'valueBoolean': isPatient},
         ],
       };
       final response = await client.post(

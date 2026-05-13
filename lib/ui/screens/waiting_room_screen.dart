@@ -16,6 +16,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/utils/date_formatter.dart';
+import '../../core/utils/fhir_extension_utils.dart';
 import 'video_consultation_screen.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -93,17 +94,26 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
       await _localRenderer.initialize();
       final stream = await navigator.mediaDevices.getUserMedia(
           {'video': true, 'audio': true});
+      if (!mounted) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       _localRenderer.srcObject = stream;
       _localStream = stream;
-      if (mounted) setState(() => _rendererReady = true);
-    } catch (_) {
-      // Camera unavailable — video area stays black placeholder
+      setState(() => _rendererReady = true);
+    } catch (e) {
+      debugPrint('Camera init failed: $e');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          AppStrings.of(ref.read(languageProvider), 'error.camera_unavailable'))));
     }
   }
 
   void _onConsentGiven() {
     setState(() => _consentGiven = true);
-    _initLocalCamera();
+    _initLocalCamera().catchError((e) {
+      debugPrint('Camera init error: $e');
+    });
   }
 
   void _toggleMic() {
@@ -153,7 +163,8 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
                 children: [
                   const SizedBox(height: 24),
                   Text(
-                    AppStrings.of(lang, 'waiting.connecting'),
+                    AppStrings.of(lang, 'waiting.connecting')
+                        .replaceAll('{doctorName}', widget.doctorName),
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
@@ -241,8 +252,8 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
                     width: 10 + 18 * _pulseController.value,
                     height: 10 + 18 * _pulseController.value,
                     decoration: BoxDecoration(
-                      color: Colors.green.shade500.withValues(
-                        alpha: 0.65 * (1 - _pulseController.value),
+                      color: Colors.green.shade500.withOpacity(
+                        0.65 * (1 - _pulseController.value),
                       ),
                       shape: BoxShape.circle,
                     ),
@@ -271,11 +282,11 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
       children: [
         Container(width: 12, height: 12,
             decoration: BoxDecoration(
-                color: _brand.withValues(alpha: 0.4), shape: BoxShape.circle)),
+                color: _brand.withOpacity(0.4), shape: BoxShape.circle)),
         const SizedBox(width: 8),
         Container(width: 12, height: 12,
             decoration: BoxDecoration(
-                color: _brand.withValues(alpha: 0.7), shape: BoxShape.circle)),
+                color: _brand.withOpacity(0.7), shape: BoxShape.circle)),
         const SizedBox(width: 8),
         Container(width: 12, height: 12,
             decoration: const BoxDecoration(color: _brand, shape: BoxShape.circle)),
@@ -331,9 +342,8 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            // TODO(MVP): update consent_text key to use [name] placeholder.
             AppStrings.of(lang, 'waiting.consent_text')
-                .replaceAll('Dr. Bogheanu', widget.doctorName),
+                .replaceAll('{doctorName}', widget.doctorName),
             style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w500,
@@ -475,7 +485,7 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Text(
                       AppStrings.of(lang, 'waiting.doctor_notified')
-                          .replaceAll('[name]', widget.doctorName),
+                          .replaceAll('{doctorName}', widget.doctorName),
                       style: const TextStyle(
                         fontSize: 16,
                         color: _onSurfaceV,
@@ -504,7 +514,7 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
   }
 
   // Waiting state app bar
-  PreferredSizeWidget _buildWaitingAppBar(BuildContext context, String lang) {
+  Widget _buildWaitingAppBar(BuildContext context, String lang) {
     return AppBar(
       backgroundColor: _cardBg,
       elevation: 0,
@@ -595,7 +605,7 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         // Emerald green status chips STAY GREEN (active/ok indicators)
-        color: Colors.green.shade600.withValues(alpha: 0.9),
+        color: Colors.green.shade600.withOpacity(0.9),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -890,7 +900,7 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
         .whereType<Map<String, dynamic>>()
         .toList();
     final catExt = exts.where(
-      (e) => (e['url'] as String? ?? '').endsWith('session-category'),
+      (e) => FhirExtensionUtils.isSessionCategory(e['url'] as String? ?? ''),
     ).firstOrNull;
     final cat = catExt?['valueString'] as String?;
     final isMedical = cat == 'medical';

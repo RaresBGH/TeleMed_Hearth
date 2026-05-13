@@ -10,12 +10,19 @@ class Practitioners {
 
   static const familyDoctorId =
       'Practitioner/733e1972-b42d-4bd0-82c7-66db72b2d311';
+  /// Bare UUID without the 'Practitioner/' prefix — use when APIs expect the raw ID.
+  static String get familyDoctorBareId =>
+      familyDoctorId.replaceFirst('Practitioner/', '');
   static const familyDoctorName = 'Dr. Elena Ionescu';
+  // Reserved for future use in specialty display.
   static const familyDoctorSpecialty = 'Medic de Familie';
 
   static const bogheanuId =
       'Practitioner/474f526b-7919-48dd-9528-3c0eaff80cb6';
+  // Named after clinic (Bogheanu) but value is Dr. Andrei Popescu — the resident specialist.
+  // Do not rename the constant — it is referenced in multiple places.
   static const bogheanuName = 'Dr. Andrei Popescu';
+  // Reserved for future use in specialty display.
   static const bogheanuSpecialty = 'Pediatrie';
 
   // ── Specialist mock names ──────────────────────────────────────────────────

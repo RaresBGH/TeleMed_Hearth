@@ -100,6 +100,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
   DateTime? _selectedDay;
   List<Map<String, dynamic>> _appointments = [];
   bool _loading                     = true;
+  bool _hasLoaded                   = false;
   bool _showBookingPanel             = false;
   TimeOfDay? _selectedSlot;
   bool _isSaving                    = false;
@@ -113,6 +114,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
   }
 
   Future<void> _loadAppointments() async {
+    if (_hasLoaded) return;
     final cnp = ref.read(loginCnpProvider);
     try {
       final data = await ref
@@ -138,6 +140,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
       setState(() {
         _appointments = sorted;
         _loading      = false;
+        _hasLoaded    = true;
       });
     } catch (_) {
       if (!mounted) return;
@@ -377,7 +380,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
             shape: BoxShape.circle,
           ),
           todayDecoration: BoxDecoration(
-            color: _brand.withValues(alpha: 0.30),
+            color: _brand.withOpacity(0.30),
             shape: BoxShape.circle,
           ),
           markerDecoration: const BoxDecoration(

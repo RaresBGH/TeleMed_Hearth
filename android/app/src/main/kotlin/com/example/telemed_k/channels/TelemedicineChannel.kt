@@ -33,6 +33,7 @@ class TelemedicineChannel(
 ) : MethodChannel.MethodCallHandler {
 
     companion object {
+        const val CHANNEL_NAME = "com.telemed_k/telemedicine"
         private const val TAG = "TelemedicineChannel"
     }
 
@@ -107,34 +108,4 @@ class TelemedicineChannel(
         }
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // Native → Dart: Push incoming call notification
-    // ──────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Called from the native layer (e.g., FCM onMessageReceived) to notify Flutter
-     * that an incoming telemedicine call has been received from a physician.
-     *
-     * This triggers the Dart TelemedicineService's listenForIncomingCall handler,
-     * which navigates the user to the WaitingRoom screen via AppNavigationProvider.
-     *
-     * @param callMetadata Map containing at minimum: callId, physicianName, physicianId
-     */
-    fun notifyIncomingCall(callMetadata: Map<String, Any>) {
-        val channel = dartChannel
-        if (channel == null) {
-            Log.w(TAG, "Cannot notify incoming call: Dart channel not initialized")
-            return
-        }
-
-        // Must invoke on the main thread to reach the Flutter engine
-        CoroutineScope(Dispatchers.Main).launch {
-            try {
-                channel.invokeMethod("onIncomingCall", callMetadata)
-                Log.i(TAG, "Incoming call notification sent to Flutter: ${callMetadata["callId"]}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to notify Flutter of incoming call", e)
-            }
-        }
-    }
 }

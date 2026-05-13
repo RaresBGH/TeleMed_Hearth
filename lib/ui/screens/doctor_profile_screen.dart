@@ -75,7 +75,7 @@ class DoctorProfileScreen extends ConsumerWidget {
     };
     final isFamily   = practitionerRef == null ||
                        practitionerRef == Practitioners.familyDoctorId;
-    final topLabel   = isFamily ? 'Family Medicine' : specialty;
+    final topLabel   = isFamily ? AppStrings.of(lang, 'doctor.family_specialty') : specialty;
     final entitlement = isFamily
         ? Practitioners.familyDoctorEntitlement
         : (entitlementMap[practitionerRef] ?? specialty);
@@ -528,7 +528,7 @@ class DoctorProfileScreen extends ConsumerWidget {
                     if (conditionName != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'Prescribed for: $conditionName',
+                        AppStrings.of(lang, 'prescription.prescribed_for').replaceAll('{condition}', conditionName),
                         style: const TextStyle(
                             fontSize: 13, color: _onSurfaceV),
                       ),

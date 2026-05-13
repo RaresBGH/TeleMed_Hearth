@@ -18,6 +18,7 @@ import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/patient_history_provider.dart';
 import '../../core/services/ai_engine_service.dart';
+import '../../core/constants/practitioner_constants.dart';
 import '../../core/utils/date_formatter.dart';
 
 
@@ -46,6 +47,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
   // ── State ─────────────────────────────────────────────────────────────────
   Map<String, dynamic>? _patientData;
   bool _isLoadingData = true;
+  bool _hasLoaded     = false;
   bool _isSaving      = false;
   Uint8List?    _avatarBytes;
   String? _originalPhone;
@@ -76,6 +78,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
 
   // ── Data loading ──────────────────────────────────────────────────────────
   Future<void> _loadPatientData() async {
+    if (_hasLoaded) return;
     final cnp = ref.read(loginCnpProvider);
     try {
       final data = await ref.read(fhirRepositoryProvider).getPatientByCnp(cnp);
@@ -83,11 +86,15 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
       setState(() {
         _patientData    = data;
         _isLoadingData  = false;
+        _hasLoaded      = true;
         if (data != null) _initFromFhir(data);
       });
     } catch (_) {
       if (!mounted) return;
       setState(() => _isLoadingData = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.of(_lang, 'error.load_profile'))),
+      );
     }
   }
 
@@ -188,15 +195,15 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
-        title: const Text('Alegeți sursa', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        title: Text(AppStrings.of(_lang, 'profile.photo_source'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(ImageSource.gallery),
-            child: const Text('Galerie foto', style: TextStyle(fontSize: 16)),
+            child: Text(AppStrings.of(_lang, 'profile.photo_gallery'), style: const TextStyle(fontSize: 16)),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(ImageSource.camera),
-            child: const Text('Cameră', style: TextStyle(fontSize: 16)),
+            child: Text(AppStrings.of(_lang, 'profile.photo_camera'), style: const TextStyle(fontSize: 16)),
           ),
         ],
       ),
@@ -264,7 +271,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                 backgroundColor: _brand,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('OK', style: TextStyle(fontSize: 16)),
+              child: Text(AppStrings.of(_lang, 'action.ok'), style: const TextStyle(fontSize: 16)),
             ),
           ],
         ),
@@ -540,7 +547,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           ),
         const SizedBox(height: 4),
         Text(
-          'CNP $_cnpDisplay',
+          '${AppStrings.of(_lang, 'profile.cnp_prefix')}$_cnpDisplay',
           style: const TextStyle(fontSize: 14, color: _outline, fontWeight: FontWeight.w500),
           textAlign: TextAlign.center,
         ),
@@ -673,7 +680,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
           const SizedBox(height: 12),
           _buildInfoRow(
             AppStrings.of(lang, 'profil.family_doctor_label'),
-            AppStrings.of(lang, 'dashboard.doctor_name'),
+            Practitioners.familyDoctorName,
           ),
           const SizedBox(height: 16),
           Text(

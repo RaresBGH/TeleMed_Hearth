@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../core/constants/legal_content.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/providers/language_provider.dart';
 
 /// Which legal document to display.
@@ -89,15 +90,15 @@ class LegalDocumentModal extends ConsumerWidget {
 /// Full-screen Scaffold that renders an HTML string via [WebViewWidget].
 /// The Flutter AppBar provides a reliable back button; the HTML's own
 /// in-page navigation buttons are non-functional (expected — read-only view).
-class _WebShell extends StatefulWidget {
+class _WebShell extends ConsumerStatefulWidget {
   final String title;
   final String html;
   const _WebShell({required this.title, required this.html});
   @override
-  State<_WebShell> createState() => _WebShellState();
+  ConsumerState<_WebShell> createState() => _WebShellState();
 }
 
-class _WebShellState extends State<_WebShell> {
+class _WebShellState extends ConsumerState<_WebShell> {
   late final WebViewController _controller;
 
   @override
@@ -110,6 +111,7 @@ class _WebShellState extends State<_WebShell> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(languageProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
       appBar: AppBar(
@@ -118,7 +120,7 @@ class _WebShellState extends State<_WebShell> {
         centerTitle: true,
         leading: Semantics(
           button: true,
-          label: 'Înapoi',
+          label: AppStrings.of(lang, 'nav.back'),
           child: SizedBox(
             height: 64,
             width: 64,
@@ -144,7 +146,7 @@ class _WebShellState extends State<_WebShell> {
 }
 
 /// Full-screen shell: AppBar + scrollable body + glassmorphism back button.
-class _Shell extends StatelessWidget {
+class _Shell extends ConsumerWidget {
   final String title;
   final Widget child;
 
@@ -154,7 +156,8 @@ class _Shell extends StatelessWidget {
   static const Color _bg = Color(0xFFF9F9F9);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(languageProvider);
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -179,7 +182,7 @@ class _Shell extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
-            color: Colors.white.withValues(alpha: 0.85),
+            color: Colors.white.withOpacity(0.85),
             padding: EdgeInsets.fromLTRB(
               24,
               12,
@@ -188,15 +191,15 @@ class _Shell extends StatelessWidget {
             ),
             child: Semantics(
               button: true,
-              label: 'Înapoi',
+              label: AppStrings.of(lang, 'nav.back'),
               child: SizedBox(
                 height: 64,
                 child: ElevatedButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.chevron_left, size: 32,
                       color: Colors.white),
-                  label: const Text(
-                    'Înapoi',
+                  label: Text(
+                    AppStrings.of(lang, 'nav.back'),
                     style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,

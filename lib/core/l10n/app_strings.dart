@@ -3,6 +3,10 @@
 //
 // TeleMed_K: Offline-first telemedicine app for seniors
 
+// NOTE: withOpacity() is deprecated in Flutter 3.27+ — replace with
+// Color.withValues(alpha:) when CI upgrades to Flutter 3.27+. Currently
+// kept for 3.32.x CI compatibility (~20 call sites across 8 UI files).
+
 /// Centralized bilingual string table.
 ///
 /// Usage in build():
@@ -14,6 +18,9 @@
 class AppStrings {
   AppStrings._();
 
+  /// Canonical app display name — single source of truth.
+  static const String appName = 'TeleMed Hearth';
+
   // ── Romanian strings (default) ────────────────────────────────────────────
   static const _ro = <String, String>{
     // ── Legal ─────────────────────────────────────────────────────────────
@@ -22,27 +29,31 @@ class AppStrings {
 
     // ── Navigation ────────────────────────────────────────────────────────
     'nav.back':               'Înapoi',
+    'nav.profile':            'Profilul Meu',
+    'role.doctor':            'Doctor',
+    'role.doctor_prefix':     'Dr. ',
+    'action.ok':              'OK',
+    'action.seconds_left':    '{n}s',
     'error.generic':          'A apărut o eroare. Încercați din nou.',
-    'assistant.title':        'Asistent Medical',
-    'assistant.subtitle':     'Descrieți simptomele și voi pregăti un raport pentru medicul dvs.',
-    'chat.doctor_message_subtitle': 'Scrieți mesajul dvs. mai jos.',
+    'error.load_profile':     'Nu s-au putut încărca datele profilului.',
+    'error.mic_unavailable':      'Microfonul nu este disponibil. Vă rugăm reîncercați.',
+    'error.camera_unavailable':   'Nu s-a putut accesa camera. Vă rugăm reîncercați.',
+    'error.audio_unavailable':    'Fișierul audio nu mai este disponibil.',
+    'error.inference_failed':     'Nu s-a putut procesa mesajul. Vă rugăm reîncercați.',
+    'emergency.dial_error':       'Nu s-a putut deschide apelul. Sunați manual la 112.',
+    'profile.cnp_prefix':     'CNP ',
 
-    // ── In-call chat ──────────────────────────────────────────────────────
-    'call.chat_hint':        'Scrieți un mesaj...',
-    'call.summary_saved':    'Rezumatul consultației a fost salvat.',
+    // ── In-call ──────────────────────────────────────────────────────────
     'call.mute_enable':      'Activează microfonul',
     'call.mute_disable':     'Dezactivează microfonul',
     'call.end':              'Închide consultația',
     'call.peer_left':        'Celălalt participant a părăsit apelul.',
-    'call.open_chat':        'Deschide chat și documente',
-    'call.tab_chat':              'Chat',
+    'call.signaling_error':  'Nu s-a putut conecta la server. Vă rugăm reîncercați.',
+    'call.webrtc_error':     'Nu s-a putut porni video. Vă rugăm reîncercați.',
     'call.tab_activity':          'Activitate',
     'call.activity_empty':        'Nicio activitate recentă.',
     'call.activity_medical':      'Medical',
     'call.activity_other':        'Altele',
-    'call.summary_label_patient': 'Pacient',
-    'call.summary_label_doctor':  'Doctor',
-    'call.summary_prompt':        'Rezumă această conversație medicală în 3-5 propoziții clare. Evidențiază simptomele menționate, recomandările medicului și orice acțiuni urmărite. Conversație:',
 
     // ── Attachment ────────────────────────────────────────────────────────
     'attachment.pdf_label':      'Document PDF',
@@ -107,31 +118,16 @@ class AppStrings {
     'history.finalized_label':       'Finalizat de medic',
 
     // ── Doctor / Medic ─────────────────────────────────────────────────────
-    'doctor.screen_title':    'Medicul Meu',
-    'doctor.available':       'Disponibil acum',
-    'doctor.incoming_call':   'Apel Video de la Dr. Ionescu',
-    'doctor.scheduled':       'Consultație programată',
-    'doctor.answer':          'RĂSPUNDE',
-    'doctor.decline':         'Respinge apelul',
-    'doctor.last_visit':      'Ultima consultație',
-    'doctor.none':            'Niciuna',
-    'doctor.prescription':    'Rețetă activă',
     'doctor.treatment':       'Tratament',
     'doctor.error':           'Eroare',
-    'doctor.answer_sem':      'Răspunde la apel',
-    'doctor.decline_sem':     'Respinge apelul',
     'doctor.unknown_date':    'Necunoscută',
-    'doctor.name':            'Dr. Ionescu',
     'doctor.family_specialty':       'Medic de Familie',
-    'doctor.send_message':           'Trimite mesaj',
     'doctor.message_btn':            'Mesaj',
     'doctor.book_appointment':       'Programare',
     'doctor.specialty_nav':          'Alege o specialitate medicală',
-    'doctor.available_now':          'Disponibil acum',
     'doctor.consultations_section':  'CONSULTAȚII DE SPECIALITATE',
     'doctor.last_consult':           'Ultima consultație',
     'doctor.active_prescription':    'Rețetă activă',
-    'doctor.message_preseed':        'Bună ziua, am o întrebare pentru [name].',
     'doctor.no_prescription':        'Nicio rețetă activă',
     'doctor.no_consult':             'Nicio consultație înregistrată',
 
@@ -220,7 +216,7 @@ class AppStrings {
     // ── Model download ────────────────────────────────────────────────────
     'download.title':         'Pregătim asistentul medical',
     'download.subtitle':      'Se descarcă asistentul virtual. Aceasta este o operațiune ce va avea loc o singură dată, la crearea contului.',
-    'download.size_hint':     'Dimensiune: ~2.4 GB',
+    'download.size_hint':     'Dimensiune: ~3.5 GB',
     'download.wifi_ok':       'WiFi activ — descărcarea este sigură',
     'download.mobile_data':   'Descărcare prin date mobile - pot fi aplicate costuri',
     'download.no_conn':       'Fără conexiune la internet',
@@ -231,6 +227,8 @@ class AppStrings {
     'download.progress_pct':  'descărcat',
     'download.fail_msg':      'Descărcarea a eșuat. Verificați conexiunea WiFi și încercați din nou.',
     'download.fail_reason':   'Descărcarea a eșuat (%s). Verificați conexiunea WiFi și încercați din nou.',
+    'download.error_generic': 'Eroare la pornirea descărcării. Vă rugăm încercați din nou.',
+    'download.error_retry':   'Descărcarea a eșuat. Verificați conexiunea WiFi și încercați din nou.',
 
     // ── Profile completion ─────────────────────────────────────────────────
     'profile.appbar_title':   'Completați profilul',
@@ -245,6 +243,10 @@ class AppStrings {
     'profile.continue_btn':   'CONTINUĂ',
     'profile.continue_sem':   'Salvează profilul și continuă',
     'profile.save_error':     'Eroare la salvare. Vă rugăm încercați din nou.',
+    'profile.photo_source':   'Alegeți sursa',
+    'profile.photo_gallery':  'Galerie foto',
+    'profile.photo_camera':   'Cameră',
+    'prescription.prescribed_for': 'Prescris pentru: {condition}',
 
     // ── Profil Pacient ────────────────────────────────────────────────────
     'profil.appbar_title':           'Profilul Meu',
@@ -321,15 +323,10 @@ class AppStrings {
     'emergency.call_sem':     'Suna acum la 112',
     'emergency.cancel_sem':   'Anulează apelul de urgență',
 
-    // ── Confirmation ──────────────────────────────────────────────────────
-    'confirm.title':          'Consultația a fost salvată cu succes.',
-    'confirm.subtitle':       'Datele au fost înregistrate sigur în dosarul local.',
-    'confirm.ai_label':       'Răspuns asistent AI',
-
     // ── Waiting room ──────────────────────────────────────────────────────
-    'waiting.connecting':     'Conectare la cabinetul Dr. Ionescu...',
+    'waiting.connecting':     'Conectare la cabinetul {doctorName}...',
     'waiting.consent_title':  'Acord de Consultanță',
-    'waiting.consent_text':   'Prin acest serviciu, sunteți de acord cu partajarea datelor medicale cu Dr. Ionescu pentru consultanță de la distanță.',
+    'waiting.consent_text':   'Prin acest serviciu, sunteți de acord cu partajarea datelor medicale cu {doctorName} pentru consultanță de la distanță.',
     'waiting.consent_1':      'Acces securizat la istoricul dumneavoastră medical.',
     'waiting.consent_2':      'Înregistrarea sesiunii pentru acuratețe clinică.',
     'waiting.consent_3':      'Confidențialitate garantată prin protocol medical.',
@@ -345,7 +342,7 @@ class AppStrings {
     'waiting.mic_active':     'Microfon: Activ',
     'waiting.mic_muted':      'Microfon: Dezactivat',
     'waiting.internet_stable':'Internet: Stabil',
-    'waiting.doctor_notified':'Dr. [name] a fost notificat(ă) și se va conecta în curând.',
+    'waiting.doctor_notified':'Dr. {doctorName} a fost notificat(ă) și se va conecta în curând.',
     'waiting.private_space':  'Confirm că mă aflu într-un spațiu privat și liniștit, potrivit pentru consultație.',
     'waiting.mute_btn':       'Fără sunet',
     'waiting.video_off_btn':  'Oprește video',
@@ -358,18 +355,12 @@ class AppStrings {
     'waiting.activity_other':  'Altele',
 
     // ── Video consultation ────────────────────────────────────────────────
-    'video.header':           'CONSULTĂ DR. BOGHEANU',
+    'video.header':           'CONSULTĂ {doctorName}',
     'video.connecting':       'Se conectează...',
     'video.you_label':        'TU',
     'video.muted':            'Mut',
     'video.unmuted':          'Sunet',
     'video.end_call':         'Închide',
-    'video.chat_hint':        'Mesaj sau document...',
-    'video.chat_soon':        'Chat și documente — în curând',
-    'video.mute_sem':         'Dezactivează microfonul',
-    'video.unmute_sem':       'Activează microfonul',
-    'video.end_sem':          'Închide consultația',
-    'video.chat_sem':         'Deschide chat și documente',
 
     // ── Dashboard ─────────────────────────────────────────────────────────
     'dashboard.greeting_small':   'Bună ziua,',
@@ -378,7 +369,6 @@ class AppStrings {
     'dashboard.last_dialog':      'Ultimul dialog:',
     'dashboard.no_dialog':        'Niciun dialog anterior',
     'dashboard.doctor_label':     'Medic de Familie:',
-    'dashboard.doctor_name':      'Dr. Andrei Popescu',
     'dashboard.appointments_title': 'Programări',
     'dashboard.next_appt':        'Următoarea programare',
     'dashboard.no_appt':          'Nicio programare',
@@ -395,7 +385,6 @@ class AppStrings {
     // ── Shared / nav ──────────────────────────────────────────────────────
     'nav.home':               'Acasă',
     'nav.dossier':            'Dosar Medical',
-    'nav.history':            'Dosar Medical',
     'nav.doctor':             'Medic',
     'lang.switch_sem':        'Schimbă Limba / Change Language',
   };
@@ -408,27 +397,31 @@ class AppStrings {
 
     // ── Navigation ────────────────────────────────────────────────────────
     'nav.back':               'Back',
+    'nav.profile':            'My Profile',
+    'role.doctor':            'Doctor',
+    'role.doctor_prefix':     'Dr. ',
+    'action.ok':              'OK',
+    'action.seconds_left':    '{n}s',
     'error.generic':          'An error occurred. Please try again.',
-    'assistant.title':        'Medical Assistant',
-    'assistant.subtitle':     'Describe your symptoms and I will prepare a report for your doctor.',
-    'chat.doctor_message_subtitle': 'Write your message below.',
+    'error.load_profile':     'Could not load profile data.',
+    'error.mic_unavailable':      'Microphone unavailable. Please try again.',
+    'error.camera_unavailable':   'Could not access camera. Please try again.',
+    'error.audio_unavailable':    'Audio file no longer available.',
+    'error.inference_failed':     'Could not process your message. Please try again.',
+    'emergency.dial_error':       'Could not launch dialer. Please call 112 manually.',
+    'profile.cnp_prefix':     'CNP ',
 
-    // ── In-call chat ──────────────────────────────────────────────────────
-    'call.chat_hint':        'Type a message...',
-    'call.summary_saved':    'Consultation summary saved.',
+    // ── In-call ──────────────────────────────────────────────────────────
     'call.mute_enable':      'Enable microphone',
     'call.mute_disable':     'Disable microphone',
     'call.end':              'End consultation',
     'call.peer_left':        'The other participant has left the call.',
-    'call.open_chat':        'Open chat and documents',
-    'call.tab_chat':              'Chat',
+    'call.signaling_error':  'Could not connect to call server. Please retry.',
+    'call.webrtc_error':     'Could not start video. Please retry.',
     'call.tab_activity':          'Activity',
     'call.activity_empty':        'No recent triage activity.',
     'call.activity_medical':      'Medical',
     'call.activity_other':        'Other',
-    'call.summary_label_patient': 'Patient',
-    'call.summary_label_doctor':  'Doctor',
-    'call.summary_prompt':        'Summarize this medical conversation in 3-5 clear sentences. Highlight the symptoms mentioned, the doctor\'s recommendations, and any follow-up actions. Conversation:',
 
     // ── Attachment ────────────────────────────────────────────────────────
     'attachment.pdf_label':      'PDF Document',
@@ -493,31 +486,16 @@ class AppStrings {
     'history.finalized_label':       'Finalized by doctor',
 
     // ── Doctor / Medic ─────────────────────────────────────────────────────
-    'doctor.screen_title':    'My Doctor',
-    'doctor.available':       'Available now',
-    'doctor.incoming_call':   'Video Call from Dr. Ionescu',
-    'doctor.scheduled':       'Scheduled consultation',
-    'doctor.answer':          'ANSWER',
-    'doctor.decline':         'Decline call',
-    'doctor.last_visit':      'Last consultation',
-    'doctor.none':            'None',
-    'doctor.prescription':    'Active prescription',
     'doctor.treatment':       'Treatment',
     'doctor.error':           'Error',
-    'doctor.answer_sem':      'Answer the call',
-    'doctor.decline_sem':     'Decline the call',
     'doctor.unknown_date':    'Unknown',
-    'doctor.name':            'Dr. Ionescu',
     'doctor.family_specialty':       'Family Medicine',
-    'doctor.send_message':           'Send message',
     'doctor.message_btn':            'Message',
     'doctor.book_appointment':       'Appointment',
     'doctor.specialty_nav':          'Choose a medical specialty',
-    'doctor.available_now':          'Available now',
     'doctor.consultations_section':  'SPECIALTY CONSULTATIONS',
     'doctor.last_consult':           'Last consultation',
     'doctor.active_prescription':    'Active prescription',
-    'doctor.message_preseed':        'Hello, I have a question for [name].',
     'doctor.no_prescription':        'No active prescription',
     'doctor.no_consult':             'No consultation recorded',
 
@@ -606,7 +584,7 @@ class AppStrings {
     // ── Model download ────────────────────────────────────────────────────
     'download.title':         'Preparing your medical assistant',
     'download.subtitle':      'Downloading the virtual assistant. This is a one-time operation during account creation.',
-    'download.size_hint':     'Size: ~2.4 GB',
+    'download.size_hint':     'Size: ~3.5 GB',
     'download.wifi_ok':       'WiFi active — download is safe',
     'download.mobile_data':   'Downloading via mobile data — charges may apply',
     'download.no_conn':       'No internet connection',
@@ -617,6 +595,8 @@ class AppStrings {
     'download.progress_pct':  'downloaded',
     'download.fail_msg':      'Download failed. Please check your WiFi and try again.',
     'download.fail_reason':   'Download failed (%s). Please check your WiFi and try again.',
+    'download.error_generic': 'Failed to start download. Please try again.',
+    'download.error_retry':   'Download failed. Please check your WiFi and try again.',
 
     // ── Profile completion ─────────────────────────────────────────────────
     'profile.appbar_title':   'Complete your profile',
@@ -631,6 +611,10 @@ class AppStrings {
     'profile.continue_btn':   'CONTINUE',
     'profile.continue_sem':   'Save profile and continue',
     'profile.save_error':     'Save error. Please try again.',
+    'profile.photo_source':   'Choose source',
+    'profile.photo_gallery':  'Gallery',
+    'profile.photo_camera':   'Camera',
+    'prescription.prescribed_for': 'Prescribed for: {condition}',
 
     // ── Profil Pacient ────────────────────────────────────────────────────
     'profil.appbar_title':           'My Profile',
@@ -707,15 +691,10 @@ class AppStrings {
     'emergency.call_sem':     'Call 112 now',
     'emergency.cancel_sem':   'Cancel the emergency call',
 
-    // ── Confirmation ──────────────────────────────────────────────────────
-    'confirm.title':          'Consultation saved successfully.',
-    'confirm.subtitle':       'Data was securely recorded in the local file.',
-    'confirm.ai_label':       'AI Assistant Response',
-
     // ── Waiting room ──────────────────────────────────────────────────────
-    'waiting.connecting':     "Connecting to Dr. Ionescu's office...",
+    'waiting.connecting':     "Connecting to {doctorName}'s office...",
     'waiting.consent_title':  'Consultation Agreement',
-    'waiting.consent_text':   'By using this service, you agree to share your medical data with Dr. Ionescu for remote consultation.',
+    'waiting.consent_text':   'By using this service, you agree to share your medical data with {doctorName} for remote consultation.',
     'waiting.consent_1':      'Secure access to your medical history.',
     'waiting.consent_2':      'Session recording for clinical accuracy.',
     'waiting.consent_3':      'Privacy guaranteed by medical protocol.',
@@ -731,7 +710,7 @@ class AppStrings {
     'waiting.mic_active':     'Microphone: Active',
     'waiting.mic_muted':      'Microphone: Muted',
     'waiting.internet_stable':'Internet: Stable',
-    'waiting.doctor_notified':'Dr. [name] has been notified and will connect shortly.',
+    'waiting.doctor_notified':'Dr. {doctorName} has been notified and will connect shortly.',
     'waiting.private_space':  'I confirm I am in a private, quiet space suitable for consultation.',
     'waiting.mute_btn':       'Mute',
     'waiting.video_off_btn':  'Stop video',
@@ -744,18 +723,12 @@ class AppStrings {
     'waiting.activity_other':  'Other',
 
     // ── Video consultation ────────────────────────────────────────────────
-    'video.header':           'CONSULT DR. BOGHEANU',
+    'video.header':           'CONSULT {doctorName}',
     'video.connecting':       'Connecting...',
     'video.you_label':        'YOU',
     'video.muted':            'Muted',
     'video.unmuted':          'Sound',
     'video.end_call':         'End',
-    'video.chat_hint':        'Message or document...',
-    'video.chat_soon':        'Chat and documents — coming soon',
-    'video.mute_sem':         'Disable microphone',
-    'video.unmute_sem':       'Enable microphone',
-    'video.end_sem':          'End consultation',
-    'video.chat_sem':         'Open chat and documents',
 
     // ── Dashboard ─────────────────────────────────────────────────────────
     'dashboard.greeting_small':   'Good day,',
@@ -764,7 +737,6 @@ class AppStrings {
     'dashboard.last_dialog':      'Last dialog:',
     'dashboard.no_dialog':        'No previous dialog',
     'dashboard.doctor_label':     'Family Doctor:',
-    'dashboard.doctor_name':      'Dr. Andrei Popescu',
     'dashboard.appointments_title': 'Appointments',
     'dashboard.next_appt':        'Next appointment',
     'dashboard.no_appt':          'No appointment',
@@ -781,7 +753,6 @@ class AppStrings {
     // ── Shared / nav ──────────────────────────────────────────────────────
     'nav.home':               'Home',
     'nav.dossier':            'Medical Dossier',
-    'nav.history':            'Medical Record',
     'nav.doctor':             'Doctor',
     'lang.switch_sem':        'Change Language / Schimbă Limba',
   };

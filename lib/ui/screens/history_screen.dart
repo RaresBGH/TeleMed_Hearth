@@ -12,6 +12,7 @@ import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/dialog_detail_sheet.dart';
 import '../widgets/language_toggle.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/utils/fhir_extension_utils.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
@@ -27,7 +28,7 @@ class HistoryScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('TeleMed_K', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 24)),
+        title: Text(AppStrings.appName, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 24)),
         backgroundColor: const Color(0xFFF5F5F5),
         elevation: 0,
         actions: const [
@@ -94,9 +95,9 @@ class HistoryScreen extends ConsumerWidget {
                         for (final ext in extensions) {
                           final e = ext as Map<String, dynamic>;
                           final url = e['url'] as String? ?? '';
-                          if (url.endsWith('doctor-name')) {
+                          if (FhirExtensionUtils.isDoctorName(url)) {
                             doctorName = e['valueString'] as String?;
-                          } else if (url.endsWith('session-category')) {
+                          } else if (FhirExtensionUtils.isSessionCategory(url)) {
                             category = e['valueString'] as String?;
                           }
                         }
@@ -108,7 +109,7 @@ class HistoryScreen extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
+                                color: Colors.black.withOpacity(0.05),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               )
@@ -229,10 +230,10 @@ class HistoryScreen extends ConsumerWidget {
                     );
                   },
                   loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF5BA4CF))),
-                  error: (err, stack) => const Center(
+                  error: (err, stack) => Center(
                     child: Text(
-                      'Eroare la încărcarea istoricului.',
-                      style: TextStyle(fontSize: 18, color: Colors.red),
+                      AppStrings.of(lang, 'history.error'),
+                      style: const TextStyle(fontSize: 18, color: Colors.red),
                     ),
                   ),
                 ),
@@ -310,7 +311,7 @@ class HistoryScreen extends ConsumerWidget {
             : AppStrings.of(lang, 'history.report');
     final Color bg    = isPreliminary
         ? const Color(0xFFE3F2FD)
-        : const Color(0xFF5BA4CF).withValues(alpha: 0.10);
+        : const Color(0xFF5BA4CF).withOpacity(0.10);
     final Color fg    = isPreliminary
         ? const Color(0xFF1565C0)
         : const Color(0xFF5BA4CF);

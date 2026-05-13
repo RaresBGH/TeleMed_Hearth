@@ -33,6 +33,10 @@ import kotlin.coroutines.resume
  */
 class OcrChannel(private val context: Context) : MethodChannel.MethodCallHandler {
 
+    companion object {
+        const val CHANNEL_NAME = "com.telemed_k/ocr"
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 

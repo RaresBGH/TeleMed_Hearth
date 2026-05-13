@@ -12,6 +12,7 @@ import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/services/ai_engine_service.dart';
+import '../../core/utils/validators.dart';
 import '../theme/theme.dart';
 import '../widgets/language_toggle.dart';
 
@@ -51,7 +52,7 @@ class _ProfileCompletionScreenState
   bool get _canSave =>
       _firstNameCtrl.text.trim().isNotEmpty &&
       _lastNameCtrl.text.trim().isNotEmpty &&
-      RegExp(r'^07\d{8}$').hasMatch(_phoneCtrl.text.trim());
+      Validators.isValidRomanianPhone(_phoneCtrl.text.trim());
 
   Future<void> _onSave() async {
     if (!_canSave || _isSaving) return;

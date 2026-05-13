@@ -102,7 +102,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
       if (mounted) {
         setState(() {
           _downloadState = _DownloadState.error;
-          _errorMessage = 'Eroare la pornirea descărcării: ${e.code}';
+          _errorMessage = '${AppStrings.of(ref.read(languageProvider), 'download.error_generic')}: ${e.code}';
         });
       }
       return;
@@ -143,9 +143,10 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
           final reason = raw['errorReason'] as String?;
           setState(() {
             _downloadState = _DownloadState.error;
+            final _errLang = ref.read(languageProvider);
             _errorMessage = reason != null
-                ? 'Descărcarea a eșuat ($reason). Verificați conexiunea WiFi și încercați din nou.'
-                : 'Descărcarea a eșuat. Verificați conexiunea WiFi și încercați din nou.';
+                ? '${AppStrings.of(_errLang, 'download.error_retry')} ($reason)'
+                : AppStrings.of(_errLang, 'download.error_retry');
           });
         }
         return;
@@ -205,7 +206,7 @@ class _ModelDownloadScreenState extends ConsumerState<ModelDownloadScreen> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF5BA4CF).withValues(alpha: 0.12),
+                  color: const Color(0xFF5BA4CF).withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(

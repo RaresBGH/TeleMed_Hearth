@@ -16,7 +16,6 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/my_doctor_provider.dart';
-import '../../core/services/ai_engine_service.dart';
 import '../../core/providers/patient_history_provider.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/dialog_detail_sheet.dart';
@@ -42,30 +41,6 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // TODO: remove after diagnosis — shows AI init error as a one-time dialog.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final err = AiEngineService.lastInitError;
-      if (err == null) return;
-      showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('AI Init Error (diagnostic)'),
-          content: SelectableText(err),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final lang        = ref.watch(languageProvider);
@@ -212,7 +187,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             final avatarBytes = ref.watch(patientAvatarProvider);
             return Semantics(
               button: true,
-              label: 'Profilul Meu',
+              label: AppStrings.of(lang, 'nav.profile'),
               child: GestureDetector(
                 onTap: () => ref.read(appNavigationProvider.notifier)
                     .navigateTo(AppRoute.patientProfile),

@@ -51,7 +51,9 @@ jobs:
         run: |
           flutter build apk --debug \
             --dart-define=MEDPLUM_CLIENT_ID=${{ secrets.MEDPLUM_CLIENT_ID }} \
-            --dart-define=MEDPLUM_CLIENT_SECRET=${{ secrets.MEDPLUM_CLIENT_SECRET }}
+            --dart-define=MEDPLUM_CLIENT_SECRET=${{ secrets.MEDPLUM_CLIENT_SECRET }} \
+            --dart-define=TURN_CREDENTIAL=${{ secrets.TURN_CREDENTIAL }} \
+            --dart-define=TURN_USERNAME=${{ secrets.TURN_USERNAME }}
         env:
           GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
 
@@ -59,7 +61,9 @@ jobs:
         run: |
           flutter build apk --release \
             --dart-define=MEDPLUM_CLIENT_ID=${{ secrets.MEDPLUM_CLIENT_ID }} \
-            --dart-define=MEDPLUM_CLIENT_SECRET=${{ secrets.MEDPLUM_CLIENT_SECRET }}
+            --dart-define=MEDPLUM_CLIENT_SECRET=${{ secrets.MEDPLUM_CLIENT_SECRET }} \
+            --dart-define=TURN_CREDENTIAL=${{ secrets.TURN_CREDENTIAL }} \
+            --dart-define=TURN_USERNAME=${{ secrets.TURN_USERNAME }}
         env:
           GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
 

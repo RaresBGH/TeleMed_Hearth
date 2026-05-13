@@ -14,7 +14,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models/chat_message.dart';
 import '../../core/providers/auth_provider.dart';
@@ -25,6 +24,7 @@ import '../../core/services/audio_recording_service.dart';
 import '../../core/services/camera_service.dart';
 import '../../core/services/ocr_service.dart';
 import '../widgets/image_preview_screen.dart';
+import '../../core/utils/fhir_extension_utils.dart';
 
 // ── Design tokens (matches Stitch palette from code.html) ─────────────────────
 
@@ -43,6 +43,9 @@ class MedicalResponseScreen extends ConsumerStatefulWidget {
   /// Separate from initialResponse so the triage card and AI bubble can show
   /// the AI's assessment rather than the patient placeholder ('[Voice message]').
   final String? initialAiResponse;
+  /// WAV file path of the patient's home-screen voice recording, used to seed
+  /// the audio player on the first voice bubble.
+  final String? initialAudioPath;
   final bool isEmergency;
   /// When resuming a saved dialog from Dosar Medical, the prior messages are
   /// passed here and used to pre-populate the chat instead of the default
@@ -56,6 +59,7 @@ class MedicalResponseScreen extends ConsumerStatefulWidget {
     super.key,
     required this.initialResponse,
     this.initialAiResponse,
+    this.initialAudioPath,
     required this.isEmergency,
     this.initialMessages,
     this.initialPrompt,
@@ -81,14 +85,12 @@ class _MedicalResponseScreenState
   bool _screenFinalized  = false;
   // Guard: doctor Communications loaded once per screen open.
   bool _doctorMessagesLoaded = false;
+  // True when the AI signals the conversation is complete (ready_to_finalize).
+  bool _readyToFinalize = false;
 
   // ── Streaming shim (Dart-side typewriter) ─────────────────────────────────
   /// Accumulates streaming text while an inference response is being typed out.
   String _streamingText = '';
-
-  // ── Opening state ──────────────────────────────────────────────────────────
-  /// True after the first AI response has been received — gates the triage card.
-  bool _hasFirstAiResponse = false;
 
   // ── Audio playback (voice messages) ──────────────────────────────────────
   late final AudioPlayer _audioPlayer;
@@ -137,7 +139,6 @@ class _MedicalResponseScreenState
     } else if (widget.initialMessages != null && widget.initialMessages!.isNotEmpty) {
       // Resume from Dosar Medical or doctor preseed — restore prior conversation.
       _messages.addAll(widget.initialMessages!);
-      _hasFirstAiResponse = true; // resuming — triage card shown immediately
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) ref.read(medicalSessionProvider.notifier).clearPreseed();
       });
@@ -156,13 +157,15 @@ class _MedicalResponseScreenState
               : session.lastPatientMessage == '[Photo]'
                   ? AttachmentType.image
                   : null,
+          attachmentPath: session.lastPatientMessage == '[Voice message]'
+              ? widget.initialAudioPath
+              : null,
         ));
         _messages.add(ChatMessage(
           role: 'ai',
           text: widget.initialAiResponse ?? widget.initialResponse,
           timestamp: DateTime.now(),
         ));
-        _hasFirstAiResponse = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             ref.read(medicalSessionProvider.notifier).clearPatientMessage();
@@ -202,7 +205,7 @@ class _MedicalResponseScreenState
       final doctorComms = comms.where((c) {
         final exts = (c['extension'] as List?) ?? [];
         return exts.any((e) =>
-            e['url'] == 'isPatient' && e['valueBoolean'] == false);
+            e['url'] == FhirExtensionUtils.isPatientUrl && e['valueBoolean'] == false);
       }).toList();
       if (doctorComms.isEmpty) return;
       final doctorMessages = doctorComms.map((c) {
@@ -219,6 +222,7 @@ class _MedicalResponseScreenState
         _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
       });
     } catch (e) {
+      // Silent failure intentional — doctor messages are supplementary, not blocking.
       debugPrint('MedicalResponseScreen._loadDoctorCommunications error: $e');
     }
   }
@@ -350,6 +354,12 @@ class _MedicalResponseScreenState
     if (_playingMessagePath != null) await _audioPlayer.stop();
     if (!mounted) return;
 
+    if (!File(path).existsSync()) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppStrings.of(_lang, 'error.audio_unavailable'))));
+      return;
+    }
+
     try {
       await _audioPlayer.setFilePath(path);
       await _audioPlayer.play();
@@ -473,12 +483,13 @@ class _MedicalResponseScreenState
         (result['response'] as String?)?.trim().isNotEmpty == true
             ? result['response'] as String
             : AppStrings.of(_lang, 'chat.no_understand');
+    final bool readyToFinalize = result['ready_to_finalize'] == true;
     setState(() {
       _isProcessing = false;
       _isPhotoAnalyzing = false;
       _streamingText = '';
-      _hasFirstAiResponse = true; // reveal triage card after first AI reply
       _messages.add(ChatMessage(role: 'ai', text: text, timestamp: DateTime.now()));
+      if (readyToFinalize) _readyToFinalize = true;
     });
     _scrollToBottom();
   }
@@ -492,6 +503,7 @@ class _MedicalResponseScreenState
         (result['response'] as String?)?.trim().isNotEmpty == true
             ? result['response'] as String
             : AppStrings.of(_lang, 'chat.no_understand');
+    final bool readyToFinalize = result['ready_to_finalize'] == true;
 
     // Stream the words progressively.
     await for (final chunk in AiEngineService.streamWords(text)) {
@@ -506,8 +518,8 @@ class _MedicalResponseScreenState
       _isProcessing     = false;
       _isPhotoAnalyzing = false;
       _streamingText    = '';
-      _hasFirstAiResponse = true;
       _messages.add(ChatMessage(role: 'ai', text: text, timestamp: DateTime.now()));
+      if (readyToFinalize) _readyToFinalize = true;
     });
     _scrollToBottom();
   }
@@ -566,7 +578,17 @@ class _MedicalResponseScreenState
       try {
         await audioService.startRecording();
         if (mounted) setState(() => _isRecording = true);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Mic start error: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(
+              AppStrings.of(_lang, 'error.mic_unavailable'))),
+          );
+        }
+        if (mounted) setState(() => _isProcessing = false);
+        return;
+      }
     }
   }
 
@@ -612,7 +634,8 @@ class _MedicalResponseScreenState
       }
       if (!mounted) return;
       _appendAiResponse(result);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Camera evaluation error: $e');
       cameraService.deleteTempFile(imagePath);
       if (mounted) {
         setState(() {
@@ -620,6 +643,8 @@ class _MedicalResponseScreenState
           _isPhotoAnalyzing = false;
           _cancelRequested = false;
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.of(_lang, 'error.camera_unavailable'))));
       }
     }
   }
@@ -649,17 +674,16 @@ class _MedicalResponseScreenState
       if (!mounted) return;
       // Use streaming shim for typewriter effect on text responses.
       await _streamAndAppendAiResponse(result);
-    } catch (_) {
-      if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
+    } catch (e) {
+      debugPrint('Text inference error: $e');
+      if (mounted) {
+        setState(() { _isProcessing = false; _cancelRequested = false; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.of(_lang, 'error.inference_failed'))));
+      }
     }
   }
 
-  // ── Emergency chip ───────────────────────────────────────────────────────────
-
-  Future<void> _onEmergencyTap() async {
-    final uri = Uri(scheme: 'tel', path: '112');
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
-  }
 
   // ── Finalize dialog ───────────────────────────────────────────────────────────
 
@@ -759,14 +783,6 @@ class _MedicalResponseScreenState
                 controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 children: [
-                  // Show welcome card until the first AI response arrives.
-                  if (!_hasFirstAiResponse && !_isProcessing)
-                    _buildWelcomeCard(lang)
-                  else if (_hasFirstAiResponse)
-                    _buildTriageCard(lang),
-                  const SizedBox(height: 24),
-                  if (_hasFirstAiResponse) _buildSectionDivider(lang),
-                  const SizedBox(height: 16),
                   ..._messages.map((m) => _buildBubble(m, lang)),
                   // Streaming typewriter bubble (shows while words are emitting).
                   if (_isProcessing && _streamingText.isNotEmpty)
@@ -821,47 +837,6 @@ class _MedicalResponseScreenState
     );
   }
 
-  // ── Welcome card (shown before first AI response) ─────────────────────────────
-
-  Widget _buildWelcomeCard(String lang) {
-    final doctorName = ref.read(medicalSessionProvider).lastDoctorName;
-    final isDoctorContext = doctorName != null && doctorName.isNotEmpty;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Color(0x145BA4CF), blurRadius: 24, offset: Offset(0, 4)),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isDoctorContext ? Icons.chat_bubble_outline : Icons.health_and_safety,
-            color: _brandBlue, size: 48),
-          const SizedBox(height: 16),
-          Text(
-            isDoctorContext ? doctorName : AppStrings.of(lang, 'assistant.title'),
-            style: const TextStyle(
-              fontSize: 20, fontWeight: FontWeight.bold, color: _onSurface),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            isDoctorContext
-                ? AppStrings.of(lang, 'chat.doctor_message_subtitle')
-                : AppStrings.of(lang, 'assistant.subtitle'),
-            style: const TextStyle(fontSize: 16, color: _muted, height: 1.5),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
   // ── Streaming bubble (typewriter shim) ────────────────────────────────────────
 
   Widget _buildStreamingBubble(String text) {
@@ -895,162 +870,12 @@ class _MedicalResponseScreenState
     );
   }
 
-  // ── Triage card ───────────────────────────────────────────────────────────────
-
-  Widget _buildTriageCard(String lang) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x145BA4CF),
-            blurRadius: 24,
-            offset: Offset(0, 4),
-          ),
-        ],
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.4),
-        ),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Label row: robot icon + "Analiza simptomelor"
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0x1A5BA4CF),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.smart_toy_outlined,
-                  color: _brandBlue,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                AppStrings.of(lang, 'chat.section_label'),
-                style: const TextStyle(
-                  color: _muted,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          // Initial AI response text — prefer actual AI assessment over patient placeholder
-          Text(
-            widget.initialAiResponse?.isNotEmpty == true
-                ? widget.initialAiResponse!
-                : widget.initialResponse.isNotEmpty
-                    ? widget.initialResponse
-                    : AppStrings.of(lang, 'chat.default_response'),
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: _onSurface,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Priority chip
-          _buildPriorityChip(lang),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPriorityChip(String lang) {
-    if (widget.isEmergency) {
-      return GestureDetector(
-        onTap: _onEmergencyTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFEDED),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: const Color(0xFFFFCDD2)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.emergency, color: Color(0xFFBA1A1A), size: 16),
-              const SizedBox(width: 6),
-              Text(
-                AppStrings.of(lang, 'chat.emergency_chip'),
-                style: TextStyle(
-                  color: Color(0xFFBA1A1A),
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFC8E6C9)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 16),
-          const SizedBox(width: 6),
-          Text(
-            AppStrings.of(lang, 'chat.priority_normal'),
-            style: const TextStyle(
-              color: Color(0xFF2E7D32),
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Section divider ───────────────────────────────────────────────────────────
-
-  Widget _buildSectionDivider(String lang) {
-    return Row(
-      children: [
-        const Expanded(child: Divider(color: Color(0xFFE0E2E7))),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            AppStrings.of(lang, 'chat.divider_label'),
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: _muted,
-              letterSpacing: 1.2,
-            ),
-          ),
-        ),
-        const Expanded(child: Divider(color: Color(0xFFE0E2E7))),
-      ],
-    );
-  }
-
   // ── Chat bubbles ──────────────────────────────────────────────────────────────
 
   Widget _buildBubble(ChatMessage msg, String lang) {
     // Doctor bubble — distinct left-aligned warm grey card with doctor label.
     if (msg.role == 'doctor') {
-      final doctorName = ref.read(medicalSessionProvider).lastDoctorName ?? 'Doctor';
+      final doctorName = ref.read(medicalSessionProvider).lastDoctorName ?? AppStrings.of(lang, 'role.doctor');
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Align(
@@ -1065,7 +890,7 @@ class _MedicalResponseScreenState
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: 2),
                   child: Text(
-                    'Dr. $doctorName',
+                    '${AppStrings.of(lang, 'role.doctor_prefix')}$doctorName',
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -1274,7 +1099,7 @@ class _MedicalResponseScreenState
               child: ElevatedButton(
                 onPressed: (_isFinalizing || _isProcessing) ? null : _onFinalize,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _brandBlue,
+                  backgroundColor: _readyToFinalize ? _brandBlue : _outlineVar,
                   disabledBackgroundColor: _outlineVar,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
@@ -1314,7 +1139,7 @@ class _MedicalResponseScreenState
             icon: _isRecording ? Icons.stop : Icons.mic,
             iconColor: _isRecording ? Colors.red : _brandBlue,
             bgColor: _isRecording
-                ? Colors.red.withValues(alpha: 0.12)
+                ? Colors.red.withOpacity(0.12)
                 : _aiBubbleBg,
             onTap: _isProcessing ? null : _onMicTap,
           ),
@@ -1471,7 +1296,7 @@ class _TypingDotsState extends State<_TypingDots>
             width: 8,
             height: 8 + _anims[i].value,
             decoration: BoxDecoration(
-              color: _brandBlue.withValues(alpha: 0.6),
+              color: _brandBlue.withOpacity(0.6),
               borderRadius: BorderRadius.circular(4),
             ),
           );

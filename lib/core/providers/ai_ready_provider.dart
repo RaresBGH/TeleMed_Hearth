@@ -6,12 +6,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/medical_session_provider.dart';
-import '../services/ai_engine_service.dart';
 
 /// Shared AI readiness flag. Runs [AiEngineService.initializeModel] once per
 /// app session and caches the result so both HomeScreen and DashboardScreen
 /// display the same status without creating redundant instances.
-/// Uses [fhirRepositoryProvider] so no extra FhirRepository is allocated.
+/// Uses [aiEngineServiceProvider] so the same singleton instance is reused.
 final aiReadyProvider = FutureProvider<bool>((ref) async {
-  return AiEngineService(ref.read(fhirRepositoryProvider)).initializeModel();
+  return ref.read(aiEngineServiceProvider).initializeModel();
 });

@@ -90,8 +90,9 @@ class TeleMedApp extends ConsumerWidget {
           initialResponse:
               msState.lastPatientMessage ??
               msState.lastAiResponse ??
-              'Simptomele au fost înregistrate.',
+              'Symptoms recorded.',
           initialAiResponse: msState.lastAiResponse,
+          initialAudioPath: msState.lastAudioPath,
           isEmergency: msState.lastIsEmergency,
           initialMessages: msState.lastResumeMessages,
         );
@@ -137,7 +138,7 @@ class TeleMedApp extends ConsumerWidget {
     // mounting the new one on every route change — prevents stale ref.watch
     // dependents from triggering _dependents.isEmpty assertion (C1 bug).
     return MaterialApp(
-      title: 'TeleMed_K',
+      title: AppStrings.appName,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,

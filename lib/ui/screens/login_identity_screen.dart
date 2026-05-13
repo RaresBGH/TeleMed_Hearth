@@ -17,6 +17,7 @@ import '../../core/services/audio_recording_service.dart';
 import '../../core/services/camera_service.dart';
 import '../../core/services/cnp_service.dart';
 import '../../core/services/ocr_service.dart';
+import '../../core/utils/validators.dart';
 import '../theme/theme.dart';
 import '../widgets/language_toggle.dart';
 
@@ -65,7 +66,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
 
   void _onPhoneChanged() {
     final phone = _phoneController.text.trim();
-    final valid = RegExp(r'^07\d{8}$').hasMatch(phone);
+    final valid = Validators.isValidRomanianPhone(phone);
     final String? err = (phone.isNotEmpty && !valid)
         ? AppStrings.of(ref.read(languageProvider), 'login.phone_error')
         : null;
@@ -93,7 +94,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF5BA4CF)),
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK', style: TextStyle(color: Colors.white, fontSize: 16)),
+              child: Text(AppStrings.of(lang, 'action.ok'), style: const TextStyle(color: Colors.white, fontSize: 16)),
             ),
           ],
         ),
@@ -233,7 +234,13 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       return;
     }
 
-    await audioService.startRecording();
+    try {
+      await audioService.startRecording();
+    } catch (e) {
+      debugPrint('Voice recording error: $e');
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
     if (!mounted) return;
 
     // Show 15-second countdown dialog with animated progress bar.
@@ -272,7 +279,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text('$secondsLeft s',
+                Text(AppStrings.of(lang, 'action.seconds_left').replaceAll('{n}', secondsLeft.toString()),
                     style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
               ],
             ),
@@ -330,7 +337,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
           ? cnpRaw.trim()
           : null;
       final validPhone = (phoneRaw != null &&
-              RegExp(r'^07\d{8}$').hasMatch(phoneRaw.trim()))
+              Validators.isValidRomanianPhone(phoneRaw.trim()))
           ? phoneRaw.trim()
           : null;
 

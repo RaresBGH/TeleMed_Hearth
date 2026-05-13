@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 // just_audio removed — in-call audio playback removed with chat (FIX 4)
-import 'package:url_launcher/url_launcher.dart';
+
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/models/chat_message.dart';
@@ -23,6 +23,7 @@ import '../../core/providers/language_provider.dart';
 import '../../core/providers/medplum_auth_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/utils/date_formatter.dart';
+import '../../core/utils/fhir_extension_utils.dart';
 // image_preview_screen removed — in-call image preview removed with chat (FIX 4)
 
 /// A message exchanged during an in-call chat session.
@@ -75,6 +76,8 @@ class _VideoConsultationScreenState
   WebSocket? _signalingSocket;
   // Patient is always the initiator — creates the offer when joining the room.
   // Doctor answers via a future web/admin client.
+  // Always true — initiator role is fixed (patient always creates offer).
+  // Post-hackathon: make dynamic for multi-party or doctor-initiated calls.
   final bool _isInitiator = true;
 
   // ── Screen state ───────────────────────────────────────────────────────────
@@ -203,13 +206,19 @@ class _VideoConsultationScreenState
       await _localRenderer.initialize();
       await _remoteRenderer.initialize();
 
+      const String _turnCredential =
+          String.fromEnvironment('TURN_CREDENTIAL', defaultValue: '');
+      // Add TURN_USERNAME to GitHub Actions secrets.
+      const String _turnUsername =
+          String.fromEnvironment('TURN_USERNAME', defaultValue: '');
       final config = <String, dynamic>{
         'iceServers': [
           {'urls': 'stun:stun.l.google.com:19302'},
           {
+            // TODO: Move to dart-define for infrastructure portability — post-hackathon.
             'urls':       'turn:34.185.191.34:3478',
-            'username':   'telemed',
-            'credential': 'TeleMed_TURN_2026!',
+            'username':   _turnUsername,
+            'credential': _turnCredential,
           },
         ],
         'iceTransportPolicy': 'all',
@@ -264,7 +273,12 @@ class _VideoConsultationScreenState
       debugPrint('WebRTC initialized — signaling connected, doctor-present mode active');
     } catch (e) {
       debugPrint('VideoConsultationScreen._initWebRTC error: $e');
-      if (mounted) setState(() => _isConnecting = false);
+      if (mounted) {
+        setState(() => _isConnecting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.of(_lang, 'call.webrtc_error'))),
+        );
+      }
     }
   }
 
@@ -289,30 +303,55 @@ class _VideoConsultationScreenState
       if (_isInitiator) await _createOffer();
     } catch (e) {
       debugPrint('Could not connect to signaling server: $e — call continues with local video only');
-      // Fail silently: call UI remains functional, remote video stays black.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.of(_lang, 'call.signaling_error'))),
+        );
+      }
     }
   }
 
   Future<void> _onSignalingMessage(dynamic raw) async {
-    final msg = jsonDecode(raw as String) as Map<String, dynamic>;
+    final Map<String, dynamic> msg;
+    try {
+      msg = jsonDecode(raw as String) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('Signaling: malformed frame ignored: $e');
+      return;
+    }
     final type = msg['type'] as String?;
 
     switch (type) {
       case 'offer':
-        await _peerConnection?.setRemoteDescription(
-            RTCSessionDescription(msg['sdp'] as String?, 'offer'));
+        try {
+          await _peerConnection?.setRemoteDescription(
+              RTCSessionDescription(msg['sdp'] as String?, 'offer'));
+        } catch (e) {
+          debugPrint('SDP error: $e');
+          return;
+        }
         await _createAnswer();
         break;
       case 'answer':
-        await _peerConnection?.setRemoteDescription(
-            RTCSessionDescription(msg['sdp'] as String?, 'answer'));
+        try {
+          await _peerConnection?.setRemoteDescription(
+              RTCSessionDescription(msg['sdp'] as String?, 'answer'));
+        } catch (e) {
+          debugPrint('SDP error: $e');
+          return;
+        }
         break;
       case 'candidate':
-        await _peerConnection?.addCandidate(RTCIceCandidate(
-          msg['candidate'] as String?,
-          msg['sdpMid']    as String?,
-          msg['sdpMLineIndex'] as int?,
-        ));
+        try {
+          await _peerConnection?.addCandidate(RTCIceCandidate(
+            msg['candidate'] as String?,
+            msg['sdpMid']    as String?,
+            msg['sdpMLineIndex'] as int?,
+          ));
+        } catch (e) {
+          debugPrint('ICE candidate error: $e');
+          return;
+        }
         break;
       case 'peer_joined':
         // A new peer entered the room (doctor joined after patient).
@@ -340,6 +379,11 @@ class _VideoConsultationScreenState
       debugPrint('Offer sent to room: ${widget.appointmentId ?? "default"}');
     } catch (e) {
       debugPrint('Create offer error: $e');
+      if (mounted) {
+        setState(() => _isConnecting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.of(_lang, 'call.webrtc_error'))));
+      }
     }
   }
 
@@ -355,6 +399,11 @@ class _VideoConsultationScreenState
       debugPrint('Answer sent to room: ${widget.appointmentId ?? "default"}');
     } catch (e) {
       debugPrint('Create answer error: $e');
+      if (mounted) {
+        setState(() => _isConnecting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.of(_lang, 'call.webrtc_error'))));
+      }
     }
   }
 
@@ -419,6 +468,11 @@ class _VideoConsultationScreenState
   // ── Chat — persist as FHIR Communication ─────────────────────────────────────
 
   void _persistMessage(_CallMessage msg) {
+    // Communication is saved to Medplum but the Activity tab shows only FHIR
+    // Observations. File attachments shared during calls are persisted server-side
+    // but are not visible in the in-call Activity panel or dialogue replay.
+    debugPrint('VideoConsultation: persisting Communication to Medplum — '
+        'not displayed in Activity tab (Observations only)');
     final cnp = ref.read(loginCnpProvider);
     final String? mimeType = msg.attachmentType == AttachmentType.pdf
         ? 'application/pdf'
@@ -534,7 +588,7 @@ class _VideoConsultationScreenState
         .whereType<Map<String, dynamic>>()
         .toList();
     final catExt = exts
-        .where((e) => (e['url'] as String? ?? '').contains('session-category'))
+        .where((e) => FhirExtensionUtils.isSessionCategory(e['url'] as String? ?? ''))
         .firstOrNull;
     final cat       = catExt?['valueString'] as String?;
     final isMedical = cat == 'medical';
@@ -601,53 +655,6 @@ class _VideoConsultationScreenState
     );
   }
 
-  /// Fetches a Medplum DocumentReference by [id], extracts the attachment URL,
-  /// and opens it in an external browser so the patient can view the document.
-  Future<void> _openDocumentReference(String id) async {
-    try {
-      const medplumBase = 'https://telemed-medplum.duckdns.org/fhir/R4';
-      final repo  = ref.read(medplumRepositoryProvider);
-      final token = await repo.auth.getValidToken();
-      if (token == null) throw Exception('No auth token');
-
-      final response = await repo.client.get(
-        Uri.parse('$medplumBase/DocumentReference/$id'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/fhir+json',
-        },
-      );
-      if (response.statusCode != 200) {
-        throw Exception('DocumentReference fetch failed: ${response.statusCode}');
-      }
-
-      final body      = jsonDecode(response.body) as Map<String, dynamic>;
-      final content   = (body['content'] as List?)?.firstOrNull as Map?;
-      String? rawUrl  = (content?['attachment'] as Map?)?['url'] as String?;
-
-      if (rawUrl == null || rawUrl.isEmpty) {
-        throw Exception('No attachment URL in DocumentReference');
-      }
-      if (rawUrl.startsWith('Binary/')) {
-        rawUrl = '$medplumBase/$rawUrl';
-      }
-
-      final uri = Uri.parse(rawUrl);
-      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-        throw Exception('Could not launch $rawUrl');
-      }
-    } catch (e) {
-      debugPrint('VideoConsultationScreen._openDocumentReference error: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          '${AppStrings.of(_lang, 'error.generic')} ($e)',
-          style: const TextStyle(fontSize: 16),
-        ),
-        backgroundColor: Colors.red,
-      ));
-    }
-  }
 
   String _formatDuration(Duration d) => DateFormatter.formatDuration(d);
 
@@ -680,7 +687,7 @@ class _VideoConsultationScreenState
           // Layer 5.5 — Peer-left overlay (shown when remote peer disconnects)
           if (_peerLeft)
             Container(
-              color: Colors.black.withValues(alpha: 0.75),
+              color: Colors.black.withOpacity(0.75),
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -809,7 +816,7 @@ class _VideoConsultationScreenState
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.3),
+                  color: Colors.white.withOpacity(0.3),
                   width: 2,
                 ),
               ),
@@ -820,7 +827,7 @@ class _VideoConsultationScreenState
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.5),
+                  color: Colors.black.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -858,7 +865,7 @@ class _VideoConsultationScreenState
               margin: const EdgeInsets.symmetric(horizontal: 2),
               decoration: BoxDecoration(
                 color: const Color(0xFF5BA4CF)
-                    .withValues(alpha: opacities[i]),
+                    .withOpacity(opacities[i]),
                 borderRadius: BorderRadius.circular(3),
               ),
             )),
@@ -880,7 +887,7 @@ class _VideoConsultationScreenState
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.85),
+              color: Colors.white.withOpacity(0.85),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(24)),
               boxShadow: const [
@@ -970,7 +977,7 @@ class _VideoConsultationScreenState
             border: Border.all(color: const Color(0xFF1a1c1c), width: 2),
             boxShadow: [
               BoxShadow(
-                color:      Colors.black.withValues(alpha: 0.25),
+                color:      Colors.black.withOpacity(0.25),
                 blurRadius: 8,
                 offset:     const Offset(0, 4),
               ),
@@ -1038,7 +1045,7 @@ class _VideoConsultationScreenState
 
   Widget _buildTopHeader() {
     final shadow = Shadow(
-      color:      Colors.black.withValues(alpha: 0.6),
+      color:      Colors.black.withOpacity(0.6),
       blurRadius: 8,
       offset:     const Offset(0, 1),
     );
@@ -1051,7 +1058,11 @@ class _VideoConsultationScreenState
             children: [
               Expanded(
                 child: Text(
-                  AppStrings.of(_lang, 'video.header'),
+                  AppStrings.of(_lang, 'video.header').replaceAll(
+                    '{doctorName}',
+                    ref.read(medicalSessionProvider).lastDoctorName ??
+                        AppStrings.of(_lang, 'role.doctor'),
+                  ),
                   style: TextStyle(
                     fontSize:    18,
                     fontWeight:  FontWeight.bold,

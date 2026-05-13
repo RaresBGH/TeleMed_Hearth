@@ -343,17 +343,17 @@ class FhirRepository {
         final patient = await _medplum.getPatientByCnp(cnp);
         final patientId = patient?['id'] as String?;
         if (patientId != null) {
-          const medplumBase = 'https://telemed-medplum.duckdns.org/fhir/R4';
           final token = await _medplum.auth.getValidToken();
           if (token != null) {
             final response = await _medplum.client.get(
               Uri.parse(
-                '$medplumBase/MedicationRequest'
+                '${MedplumRepository.base}/MedicationRequest'
                 '?patient=Patient/$patientId'
                 '&status=active&_sort=-date&_count=1',
               ),
               headers: {
                 'Authorization': 'Bearer $token',
+                'Content-Type': 'application/fhir+json',
                 'Accept': 'application/fhir+json',
               },
             );

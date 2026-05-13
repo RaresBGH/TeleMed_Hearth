@@ -124,7 +124,7 @@ class MedplumAuthService {
         _cachedToken = token;
         _tokenExpiry = expiry;
 
-        debugPrint('MedplumAuthService: token fetched, expires $expiry');
+        debugPrint('MedplumAuthService: token fetched successfully');
         return token;
       } else {
         debugPrint(

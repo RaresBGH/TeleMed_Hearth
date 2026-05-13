@@ -37,6 +37,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // _isRecording is UI-only state. stopAndRelease() at navigation (line ~370)
+  // ensures audio is always stopped on route change.
+  // Post-hackathon: consolidate into SessionState.recording.
   bool _isRecording = false;
 
   // ── Camera ─────────────────────────────────────────────────────────────────
@@ -106,9 +109,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         if (!mounted) return;
         setState(() => _isRecording = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('A apărut o eroare. Încercați din nou.',
-                style: TextStyle(fontSize: 18)),
+          SnackBar(
+            content: Text(AppStrings.of(ref.read(languageProvider), 'error.generic'),
+                style: const TextStyle(fontSize: 18)),
           ),
         );
       }
@@ -333,8 +336,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _onEmergencyTap() async {
     final uri = Uri(scheme: 'tel', path: '112');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+    final lang = ref.read(languageProvider);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(
+            AppStrings.of(lang, 'emergency.dial_error'))));
+      }
+    } catch (e) {
+      debugPrint('Emergency dial error: $e');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          AppStrings.of(lang, 'emergency.dial_error'))));
     }
   }
 
@@ -356,7 +371,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              next.errorMessage ?? 'Eroare.',
+              next.errorMessage ?? AppStrings.of(lang, 'error.generic'),
               style: const TextStyle(fontSize: 18),
             ),
           ),
@@ -398,7 +413,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         title: const Text(
-          'TeleMed_K',
+          AppStrings.appName,
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 22,
@@ -663,7 +678,7 @@ class _EmergencyCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: _errorRed.withValues(alpha: 0.30),
+                color: _errorRed.withOpacity(0.30),
                 blurRadius: 12,
                 spreadRadius: -2,
                 offset: const Offset(0, 4),
@@ -677,7 +692,7 @@ class _EmergencyCard extends StatelessWidget {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.20),
+                  color: Colors.white.withOpacity(0.20),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.emergency,
