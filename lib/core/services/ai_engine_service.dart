@@ -361,6 +361,7 @@ class AiEngineService {
       final String? jsonResponse =
           await _channel.invokeMethod<String>('evaluateAudio', {
         'audioPath': audioFile.path,
+        'text': 'Continue the conversation based on the history above.',
         'systemPrompt': systemPrompt,
         'constraintFormat': 'json',
       });
@@ -396,6 +397,7 @@ class AiEngineService {
       final String? jsonResponse =
           await _channel.invokeMethod<String>('evaluateMedia', {
         'mediaPath': mediaFile.path,
+        'text': 'Continue the conversation based on the history above.',
         'systemPrompt': systemPrompt,
         'constraintFormat': 'json',
         'maxDurationSeconds': 60,
@@ -437,7 +439,7 @@ class AiEngineService {
 
       final String? jsonResponse =
           await _channel.invokeMethod<String>('runInference', {
-        'text': text,
+        'text': 'Continue the conversation based on the history above.',
         'systemPrompt': systemPrompt,
       });
 

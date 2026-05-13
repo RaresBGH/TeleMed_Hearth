@@ -504,17 +504,15 @@ Răspunsul tău JSON trebuie să conțină mereu:
                     Log.d(TAG, "New conversation created — handleRunInference session isolated")
                     // Use the Dart-provided system prompt directly (same reason as evaluateAudio).
                     val effectivePrompt = systemPrompt
-                    // If effectivePrompt already contains conversation history ("Patient:" entries),
-                    // the patient's current message is already embedded — pass only effectivePrompt
-                    // to avoid sending the input twice. Otherwise pass text as the user turn.
-                    val contents = if (effectivePrompt.contains("Patient:")) {
-                        listOf(Content.Text(effectivePrompt))
-                    } else {
-                        listOf(Content.Text(text))
-                    }
+                    // Mirror evaluateAudio: pass both the user text AND the system prompt
+                    // as content items. Single-item Contents.of() can produce blank output
+                    // in some LiteRT-LM versions; two items ensures the model has context.
                     runEngineInference(
                         systemPrompt = effectivePrompt,
-                        contents = contents
+                        contents = listOf(
+                            Content.Text(text),
+                            Content.Text(effectivePrompt)
+                        )
                     )
                 } else {
                     Log.w(TAG, "Engine not ready — keyword fallback for text")
