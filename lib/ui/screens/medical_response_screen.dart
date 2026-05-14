@@ -117,6 +117,8 @@ class _MedicalResponseScreenState
     _audioPlayer = AudioPlayer();
     // Reset session isolation so this screen gets a fresh FHIR history injection.
     ref.read(aiEngineServiceProvider).resetSession();
+    // Sync AI engine language with the UI language set at login.
+    unawaited(ref.read(aiEngineServiceProvider).setLanguage(ref.read(languageProvider)));
     if (widget.initialPrompt != null && widget.initialPrompt!.isNotEmpty) {
       // Doctor "Trimite mesaj" flow — add patient message and immediately
       // trigger AI inference so the doctor receives a response on open.
@@ -287,6 +289,7 @@ class _MedicalResponseScreenState
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(AppStrings.of(lang, 'attachment.error_analyse'),
             style: const TextStyle(fontSize: 16)),
+        backgroundColor: Colors.red.shade700,
       ));
       return;
     }
@@ -363,6 +366,7 @@ class _MedicalResponseScreenState
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(AppStrings.of(lang, 'attachment.error_analyse'),
             style: const TextStyle(fontSize: 16)),
+        backgroundColor: Colors.red.shade700,
       ));
     }
   }
@@ -386,7 +390,9 @@ class _MedicalResponseScreenState
 
     if (!File(path).existsSync()) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(AppStrings.of(_lang, 'error.audio_unavailable'))));
+        content: Text(AppStrings.of(_lang, 'error.audio_unavailable')),
+        backgroundColor: Colors.red.shade700,
+      ));
       return;
     }
 
@@ -606,6 +612,7 @@ class _MedicalResponseScreenState
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(AppStrings.of(_lang, 'chat.mic_no_perm'),
               style: const TextStyle(fontSize: 16)),
+          backgroundColor: Colors.red.shade700,
         ));
         return;
       }
@@ -616,8 +623,10 @@ class _MedicalResponseScreenState
         debugPrint('Mic start error: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(
-              AppStrings.of(_lang, 'error.mic_unavailable'))),
+            SnackBar(
+              content: Text(AppStrings.of(_lang, 'error.mic_unavailable')),
+              backgroundColor: Colors.red.shade700,
+            ),
           );
         }
         if (mounted) setState(() => _isProcessing = false);
@@ -637,6 +646,7 @@ class _MedicalResponseScreenState
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(AppStrings.of(_lang, 'chat.cam_no_perm'),
             style: const TextStyle(fontSize: 16)),
+        backgroundColor: Colors.red.shade700,
       ));
       return;
     }
@@ -678,7 +688,10 @@ class _MedicalResponseScreenState
           _cancelRequested = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.of(_lang, 'error.camera_unavailable'))));
+          SnackBar(
+            content: Text(AppStrings.of(_lang, 'error.camera_unavailable')),
+            backgroundColor: Colors.red.shade700,
+          ));
       }
     }
   }
@@ -713,7 +726,10 @@ class _MedicalResponseScreenState
       if (mounted) {
         setState(() { _isProcessing = false; _cancelRequested = false; });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.of(_lang, 'error.inference_failed'))));
+          SnackBar(
+            content: Text(AppStrings.of(_lang, 'error.inference_failed')),
+            backgroundColor: Colors.red.shade700,
+          ));
       }
     }
   }
@@ -790,7 +806,7 @@ class _MedicalResponseScreenState
         SnackBar(
           content: Text('${AppStrings.of(_lang, 'chat.save_error')} $e',
               style: const TextStyle(fontSize: 16)),
-          backgroundColor: Colors.red,
+          backgroundColor: Colors.red.shade700,
         ),
       );
     }
@@ -840,6 +856,11 @@ class _MedicalResponseScreenState
   }
 
   Widget _buildSummaryCard(String lang, String lastAiText) {
+    // Hide the summary card when the AI is unavailable (fallback message shown).
+    if (lastAiText == AppStrings.of('en', 'chat.assistant_unavailable') ||
+        lastAiText == AppStrings.of('ro', 'chat.assistant_unavailable')) {
+      return const SizedBox.shrink();
+    }
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       decoration: BoxDecoration(

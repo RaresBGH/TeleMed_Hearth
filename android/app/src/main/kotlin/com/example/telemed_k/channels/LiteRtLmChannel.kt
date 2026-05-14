@@ -72,7 +72,11 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
-            "isModelReady" -> result.success(isEngineReady)
+            "isModelReady"   -> result.success(isEngineReady)
+
+            // Returns true only when both the engine reference and ready flag are valid.
+            // Dart uses this to detect Kotlin/Dart state divergence after an engine crash.
+            "isEngineReady"  -> result.success(isEngineReady && engine != null)
 
             // Returns the path where the model file exists, checking three locations:
             //   1. Android files dir (context.filesDir/models/) — DownloadManager destination

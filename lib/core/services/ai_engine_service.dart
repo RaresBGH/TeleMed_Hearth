@@ -384,11 +384,31 @@ class AiEngineService {
 
   // ── Inference ──────────────────────────────────────────────────────────────
 
+  /// Queries the Kotlin engine state via MethodChannel to detect Dart/Kotlin
+  /// state divergence (e.g. engine crashed mid-session while _isInitialized
+  /// is still true on the Dart side).
+  Future<bool> _isKotlinEngineReady() async {
+    try {
+      final ready = await _channel.invokeMethod<bool>('isEngineReady');
+      return ready ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Map<String, dynamic>> evaluateAudio(
     File audioFile, {
     String? customPrompt,
   }) async {
     if (!_isInitialized) return Map<String, dynamic>.from(_fallbackResponse);
+
+    final kotlinReady = await _isKotlinEngineReady();
+    if (!kotlinReady) {
+      debugPrint('AiEngineService: Kotlin engine not ready — attempting re-init');
+      _isInitialized = false;
+      final reInit = await initializeModel();
+      if (!reInit) return Map<String, dynamic>.from(_fallbackResponse);
+    }
 
     try {
       final String sysPrompt = buildSystemPromptOnly(_lang, _doctorPresent);
@@ -415,9 +435,11 @@ class AiEngineService {
       return result;
     } on PlatformException catch (e) {
       debugPrint('AiEngineService.evaluateAudio PlatformException: ${e.code}');
+      _isInitialized = false;
       return Map<String, dynamic>.from(_fallbackResponse);
     } catch (e) {
       debugPrint('AiEngineService.evaluateAudio error: $e');
+      _isInitialized = false;
       return Map<String, dynamic>.from(_fallbackResponse);
     }
   }
@@ -427,6 +449,14 @@ class AiEngineService {
     String? customPrompt,
   }) async {
     if (!_isInitialized) return Map<String, dynamic>.from(_fallbackResponse);
+
+    final kotlinReady = await _isKotlinEngineReady();
+    if (!kotlinReady) {
+      debugPrint('AiEngineService: Kotlin engine not ready — attempting re-init');
+      _isInitialized = false;
+      final reInit = await initializeModel();
+      if (!reInit) return Map<String, dynamic>.from(_fallbackResponse);
+    }
 
     try {
       final String sysPrompt = buildSystemPromptOnly(_lang, _doctorPresent);
@@ -455,14 +485,17 @@ class AiEngineService {
     } on PlatformException catch (e) {
       debugPrint('AiEngineService.evaluateMedia PlatformException: ${e.code}');
       if (e.code == 'IMAGE_INFERENCE_ERROR') {
+        // Image-specific error — engine is still alive, do not reset _isInitialized.
         return {
           ...Map<String, dynamic>.from(_fallbackResponse),
           'response': 'Nu am putut analiza fotografia. Vă rugăm descrieți simptomele prin voce sau text.',
         };
       }
+      _isInitialized = false;
       return Map<String, dynamic>.from(_fallbackResponse);
     } catch (e) {
       debugPrint('AiEngineService.evaluateMedia error: $e');
+      _isInitialized = false;
       return Map<String, dynamic>.from(_fallbackResponse);
     }
   }
@@ -472,6 +505,14 @@ class AiEngineService {
     String? customPrompt,
   }) async {
     if (!_isInitialized) return Map<String, dynamic>.from(_fallbackResponse);
+
+    final kotlinReady = await _isKotlinEngineReady();
+    if (!kotlinReady) {
+      debugPrint('AiEngineService: Kotlin engine not ready — attempting re-init');
+      _isInitialized = false;
+      final reInit = await initializeModel();
+      if (!reInit) return Map<String, dynamic>.from(_fallbackResponse);
+    }
 
     try {
       final String sysPrompt = buildSystemPromptOnly(_lang, _doctorPresent);
@@ -496,9 +537,11 @@ class AiEngineService {
       return result;
     } on PlatformException catch (e) {
       debugPrint('AiEngineService.evaluateText PlatformException: ${e.code}');
+      _isInitialized = false;
       return Map<String, dynamic>.from(_fallbackResponse);
     } catch (e) {
       debugPrint('AiEngineService.evaluateText error: $e');
+      _isInitialized = false;
       return Map<String, dynamic>.from(_fallbackResponse);
     }
   }

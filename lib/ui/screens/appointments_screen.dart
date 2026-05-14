@@ -218,10 +218,10 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     final startTime = DateTime.tryParse(iso)?.toLocal();
     if (startTime == null) return false;
     final now = DateTime.now();
-    // Past appointments (start time already passed) never show the Enter button.
-    if (startTime.isBefore(now)) return false;
-    // Only upcoming appointments within 2 hours of their scheduled start are joinable.
-    return startTime.isBefore(now.add(const Duration(hours: 2)));
+    // Joinable window: 60 minutes before start until 120 minutes after start.
+    final windowStart = startTime.subtract(const Duration(minutes: 60));
+    final windowEnd   = startTime.add(const Duration(hours: 2));
+    return now.isAfter(windowStart) && now.isBefore(windowEnd);
   }
 
   String _formatSlot(TimeOfDay slot) => DateFormatter.formatTime(slot);

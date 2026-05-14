@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/fhir_repository.dart';
+import 'language_provider.dart';
 import 'medplum_auth_provider.dart';
 
 /// Temporarily stores the CNP entered on the Identity Screen
@@ -34,6 +35,15 @@ class PatientAuthState {
 
 /// Looks up or creates the active patient after OTP verification.
 class PatientAuthNotifier extends Notifier<PatientAuthState> {
+  // CNP → preferred language for the demo patient roster.
+  // Defaults to 'ro' for any CNP not listed.
+  static const _patientLanguage = <String, String>{
+    '2540203150013': 'ro', // Maria Ionescu
+    '1490815150027': 'ro', // Ion Popescu
+    '2621105150032': 'en', // Sarah Dumitrescu
+    '1551220150048': 'en', // George Constantin
+  };
+
   @override
   PatientAuthState build() => const PatientAuthState();
 
@@ -56,6 +66,11 @@ class PatientAuthNotifier extends Notifier<PatientAuthState> {
           }
         }
         state = PatientAuthState(isReturningUser: true, patientFirstName: firstName);
+        // Auto-switch UI language based on patient CNP.
+        // AI engine language is synced in MedicalResponseScreen.initState()
+        // to avoid a circular provider dependency.
+        final lang = _patientLanguage[cnp] ?? 'ro';
+        ref.read(languageProvider.notifier).setLanguage(lang);
         return true;
       }
       state = const PatientAuthState(isReturningUser: false);
