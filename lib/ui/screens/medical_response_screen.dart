@@ -7,6 +7,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import '../../core/constants/practitioner_constants.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/language_provider.dart';
 
@@ -201,6 +202,22 @@ class _MedicalResponseScreenState
     });
   }
 
+  /// Resolves a FHIR Practitioner reference string to a display name using
+  /// the known practitioner UUIDs in [Practitioners]. Falls back to the
+  /// localized 'role.doctor' string when no match is found.
+  String _resolvePractitionerName(String ref) {
+    if (ref.contains(Practitioners.familyDoctorBareId))   return Practitioners.familyDoctorName;
+    if (ref.contains(Practitioners.bogheanuId.replaceFirst('Practitioner/', ''))) return Practitioners.bogheanuName;
+    if (ref.contains(Practitioners.cardioId.replaceFirst('Practitioner/', '')))   return Practitioners.cardioName;
+    if (ref.contains(Practitioners.neuroId.replaceFirst('Practitioner/', '')))    return Practitioners.neuroName;
+    if (ref.contains(Practitioners.dermId.replaceFirst('Practitioner/', '')))     return Practitioners.dermName;
+    if (ref.contains(Practitioners.orthoId.replaceFirst('Practitioner/', '')))    return Practitioners.orthoName;
+    if (ref.contains(Practitioners.ophthaId.replaceFirst('Practitioner/', '')))   return Practitioners.ophthaName;
+    if (ref.contains(Practitioners.psychId.replaceFirst('Practitioner/', '')))    return Practitioners.psychName;
+    if (ref.contains(Practitioners.gyneId.replaceFirst('Practitioner/', '')))     return Practitioners.gyneName;
+    return AppStrings.of(_lang, 'role.doctor');
+  }
+
   Future<void> _loadDoctorCommunications() async {
     if (_doctorMessagesLoaded) return;
     _doctorMessagesLoaded = true;
@@ -222,7 +239,13 @@ class _MedicalResponseScreenState
         final ts = sentStr.isNotEmpty
             ? DateTime.tryParse(sentStr) ?? DateTime.now()
             : DateTime.now();
-        return ChatMessage(role: 'doctor', text: text, timestamp: ts);
+        final senderRef = (c['sender'] as Map?)?['reference'] as String? ?? '';
+        return ChatMessage(
+          role: 'doctor',
+          text: text,
+          timestamp: ts,
+          senderName: _resolvePractitionerName(senderRef),
+        );
       }).toList();
       setState(() {
         _messages.addAll(doctorMessages);
@@ -257,7 +280,7 @@ class _MedicalResponseScreenState
     try {
       result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'wav', 'mp3', 'aac', 'm4a'],
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'],
       );
     } catch (_) {
       if (!mounted) return;
@@ -275,7 +298,7 @@ class _MedicalResponseScreenState
 
     final ext = (file.extension ?? '').toLowerCase();
     final AttachmentType attachType;
-    if (ext == 'pdf') {
+    if (ext == 'pdf' || ext == 'doc' || ext == 'docx') {
       attachType = AttachmentType.pdf;
     } else if (ext == 'jpg' || ext == 'jpeg' || ext == 'png') {
       attachType = AttachmentType.image;
@@ -304,13 +327,13 @@ class _MedicalResponseScreenState
         aiResult = await ref.read(aiEngineServiceProvider).evaluateMedia(File(path),
             customPrompt: _buildConversationHistory());
       } else {
-        // PDF: attempt OCR, fall back to filename-only message
+        // PDF/doc: attempt OCR, fall back to acknowledgment prompt.
         final ocrText = await OcrService.extractText(path);
         if (ocrText.isNotEmpty) {
           aiResult = await ref.read(aiEngineServiceProvider).evaluateText(ocrText,
               customPrompt: _buildConversationHistory());
         } else {
-          final fallback = AppStrings.of(lang, 'attachment.fallback_msg')
+          final fallback = AppStrings.of(lang, 'chat.pdf_attached')
               .replaceAll('{filename}', fileName);
           aiResult = await ref.read(aiEngineServiceProvider).evaluateText(fallback,
               customPrompt: _buildConversationHistory());
@@ -456,7 +479,11 @@ class _MedicalResponseScreenState
   /// placeholder text, not patient information).
   String _buildConversationHistory() {
     final buffer = StringBuffer('\nCONVERSATION SO FAR:\n');
-    for (final msg in _messages) {
+    // Cap to last 10 messages to prevent unbounded context growth.
+    final recentMessages = _messages.length > 10
+        ? _messages.sublist(_messages.length - 10)
+        : _messages;
+    for (final msg in recentMessages) {
       // Skip document/pdf filename placeholders; include audio "[Voice message]"
       // and image "[Photo]" so the AI has patient-turn context on those rounds.
       if (msg.attachmentType == AttachmentType.pdf ||
@@ -774,6 +801,10 @@ class _MedicalResponseScreenState
   @override
   Widget build(BuildContext context) {
     final lang = ref.watch(languageProvider);
+    final lastAiText = _messages
+        .where((m) => m.role == 'ai')
+        .lastOrNull
+        ?.text;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -785,6 +816,7 @@ class _MedicalResponseScreenState
         appBar: _buildAppBar(lang),
         body: Column(
           children: [
+            if (lastAiText != null) _buildSummaryCard(lang, lastAiText),
             Expanded(
               child: ListView(
                 controller: _scrollController,
@@ -803,6 +835,42 @@ class _MedicalResponseScreenState
             _buildInputBar(lang),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(String lang, String lastAiText) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border(left: BorderSide(color: _brandBlue, width: 4)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2)),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppStrings.of(lang, 'chat.summary_title').toUpperCase(),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: _brandBlue,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            lastAiText,
+            style: const TextStyle(fontSize: 14, color: _onSurface, height: 1.4),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
@@ -882,7 +950,7 @@ class _MedicalResponseScreenState
   Widget _buildBubble(ChatMessage msg, String lang) {
     // Doctor bubble — distinct left-aligned warm grey card with doctor label.
     if (msg.role == 'doctor') {
-      final doctorName = ref.read(medicalSessionProvider).lastDoctorName ?? AppStrings.of(lang, 'role.doctor');
+      final doctorName = msg.senderName ?? AppStrings.of(lang, 'role.doctor');
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Align(

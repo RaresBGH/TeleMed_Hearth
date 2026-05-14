@@ -1,5 +1,5 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-05-14 (Latest Flutter build: #104)
+Last updated: 2026-05-14 (Latest Flutter build: #107)
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
@@ -694,6 +694,35 @@ Build #104: full audit cleanup across 10 rounds —
 - TURN_USERNAME and TURN_CREDENTIAL secrets confirmed in GitHub Actions
 
 Audit state after #104: 0 critical, 0 high, 0 medium, 0 low. Codebase clean and ready for public repo.
+
+### BUILDS #105–#107 — SESSION 2026-05-14 (continued)
+
+Build #105: AI error diagnostic pill — dashboard pill changes from "AI loading..." to "AI error — tap for info" (amber) when initializeModel() fails; tapping shows full error string in a SelectableText dialog. initErrorNotifier (ValueNotifier) fires in both PlatformException and generic catch blocks. Audio file-existence check added before playback with error.audio_unavailable SnackBar.
+
+Build #106: Data and UX fixes —
+- seedMockData updated to 4 patients matching Medplum (Maria Ionescu, Ion Popescu, Sarah Dumitrescu, George Constantin); 5th patient (Ana Constantin) removed; gender field added; per-patient MedicationRequest (Amlodipină/Metformin); dangling Patient/mock-patient-1 reference fixed.
+- Appointment status chips: fulfilled → grey "Completed/Finalizat", cancelled → red "Cancelled/Anulat", noshow → orange "Missed/Neprezentat".
+- Past appointments (startTime before now) no longer show "Enter consultation" button.
+- Doctor Communications 7-day filter — only messages from last 7 days load into active chat.
+- lastImagePath added to MedicalSessionState — photo from home-screen triage seeded with attachmentPath in chat bubble (tappable thumbnail).
+- Finalize button: always blue when active; elevated glow when ready_to_finalize; greyed only when processing.
+
+Build #107: Context and chat UX —
+- Conversation history capped to last 10 messages before passing to engine (prevents unbounded context growth).
+- Summary card above message list — shows text of last AI response; updates each turn; white card with blue left border.
+- File picker: extensions changed to pdf/jpg/jpeg/png/doc/docx (audio files removed); doc/docx treated as PDF type; OCR fallback uses chat.pdf_attached key.
+- FHIR history in buildConversationContext: Observations limited to last 3 (reduces context size, improves response speed).
+
+Confirmed working (build #105 device test):
+- Text/voice/photo inference: AI responds correctly in release
+- Model download: working
+- FHIR write: Medical Dossier entries confirmed
+
+Still open (device test required):
+- Video call quality: TURN fix applied 2026-05-08, two-device confirmation pending
+- Activity panel dismiss + title, mic release after call
+- Emergency 112 dial
+- iPad Safari
 
 Confirmed working (build #102 device test, unchanged in #104):
 - Text/voice/photo inference: no crash, AI responds correctly

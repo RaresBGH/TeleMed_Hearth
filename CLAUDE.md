@@ -73,29 +73,20 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 
 ### P0 — NONE. All critical and high items resolved.
 
-### P1 — Flutter App (confirmed open as of build #85)
-- Raw file paths in dialogue replay: [Voice:/data/...] and [Photo:/data/...] shown as plain text instead of playable/tappable bubbles
-- "Dr. Doctor" label on doctor Communications bubbles — practitioner name not resolved from Medplum ID
-- Dashboard Recent Activity not updating after new consultation saved
-- T3: AI greeting resets to "Hello. What brings you to the doctor today?" on first voice turn regardless of history
-- Keyboard dismiss: UI freezes with loading indicator (no crash)
-- Activity panel (VideoConsultationScreen): cannot be dismissed by tap-outside or swipe-down; missing title header
-- Mic not released after video call ends
+### P1 — RESOLVED (builds #103–#107)
+- First photo from home screen not tappable in chat — RESOLVED #103 (initialImagePath wired)
+- Finalize button always grey until AI says ready_to_finalize — RESOLVED (always blue when active)
+- Appointment status labels missing (fulfilled/cancelled/noshow) — RESOLVED (chips added)
+- Doctor Communications bleeding into new sessions (old messages shown) — RESOLVED (7-day filter)
+- Raw file paths in dialogue replay ([Voice:/data/...]) — RESOLVED #103
 
-### P1 — Doctor UI (regressions from #76)
-- Chat Send button mostly unresponsive
-- Back-to-report from chat clears panel
-- In-call Report button does not collapse panel
-- Dialogue review (Mark reviewed / Finalize) disappeared
-
-### P1 — Flutter App (fine-tune architecture — 2026-05-11)
-- System prompt: patient-first — AI must not greet in Turn 1 — RESOLVED commit b2161ea
-- System prompt: sentence cap — change 15 words to 30 words — RESOLVED commit b2161ea
-- Verify emergency routing: EmergencyScreen → tel:112 end-to-end — backend confirmed in code; awaiting device-test of tel:112 dialer launch
-
-### P1 — Infrastructure
-- WebRTC video freeze: TURN fix applied 2026-05-08, two-device call confirmation still pending
+### P1 — STILL OPEN
+- Video call quality — needs two-device test (TURN fix applied 2026-05-08, unconfirmed)
 - iPad Safari: chat stripe tap unresponsive, doctor list empty
+- Emergency routing: EmergencyScreen → tel:112 — device test pending
+- Mic not released after video call ends — needs device retest
+- Activity panel (VideoConsultationScreen): tap-outside dismiss + title — needs device retest
+- "Your medical assistant" AppBar title in chat — consider renaming to doctor name or clinic name
 
 ### Post-hackathon
 - T4: Triage back button background not white
@@ -106,13 +97,10 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 ## Current State
 See TELEMED_CONTEXT.md for full verified/awaiting-test/broken breakdown.
 Last updated: 2026-05-14
-Latest build: #104 (full audit cleanup — CI building).
-Last device-tested: #102 release (text/voice/photo confirmed working, no crash).
-App renamed to TeleMed Hearth throughout.
-Audit Round 10: 0 critical, 0 high, 0 medium bugs.
-Codebase clean and ready for public repo.
-ProGuard JNI fix confirmed — release APK stable.
-TURN_USERNAME and TURN_CREDENTIAL secrets confirmed in GitHub Actions.
+Latest build: #107 (CI building).
+Last device-tested: #105 release — AI confirmed working. Build #107 awaiting CI + device test.
+4 patients created in Medplum (Maria/Ion/Sarah/George) with conditions, medications, appointments.
+All 9 practitioners named in Medplum.
 
 ## ADB Commands
 adb -s 4C041FDAP006Z1 logcat -d | grep -E "LiteRtLm|flutter|com.example.telemed_k" | tail -40
@@ -227,6 +215,24 @@ Build #103: patient-AI interaction fixes — initialAiResponse parameter, audio/
 Build #104: full audit cleanup across 10 rounds — AppStrings coverage complete (all UI strings localized EN/RO), error handling gaps filled (audio file-existence check, camera/mic/inference SnackBars), security hardened (credentials via dart-define), dead code removed, TeleMed Hearth rename complete, FhirExtensionUtils shared helper, MedplumRepository.base centralized, withOpacity CI compatibility, ProGuard JNI keep rules confirmed working, system prompt 3-question limit + rolling summary, session isolation _doctorPresent reset, model size corrected to ~3.5GB, diagnostic dialog removed.
 
 Audit state after #104: 0 critical, 0 high, 0 medium, 0 low. Codebase ready for public repo.
+
+## Session Notes — 2026-05-14 (Builds #105–#107)
+
+Build #105: AI error pill on dashboard — when initializeModel() fails, pill shows "AI error — tap for info" in amber; tap opens AlertDialog with SelectableText of the full error string. initErrorNotifier ValueNotifier added for reactive updates. Also: audio file-existence check before playback with user-facing SnackBar.
+
+Build #106: Data fixes and UX improvements —
+- seedMockData updated to 4 patients matching Medplum (Maria/Ion/Sarah/George; 5th patient removed); gender field added; per-patient MedicationRequest resources; dangling Patient/mock-patient-1 reference fixed.
+- Appointment status chips added for all statuses (fulfilled/cancelled/noshow/confirmed).
+- Past appointments (startTime < now) no longer show "Enter consultation" button.
+- Doctor Communications 7-day filter to prevent stale messages bleeding into new sessions.
+- lastImagePath added to MedicalSessionState — photo from home-screen triage now tappable in chat.
+- Finalize button always blue when active; glows when ready_to_finalize; grey only when processing.
+
+Build #107: Chat UX improvements —
+- Conversation history capped to last 10 messages (prevents unbounded context growth).
+- Summary card above message list shows last AI response — updates after each turn.
+- PDF/doc/docx file types added to file picker; OCR fallback uses chat.pdf_attached key.
+- FHIR history context limited to last 3 Observations (speeds up inference).
 
 ## Session Notes — 2026-05-11 (Fine-Tune Steps 5–10)
 

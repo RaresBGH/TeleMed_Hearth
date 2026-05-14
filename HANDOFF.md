@@ -2,8 +2,8 @@
 **Date:** 2026-05-14  
 **Deadline:** May 18, 2026 — **4 days remaining**  
 **Repo:** https://github.com/RaresBGH/TeleMed_K (still PRIVATE — must go public before deadline)  
-**Latest Flutter commit:** build #104 (CI building).  
-**Latest device-tested:** build #102 release — confirmed working. Build #104 awaiting CI + device test.  
+**Latest Flutter commit:** build #107 (CI building).  
+**Latest device-tested:** build #105 release — AI confirmed working. Build #107 awaiting CI + device test.  
 **Kaggle Writeup:** drafted at /home/corb_d/sovereign-factory/mobile-workspace/TeleMed_K_Writeup.md, finalized to 1498 words, currently at 6/7 on the Kaggle submission checklist (video pending).  
 **HuggingFace adapter:** https://huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical (public).
 
@@ -112,12 +112,19 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 
 ### P0 — NONE
 
+### P1 — RESOLVED (builds #103–#107)
+- First photo from home screen not tappable in chat — RESOLVED (initialImagePath wired)
+- Finalize button always grey until AI signals ready — RESOLVED (always blue when active)
+- Appointment status labels missing — RESOLVED (fulfilled/cancelled/noshow chips added)
+- Doctor Communications bleeding across sessions — RESOLVED (7-day filter)
+- Raw file paths in dialogue replay — RESOLVED #103
+
 ### P1 — CONFIRMED OPEN
-- Activity panel (VideoConsultationScreen): tap-outside dismiss + title — needs device retest
-- Mic not released after video call ends — needs device retest
-- Video call quality — needs two-device test
-- iPad Safari: chat stripe tap + doctor list empty
+- Video call quality — needs two-device test (TURN fix applied 2026-05-08, unconfirmed)
+- iPad Safari: chat stripe tap unresponsive, doctor list empty
 - Emergency routing: tel:112 device test pending
+- Mic not released after video call ends — needs device retest
+- Activity panel (VideoConsultationScreen): tap-outside dismiss + title — needs device retest
 - withOpacity → withValues migration pending CI upgrade past Flutter 3.32.x
 
 ---
@@ -367,13 +374,12 @@ PATCH format confirmed: application/json-patch+json (not merge-patch — Medplum
 
 ## Next Actions (2026-05-14 — 4 days to deadline)
 
-1. Install build #104 release APK — full regression test (text/voice/photo/finalize/dossier)
+1. Install build #107 release APK — full regression test (text/voice/photo/finalize/dossier)
 2. Two-device video call test (confirm TURN fix)
 3. Device test: Activity panel dismiss + title
 4. Device test: mic release after call
 5. Device test: emergency 112 dial
 6. iPad Safari fixes
-7. Database cleanup (wipe test dialogues, keep Ion + Maria seeded data)
-8. Make repo public on GitHub
-9. Record demo video (TeleMed Hearth, Maria story)
-10. Final Kaggle submission before May 18
+7. Make repo public on GitHub
+8. Record demo video (TeleMed Hearth, Maria story)
+9. Final Kaggle submission before May 18

@@ -14,6 +14,8 @@ class ChatMessage {
   final String? attachmentPath;
   /// Media type of the attachment; null for plain text messages.
   final AttachmentType? attachmentType;
+  /// Resolved display name of the sender (used for role == 'doctor' bubbles).
+  final String? senderName;
 
   ChatMessage({
     required this.role,
@@ -21,5 +23,6 @@ class ChatMessage {
     required this.timestamp,
     this.attachmentPath,
     this.attachmentType,
+    this.senderName,
   });
 }

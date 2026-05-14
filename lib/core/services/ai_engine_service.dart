@@ -273,7 +273,13 @@ class AiEngineService {
       final history = await _fhirRepository.getPatientHistory();
       if (history.isNotEmpty) {
         buffer.writeln('\nPATIENT MEDICAL HISTORY (FHIR):');
-        for (final resource in history) {
+        final conditions = history.where((r) => r['resourceType'] == 'Condition').toList();
+        final observations = history.where((r) => r['resourceType'] == 'Observation').toList();
+        // Limit to last 3 Observations to reduce context size and improve response speed.
+        final recentObs = observations.length > 3
+            ? observations.sublist(observations.length - 3)
+            : observations;
+        for (final resource in [...conditions, ...recentObs]) {
           buffer.writeln('- ${resource['resourceType']}: ${jsonEncode(resource)}');
         }
       }

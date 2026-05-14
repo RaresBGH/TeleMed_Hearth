@@ -51,6 +51,7 @@ class AppStrings {
     'call.signaling_error':  'Nu s-a putut conecta la server. Vă rugăm reîncercați.',
     'call.webrtc_error':     'Nu s-a putut porni video. Vă rugăm reîncercați.',
     'call.tab_activity':          'Activitate',
+    'call.activity_title':        'Activitate Recentă',
     'call.activity_empty':        'Nicio activitate recentă.',
     'call.activity_medical':      'Medical',
     'call.activity_other':        'Altele',
@@ -186,6 +187,8 @@ class AppStrings {
     'otp.privacy_title':      'Politica de Confidențialitate',
 
     // ── Chat / Medical response ────────────────────────────────────────────
+    'chat.summary_title':     'Rezumat',
+    'chat.pdf_attached':      'Document PDF atașat: {filename}',
     'chat.followup_prompt':   'Aveți și alte simptome pe care doriți să le descrieți?',
     'chat.appbar_title':      'Asistentul tău medical',
     'chat.section_label':     'Analiza simptomelor',
@@ -420,6 +423,7 @@ class AppStrings {
     'call.signaling_error':  'Could not connect to call server. Please retry.',
     'call.webrtc_error':     'Could not start video. Please retry.',
     'call.tab_activity':          'Activity',
+    'call.activity_title':        'Recent Activity',
     'call.activity_empty':        'No recent triage activity.',
     'call.activity_medical':      'Medical',
     'call.activity_other':        'Other',
@@ -555,6 +559,8 @@ class AppStrings {
     'otp.privacy_title':      'Privacy Policy',
 
     // ── Chat / Medical response ────────────────────────────────────────────
+    'chat.summary_title':     'Summary',
+    'chat.pdf_attached':      'PDF document attached: {filename}',
     'chat.followup_prompt':   'Do you have any other symptoms you would like to describe?',
     'chat.appbar_title':      'Your medical assistant',
     'chat.section_label':     'Symptom analysis',

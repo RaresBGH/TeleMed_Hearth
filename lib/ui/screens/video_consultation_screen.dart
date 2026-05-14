@@ -161,6 +161,7 @@ class _VideoConsultationScreenState
       }));
       _signalingSocket?.close();
     } catch (_) {}
+    _localStream?.getTracks().forEach((track) => track.stop());
     if (_localStream    != null) unawaited(_localStream!.dispose());
     if (_peerConnection != null) unawaited(_peerConnection!.close());
     unawaited(_localRenderer.dispose());
@@ -227,7 +228,12 @@ class _VideoConsultationScreenState
 
       final constraints = <String, dynamic>{
         'audio': true,
-        'video': {'facingMode': 'user'},
+        'video': {
+          'facingMode': 'user',
+          'width':     {'ideal': 640, 'max': 640},
+          'height':    {'ideal': 480, 'max': 480},
+          'frameRate': {'ideal': 24,  'max': 30},
+        },
       };
       _localStream = await navigator.mediaDevices.getUserMedia(constraints);
 
@@ -240,6 +246,27 @@ class _VideoConsultationScreenState
 
       for (final track in _localStream!.getTracks()) {
         await _peerConnection!.addTrack(track, _localStream!);
+      }
+
+      // Cap outgoing video bitrate to prevent flooding the connection.
+      final senders = await _peerConnection!.getSenders();
+      for (final sender in senders) {
+        if (sender.track?.kind == 'video') {
+          final params = sender.parameters; // synchronous getter
+          final encodings = params.encodings ?? [];
+          if (encodings.isEmpty) {
+            encodings.add(RTCRtpEncoding(
+              maxBitrate: 500000,
+              maxFramerate: 24,
+            ));
+          } else {
+            // Mutate in-place to preserve ssrc and other immutable fields.
+            encodings[0].maxBitrate = 500000;
+            encodings[0].maxFramerate = 24;
+          }
+          params.encodings = encodings;
+          await sender.setParameters(params);
+        }
       }
 
       // Fires when the remote peer adds a stream — shows remote video.
@@ -417,6 +444,9 @@ class _VideoConsultationScreenState
 
   Future<void> _endCall() async {
     if (!mounted) return;
+    _localStream?.getTracks().forEach((track) => track.stop());
+    _localStream?.dispose();
+    _localStream = null;
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
     } else {
@@ -529,13 +559,18 @@ class _VideoConsultationScreenState
                   child: Row(
                     children: [
                       Text(
-                        AppStrings.of(_lang, 'call.tab_activity'),
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                        AppStrings.of(_lang, 'call.activity_title'),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       const Spacer(),
                       IconButton(
                         icon: const Icon(Icons.close),
-                        onPressed: () => setState(() => _chatOpen = false),
+                        onPressed: () => _sheetController.animateTo(
+                          0.0,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                        ),
                       ),
                     ],
                   ),
@@ -725,14 +760,10 @@ class _VideoConsultationScreenState
 
           // Layer 7 — Slide-up chat panel (toggled by chat strip tap)
           if (_chatOpen) ...[
-            // Transparent overlay: tapping outside the sheet collapses it.
-            // Constrained to exclude the bottom 240dp (control panel + safe area)
-            // so the end-call and mute buttons remain tappable.
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 240,
+            // Full-screen transparent barrier: tapping anywhere outside the
+            // sheet dismisses it. The sheet itself is on top in the Stack so
+            // taps on the sheet content are not intercepted by this barrier.
+            Positioned.fill(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => _sheetController.animateTo(

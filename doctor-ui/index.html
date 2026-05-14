@@ -67,17 +67,22 @@
     cursor: pointer; z-index: 201;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    transition: right 0.28s cubic-bezier(0.4,0,0.2,1), background 0.15s;
+    /* Use transform (not right) for the open/close animation so the visual
+       position and Safari's hit-test rectangle stay in sync. */
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1), background 0.15s;
     box-shadow: -2px 0 8px rgba(0,0,0,0.15);
     font-size: 11px; font-weight: 700;
     writing-mode: vertical-rl; text-orientation: mixed;
     letter-spacing: 0.08em;
+    touch-action: manipulation;
   }
   #chatStripeBtn:hover { background: #3a82aa; }
-  #chatStripeBtn.panel-open { right: 360px; }
+  /* panel-open shifts the stripe left by the panel width using translateX
+     so both axes are in the same transform — no right-property animation. */
+  #chatStripeBtn.panel-open { transform: translateX(-360px) translateY(-50%); }
   #chatStripeBtn.hidden { display: none; }
-  @media (max-width: 1023px) { #chatStripeBtn.panel-open { right: 300px; } }
-  @media (max-width: 767px)  { #chatStripeBtn.panel-open { right: 100%; } }
+  @media (max-width: 1023px) { #chatStripeBtn.panel-open { transform: translateX(-300px) translateY(-50%); } }
+  @media (max-width: 767px)  { #chatStripeBtn.panel-open { transform: translateX(-100vw) translateY(-50%); } }
 
   /* ── MAIN CONTENT ────────────────────────────────────────── */
   #mainContent {
@@ -148,7 +153,7 @@
   #remoteVideo { width: 100%; height: 100%; background-color: #000; display: block; object-fit: contain; aspect-ratio: 16/9; }
   #localVideo { position: fixed; bottom: 128px; left: 16px; width: 160px; height: 120px; background: #222; border-radius: 8px; object-fit: cover; z-index: 10; box-shadow: 0 2px 12px rgba(0,0,0,0.5); }
   #callStatus { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: rgba(26,28,28,0.75); color: #fff; font-size: 14px; padding: 8px 20px; border-radius: 999px; z-index: 30; }
-  #controlBar { position: fixed; bottom: 0; left: 0; right: 0; height: 112px; background: rgba(249,249,249,0.95); backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: center; gap: 32px; z-index: 20; transition: right 0.28s cubic-bezier(0.4,0,0.2,1); }
+  #controlBar { position: fixed; bottom: 0; left: 0; right: 0; height: 112px; background: rgba(249,249,249,0.95); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: center; gap: 32px; z-index: 20; transition: right 0.28s cubic-bezier(0.4,0,0.2,1); }
   @media (min-width: 1024px) { body.panel-open #controlBar { right: 360px; } }
   .ctrl-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; background: none; border: none; }
   .ctrl-circle { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: background 0.15s, transform 0.1s; }
@@ -203,6 +208,7 @@
   #asyncChatInput:focus { border-color: #5BA4CF; }
   #asyncChatSendBtn { height: 40px; padding: 0 16px; background: #5BA4CF; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
   #asyncChatSendBtn:hover { background: #3a82aa; }
+  .chat-empty { font-size: 14px; color: #40484e; font-style: italic; padding: 16px; text-align: center; }
 </style>
 </head>
 <body>
@@ -400,8 +406,8 @@
     const header = document.getElementById('asyncChatPatientHeader');
     const msgs   = document.getElementById('asyncChatMessages');
     if (!currentPatientId) {
-      header.textContent = 'Select a patient to start chatting';
-      msgs.innerHTML = '';
+      header.textContent = 'No patient selected';
+      msgs.innerHTML = '<p class="chat-empty">Select a patient from the appointments list first.</p>';
       return;
     }
     header.textContent = currentPatientName || 'Patient';
@@ -424,7 +430,7 @@
       }
       entries.forEach(comm => {
         const exts = comm.extension || [];
-        const isPatient = exts.some(e => e.url === 'isPatient' && e.valueBoolean === true);
+        const isPatient = exts.some(e => e.url === 'https://telemed-bogheanu.ro/fhir/ext/isPatient' && e.valueBoolean === true);
         const text = comm.payload?.[0]?.contentString || '';
         const sentStr = comm.sent || '';
         const timeLabel = sentStr ? new Date(sentStr).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
@@ -444,7 +450,8 @@
   async function sendMedplumChatMessage() {
     const input = document.getElementById('asyncChatInput');
     const text  = input.value.trim();
-    if (!text || !currentPatientId) return;
+    if (!currentPatientId) { alert('Please select a patient first.'); return; }
+    if (!text) return;
     input.value = '';
     const currentDoctorId = document.getElementById('doctorSelect').value;
     try {
@@ -457,7 +464,7 @@
         subject: { reference: 'Patient/' + currentPatientId },
         sender: { reference: 'Practitioner/' + currentDoctorId },
         payload: [{ contentString: text }],
-        extension: [{ url: 'isPatient', valueBoolean: false }],
+        extension: [{ url: 'https://telemed-bogheanu.ro/fhir/ext/isPatient', valueBoolean: false }],
       };
       const res = await fetch(MEDPLUM_BASE + '/fhir/R4/Communication', {
         method: 'POST',
@@ -479,6 +486,11 @@
 
   // ── Medplum auth ─────────────────────────────────────────────────────────────
   async function fetchMedplumToken() {
+    if (!CLIENT_ID || !CLIENT_SECRET) {
+      const apptList = document.getElementById('appointmentsList');
+      if (apptList) apptList.innerHTML = '<p style="color:#c0392b;padding:12px;">Doctor UI not configured. Contact admin.</p>';
+      return null;
+    }
     try {
       const res = await fetch(MEDPLUM_BASE + '/oauth2/token', {
         method: 'POST',
@@ -499,12 +511,10 @@
   // ── Doctor dropdown & date ────────────────────────────────────────────────────
   function populateDoctorDropdown() {
     const sel = document.getElementById('doctorSelect');
-    DOCTORS.forEach(d => {
-      const opt = document.createElement('option');
-      opt.value = d.id;
-      opt.textContent = d.name + ' — ' + d.specialty;
-      sel.appendChild(opt);
-    });
+    sel.innerHTML = DOCTORS.map(d =>
+      `<option value="${d.id}">${d.name} — ${d.specialty}</option>`
+    ).join('');
+    if (sel.value) loadAppointments();
   }
 
   function showTodayDate() {
@@ -526,11 +536,15 @@
     medplumToken = await fetchMedplumToken();
     if (!medplumToken) { listEl.innerHTML = '<p class="empty-state">Could not load appointments (auth error).</p>'; return; }
     try {
-      const today    = new Date().toISOString().split('T')[0];
-      const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const localToday = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+      const tomorrowDate = new Date(now);
+      tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+      const localTomorrow = `${tomorrowDate.getFullYear()}-${pad(tomorrowDate.getMonth()+1)}-${pad(tomorrowDate.getDate())}`;
       const url = MEDPLUM_BASE + '/fhir/R4/Appointment' +
-        '?date=ge' + today + 'T00:00:00Z' +
-        '&date=lt' + tomorrow + 'T00:00:00Z' +
+        '?date=ge' + localToday + 'T00:00:00Z' +
+        '&date=lt' + localTomorrow + 'T00:00:00Z' +
         '&status=booked&_include=Appointment:actor&_count=50';
       const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + medplumToken, 'Accept': 'application/fhir+json' } });
       if (!res.ok) throw new Error('Appointment fetch failed: ' + res.status);
@@ -657,6 +671,7 @@
   }
 
   async function markReviewed(obsId, btn, entryEl) {
+    if (!currentPatientId) { alert('Please select a patient first.'); return; }
     if (!obsId) return;
     btn.disabled = true; btn.textContent = 'Marking...';
     const token = await ensureToken();
@@ -674,6 +689,7 @@
   }
 
   async function finalizeReport(btn) {
+    if (!currentPatientId) { alert('Please select a patient first.'); return; }
     if (reviewedInSession.size === 0) return;
     btn.disabled = true; btn.textContent = 'Finalizing...';
     const token = await ensureToken();
@@ -732,7 +748,14 @@
     setJoinStatus('Connecting...');
     document.getElementById('joinBtn').disabled = true;
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width:     { ideal: 640, max: 640 },
+          height:    { ideal: 480, max: 480 },
+          frameRate: { ideal: 24,  max: 30  }
+        },
+        audio: true
+      });
       document.getElementById('localVideo').srcObject = localStream;
       pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, sdpSemantics: 'unified-plan' });
       localStream.getTracks().forEach(t => {
@@ -740,8 +763,9 @@
         if (t.kind === 'video') {
           const params = sender.getParameters();
           if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
-          params.encodings[0].maxBitrate = 1000000;
+          params.encodings[0].maxBitrate = 500000;
           params.encodings[0].scaleResolutionDownBy = 1.0;
+          params.encodings[0].maxFramerate = 24;
           sender.setParameters(params).catch(e => console.warn('setParameters error:', e));
         }
       });
@@ -777,7 +801,11 @@
           rv.srcObject = null; rv.style.display = 'none';
         }
         if (msg.type === 'peer_joined') {
-          setTimeout(() => { if (currentPatientId) viewPatientReport(currentPatientId, currentPatientName); }, 100);
+          setTimeout(() => {
+            if (currentPatientId && (!fetchedObservations || fetchedObservations.length === 0)) {
+              viewPatientReport(currentPatientId, currentPatientName);
+            }
+          }, 100);
         }
         // FIX 5: WebSocket 'chat' messages removed — chat is async via Medplum only
       };
@@ -834,9 +862,13 @@
 
   // ── Init ──────────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
-    populateDoctorDropdown();
-    showTodayDate();
-    loadAppointments();
+    // Defer DOM-populating calls by 50ms to guarantee Safari has fully
+    // parsed and rendered the select element before options are injected.
+    setTimeout(() => {
+      populateDoctorDropdown();
+      showTodayDate();
+      loadAppointments();
+    }, 50);
 
     document.getElementById('doctorSelect').addEventListener('change', loadAppointments);
     document.getElementById('joinBtn').addEventListener('click', joinCall);
@@ -844,11 +876,21 @@
     document.getElementById('muteBtn').addEventListener('click', toggleMute);
     document.getElementById('cameraBtn').addEventListener('click', toggleCamera);
     document.getElementById('panelBtn').addEventListener('click', () => {
-      if (currentPatientId) viewPatientReport(currentPatientId, currentPatientName);
-      else openPanel();
+      if (panelOpen && currentPanelState === 'report') {
+        closePanel();
+      } else if (currentPatientId) {
+        viewPatientReport(currentPatientId, currentPatientName);
+      } else {
+        openPanel();
+      }
     });
     document.getElementById('panelCloseBtn').addEventListener('click', () => { if (panelOpen) togglePanel(); });
-    document.getElementById('chatStripeBtn').addEventListener('click', () => showPanelState('chat'));
+    const stripeBtn = document.getElementById('chatStripeBtn');
+    stripeBtn.addEventListener('click', () => showPanelState('chat'));
+    stripeBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      showPanelState('chat');
+    }, { passive: false });
     document.getElementById('asyncChatSendBtn').addEventListener('click', sendMedplumChatMessage);
     document.getElementById('asyncChatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMedplumChatMessage(); });
     document.getElementById('peerLeftEndBtn').addEventListener('click', endCall);
