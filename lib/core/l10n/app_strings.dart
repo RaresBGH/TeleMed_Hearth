@@ -103,6 +103,7 @@ class AppStrings {
     'history.empty':          'Nu există istoric medical.',
     'history.error':          'Eroare la încărcarea istoricului.',
     'history.ai_label':       'Răspuns inițial AI',
+    'history.summary_title':  'Rezumat Clinic',
     'history.conv_label':     'Conversație',
     'history.continue_btn':   'Continuă conversația',
     'history.no_content':     'Nu există conținut detaliat pentru acest raport.',
@@ -119,6 +120,8 @@ class AppStrings {
     'history.fallback_condition':    'Condiție Medicală',
     'history.fallback_generic':      'Înregistrare Medicală',
     'history.finalized_label':       'Finalizat de medic',
+    'history.dialogue_title':        'Dialog #{n}',
+    'history.dialogue_header':       'Dialog #{n}',
 
     // ── Doctor / Medic ─────────────────────────────────────────────────────
     'doctor.treatment':       'Tratament',
@@ -190,9 +193,12 @@ class AppStrings {
 
     // ── Chat / Medical response ────────────────────────────────────────────
     'chat.summary_title':     'Rezumat',
+    'chat.info_card_text':    '🎙️ Conversația ta este înregistrată și analizată de asistentul tău AI personal. Descrie simptomele liber — prin voce, text sau fotografie. Când ești gata, apasă Finalizează Dialogul pentru a salva sesiunea.',
+    'chat.info_card_dismiss': 'Închide',
     'chat.pdf_attached':      'Document PDF atașat: {filename}',
     'chat.followup_prompt':   'Aveți și alte simptome pe care doriți să le descrieți?',
-    'chat.appbar_title':      'Asistentul tău medical',
+    'chat.appbar_title':          'Asistentul tău medical',
+    'chat.appbar_title_patient':  'Asistentul lui {name}',
     'chat.section_label':     'Analiza simptomelor',
     'chat.prefix_ai':         'AI',
     'chat.prefix_patient':    'Pacient',
@@ -478,6 +484,7 @@ class AppStrings {
     'history.empty':          'No medical history.',
     'history.error':          'Error loading history.',
     'history.ai_label':       'Initial AI Response',
+    'history.summary_title':  'Clinical Summary',
     'history.conv_label':     'Conversation',
     'history.continue_btn':   'Continue conversation',
     'history.no_content':     'No detailed content for this report.',
@@ -494,6 +501,8 @@ class AppStrings {
     'history.fallback_condition':    'Medical Condition',
     'history.fallback_generic':      'Health Record',
     'history.finalized_label':       'Finalized by doctor',
+    'history.dialogue_title':        'Dialogue #{n}',
+    'history.dialogue_header':       'Dialogue #{n}',
 
     // ── Doctor / Medic ─────────────────────────────────────────────────────
     'doctor.treatment':       'Treatment',
@@ -565,9 +574,12 @@ class AppStrings {
 
     // ── Chat / Medical response ────────────────────────────────────────────
     'chat.summary_title':     'Summary',
+    'chat.info_card_text':    '🎙️ Your conversation is being recorded and analyzed by your personal AI assistant. Describe your symptoms freely — by voice, text, or photo. When you feel ready, tap Finalize Dialog to save your session.',
+    'chat.info_card_dismiss': 'Dismiss',
     'chat.pdf_attached':      'PDF document attached: {filename}',
     'chat.followup_prompt':   'Do you have any other symptoms you would like to describe?',
-    'chat.appbar_title':      'Your medical assistant',
+    'chat.appbar_title':          'Your medical assistant',
+    'chat.appbar_title_patient':  '{name}\'s Assistant',
     'chat.section_label':     'Symptom analysis',
     'chat.prefix_ai':         'AI',
     'chat.prefix_patient':    'Patient',

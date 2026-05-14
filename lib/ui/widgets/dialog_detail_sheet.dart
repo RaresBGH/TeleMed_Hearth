@@ -24,8 +24,9 @@ class DialogDetailSheet {
     String lang,
     Map<String, dynamic> item,
     String dateStr,
-    String? status,
-  ) {
+    String? status, {
+    int? dialogueNumber,
+  }) {
     final valueString = item['valueString'] as String?;
     final noteList    = item['note'] as List?;
     final noteText    = noteList?.isNotEmpty == true
@@ -65,7 +66,11 @@ class DialogDetailSheet {
                   children: [
                     Expanded(
                       child: Text(
-                        dateStr,
+                        dialogueNumber != null
+                            ? AppStrings.of(lang, 'history.dialogue_header')
+                                .replaceAll('{n}', dialogueNumber.toString()) +
+                              ' — ' + dateStr
+                            : dateStr,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -116,7 +121,7 @@ class DialogDetailSheet {
                   children: [
                     if (valueString != null && valueString.isNotEmpty) ...[
                       Text(
-                        AppStrings.of(lang, 'history.ai_label'),
+                        AppStrings.of(lang, 'history.summary_title'),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,

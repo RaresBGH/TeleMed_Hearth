@@ -537,8 +537,7 @@ class _VideoConsultationScreenState
         initialChildSize: 0.45,
         minChildSize: 0.0,
         maxChildSize: 0.85,
-        snap: true,
-        snapSizes: const [0.45, 0.85],
+        snap: false,
         builder: (_, scrollController) => Container(
           decoration: const BoxDecoration(
             color: Color(0xFFF9F9F9),

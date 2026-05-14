@@ -67,6 +67,16 @@ class HistoryScreen extends ConsumerWidget {
                         ),
                       );
                     }
+                    // Build a chronologically ordered list of Observations for
+                    // dialogue numbering: oldest = #1, newest = highest number.
+                    final observations = data
+                        .where((d) => d['resourceType'] == 'Observation')
+                        .toList()
+                      ..sort((a, b) {
+                        final aDate = a['effectiveDateTime'] as String? ?? a['recordedDate'] as String? ?? '';
+                        final bDate = b['effectiveDateTime'] as String? ?? b['recordedDate'] as String? ?? '';
+                        return aDate.compareTo(bDate);
+                      });
                     return ListView.builder(
                       itemCount: data.length,
                       itemBuilder: (context, index) {
@@ -77,11 +87,18 @@ class HistoryScreen extends ConsumerWidget {
                             '';
                         final String dateStr = DateFormatter.format(isoDate, includeTime: true);
                         final code = item['code'] ?? {};
-                        // Observation entries are always triage dialogs — use the
-                        // translated AppStrings key so the label reacts to RO/EN toggle.
+                        // Compute dialogue number for Observations: oldest = #1.
+                        int? dialogueNumber;
+                        if (item['resourceType'] == 'Observation') {
+                          final obsIndex = observations.indexOf(item);
+                          if (obsIndex != -1) dialogueNumber = obsIndex + 1;
+                        }
                         final String label =
                             item['resourceType'] == 'Observation'
-                                ? AppStrings.of(lang, 'dashboard.triage_dialog')
+                                ? (dialogueNumber != null
+                                    ? AppStrings.of(lang, 'history.dialogue_title')
+                                        .replaceAll('{n}', dialogueNumber.toString())
+                                    : AppStrings.of(lang, 'dashboard.triage_dialog'))
                                 : (code['text'] as String? ?? _getFallbackText(item, lang));
                         final String? valueString =
                             item['valueString'] as String?;
@@ -126,6 +143,7 @@ class HistoryScreen extends ConsumerWidget {
                                 item,
                                 dateStr,
                                 status,
+                                dialogueNumber: dialogueNumber,
                               ),
                               child: Padding(
                                 padding: const EdgeInsets.all(20.0),

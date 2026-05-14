@@ -149,6 +149,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   Future<void> finalizeConsultation(
     List<ChatMessage> messages, {
     String? lastAiText,
+    String? aiCategory,
   }) async {
     // Guard: prevent duplicate FHIR writes if called more than once per session.
     if (_finalized) return;
@@ -195,10 +196,11 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       }
 
       // Resolve doctorName and category for attribution and classification.
+      // aiCategory (from last inference result) takes priority over session state.
       final String? doctorName = state.lastDoctorName;
       final String category = state.lastIsEmergency
           ? 'medical'
-          : (state.lastSessionCategory ?? 'medical');
+          : (aiCategory ?? state.lastSessionCategory ?? 'medical');
 
       final extensions = <Map<String, dynamic>>[
         {
@@ -308,6 +310,27 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       lastPatientMessage: state.lastPatientMessage,
       lastAudioPath: aacPath,
       lastImagePath: state.lastImagePath,
+    );
+  }
+
+  /// Replaces lastImagePath with a permanent copy path after the home-screen
+  /// photo triage, so the image bubble survives after the temp file is deleted.
+  void updateImagePath(String? imagePath) {
+    if (imagePath == null) return;
+    state = MedicalSessionState(
+      sessionState: state.sessionState,
+      lastAiResponse: state.lastAiResponse,
+      lastIsEmergency: state.lastIsEmergency,
+      lastResumeMessages: state.lastResumeMessages,
+      lastResumeObservationId: state.lastResumeObservationId,
+      errorMessage: state.errorMessage,
+      lastDoctorName: state.lastDoctorName,
+      lastPractitionerRef: state.lastPractitionerRef,
+      lastSessionCategory: state.lastSessionCategory,
+      lastSessionLanguage: state.lastSessionLanguage,
+      lastPatientMessage: state.lastPatientMessage,
+      lastAudioPath: state.lastAudioPath,
+      lastImagePath: imagePath,
     );
   }
 

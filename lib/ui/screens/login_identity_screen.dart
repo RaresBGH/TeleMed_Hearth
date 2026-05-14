@@ -386,8 +386,9 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
       ref
           .read(appNavigationProvider.notifier)
           .navigateTo(AppRoute.loginVerification);
-      await Future.delayed(const Duration(seconds: 3));
-    } finally {
+      // Success — keep _isSubmitting = true; widget will be disposed on navigation.
+    } catch (e) {
+      // Failure — re-enable button so the user can retry.
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
@@ -642,20 +643,29 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                                 ]
                               : null,
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(AppStrings.of(lang, 'login.continue_btn'),
-                                style: const TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    letterSpacing: 2.0)),
-                            const SizedBox(width: 16),
-                            const Icon(Icons.arrow_forward,
-                                color: Colors.white, size: 40),
-                          ],
-                        ),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                width: 36,
+                                height: 36,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 3,
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(AppStrings.of(lang, 'login.continue_btn'),
+                                      style: const TextStyle(
+                                          fontSize: 26,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                          letterSpacing: 2.0)),
+                                  const SizedBox(width: 16),
+                                  const Icon(Icons.arrow_forward,
+                                      color: Colors.white, size: 40),
+                                ],
+                              ),
                       ),
                     ),
                     const SizedBox(height: 24),

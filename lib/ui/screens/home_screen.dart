@@ -3,7 +3,10 @@
 //
 // TeleMed_K: Offline-first telemedicine app for seniors
 
+import 'dart:async';
 import 'dart:io';
+
+import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,6 +45,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // Post-hackathon: consolidate into SessionState.recording.
   bool _isRecording = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Sync AI engine language after the first frame — the patient language was
+    // set in languageProvider during loadPatient() at login, but AiEngineService._lang
+    // still holds its default ('en') until explicitly updated. This ensures the
+    // home-screen triage inference uses the correct language before MedicalResponseScreen opens.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(ref.read(aiEngineServiceProvider).setLanguage(ref.read(languageProvider)));
+    });
+  }
+
   // ── Camera ─────────────────────────────────────────────────────────────────
 
   Future<void> _onCameraTap() async {
@@ -68,6 +84,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       await ref
           .read(medicalSessionProvider.notifier)
           .processMedia(File(imagePath));
+      // Copy to permanent location before deleting temp file, so the photo
+      // bubble in MedicalResponseScreen has a valid path after navigation.
+      final appDir = await getApplicationDocumentsDirectory();
+      final permanentPath =
+          '${appDir.path}/telemed_img_home_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      try {
+        await File(imagePath).copy(permanentPath);
+        if (mounted) {
+          ref.read(medicalSessionProvider.notifier).updateImagePath(permanentPath);
+        }
+      } catch (_) {}
       cameraService.deleteTempFile(imagePath);
     } catch (e) {
       if (!mounted) return;
@@ -366,6 +393,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final sessionState = ref.watch(medicalSessionProvider).sessionState;
     final patientName  = ref.watch(patientAuthProvider).patientFirstName;
     final lang         = ref.watch(languageProvider);
+    // Keep AI engine language in sync with the UI language toggle.
+    ref.listen(languageProvider, (_, next) {
+      unawaited(ref.read(aiEngineServiceProvider).setLanguage(next));
+    });
     final bool _aiReady = ref.watch(aiReadyProvider).maybeWhen(
       data: (v) => v,
       orElse: () => false,

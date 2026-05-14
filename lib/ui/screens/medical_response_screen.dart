@@ -92,8 +92,12 @@ class _MedicalResponseScreenState
   bool _screenFinalized  = false;
   // Guard: doctor Communications loaded once per screen open.
   bool _doctorMessagesLoaded = false;
+  // Info card dismissed for this session.
+  bool _infoDismissed = false;
   // True when the AI signals the conversation is complete (ready_to_finalize).
   bool _readyToFinalize = false;
+  // Category from the last AI inference result — stored for FHIR Observation.
+  String? _lastAiCategory;
 
   // ── Streaming shim (Dart-side typewriter) ─────────────────────────────────
   /// Accumulates streaming text while an inference response is being typed out.
@@ -543,12 +547,14 @@ class _MedicalResponseScreenState
             ? result['response'] as String
             : AppStrings.of(_lang, 'chat.no_understand');
     final bool readyToFinalize = result['ready_to_finalize'] == true;
+    final String? category = result['category'] as String?;
     setState(() {
       _isProcessing = false;
       _isPhotoAnalyzing = false;
       _streamingText = '';
       _messages.add(ChatMessage(role: 'ai', text: text, timestamp: DateTime.now()));
       if (readyToFinalize) _readyToFinalize = true;
+      if (category != null) _lastAiCategory = category;
     });
     _scrollToBottom();
   }
@@ -563,6 +569,7 @@ class _MedicalResponseScreenState
             ? result['response'] as String
             : AppStrings.of(_lang, 'chat.no_understand');
     final bool readyToFinalize = result['ready_to_finalize'] == true;
+    final String? category = result['category'] as String?;
 
     // Stream the words progressively.
     await for (final chunk in AiEngineService.streamWords(text)) {
@@ -579,6 +586,7 @@ class _MedicalResponseScreenState
       _streamingText    = '';
       _messages.add(ChatMessage(role: 'ai', text: text, timestamp: DateTime.now()));
       if (readyToFinalize) _readyToFinalize = true;
+      if (category != null) _lastAiCategory = category;
     });
     _scrollToBottom();
   }
@@ -611,8 +619,7 @@ class _MedicalResponseScreenState
 
       try {
         final result =
-            await ref.read(aiEngineServiceProvider).evaluateAudio(
-                File(wavPath), customPrompt: _buildConversationHistory());
+            await ref.read(aiEngineServiceProvider).evaluateAudio(File(wavPath));
         audioService.deleteWavFile(wavPath);
         // Update voice bubble with AAC path if background transcoding finished
         // during inference. Falls back to old WAV path gracefully via existsSync check.
@@ -740,8 +747,7 @@ class _MedicalResponseScreenState
 
     try {
       final result =
-          await ref.read(aiEngineServiceProvider).evaluateMedia(
-              File(imagePath), customPrompt: _buildConversationHistory());
+          await ref.read(aiEngineServiceProvider).evaluateMedia(File(imagePath));
       await _copyImageToPermanentPath(imagePath);
       cameraService.deleteTempFile(imagePath);
       if (_cancelRequested) {
@@ -840,19 +846,26 @@ class _MedicalResponseScreenState
     if (!mounted) return;
 
     try {
-      final lastAi = _messages
-          .lastWhere((m) => m.role == 'ai',
-              orElse: () => ChatMessage(
-                    role: 'ai',
-                    text: '',
-                    timestamp: DateTime.now(),
-                  ))
-          .text;
+      // Generate a one-sentence clinical summary before writing to FHIR.
+      String? clinicalSummary;
+      try {
+        final summaryResult = await ref.read(aiEngineServiceProvider).evaluateText(
+          _lang == 'ro'
+              ? 'Generează un rezumat clinic scurt de o propoziție al acestei consultații.'
+              : 'Generate a brief one-sentence clinical summary of this consultation.',
+          customPrompt: _buildConversationHistory(),
+        );
+        clinicalSummary = summaryResult['response'] as String?;
+      } catch (_) {
+        clinicalSummary = null;
+      }
+
       await ref
           .read(medicalSessionProvider.notifier)
           .finalizeConsultation(
             List.unmodifiable(_messages),
-            lastAiText: lastAi.isEmpty ? null : lastAi,
+            lastAiText: clinicalSummary?.isNotEmpty == true ? clinicalSummary : null,
+            aiCategory: _lastAiCategory,
           );
 
       if (!mounted) return;
@@ -868,6 +881,7 @@ class _MedicalResponseScreenState
       );
 
       await Future.delayed(const Duration(milliseconds: 1400));
+      if (mounted) setState(() => _isFinalizing = false);
       if (!mounted) return;
 
       // Explicit patient finalization — reset session and return to dashboard.
@@ -890,10 +904,6 @@ class _MedicalResponseScreenState
   @override
   Widget build(BuildContext context) {
     final lang = ref.watch(languageProvider);
-    final lastAiText = _messages
-        .where((m) => m.role == 'ai')
-        .lastOrNull
-        ?.text;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -905,7 +915,7 @@ class _MedicalResponseScreenState
         appBar: _buildAppBar(lang),
         body: Column(
           children: [
-            if (lastAiText != null) _buildSummaryCard(lang, lastAiText),
+            if (!_infoDismissed) _buildInfoCard(lang),
             Expanded(
               child: ListView(
                 controller: _scrollController,
@@ -928,41 +938,34 @@ class _MedicalResponseScreenState
     );
   }
 
-  Widget _buildSummaryCard(String lang, String lastAiText) {
-    // Hide the summary card when the AI is unavailable (fallback message shown).
-    if (lastAiText == AppStrings.of('en', 'chat.assistant_unavailable') ||
-        lastAiText == AppStrings.of('ro', 'chat.assistant_unavailable')) {
-      return const SizedBox.shrink();
-    }
+  Widget _buildInfoCard(String lang) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFEDF6FF),
         borderRadius: BorderRadius.circular(12),
-        border: Border(left: BorderSide(color: _brandBlue, width: 4)),
-        boxShadow: const [
-          BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2)),
-        ],
+        border: const Border(left: BorderSide(color: _brandBlue, width: 3)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Column(
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            AppStrings.of(lang, 'chat.summary_title').toUpperCase(),
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: _brandBlue,
-              letterSpacing: 1.2,
+          Expanded(
+            child: Text(
+              AppStrings.of(lang, 'chat.info_card_text'),
+              style: const TextStyle(
+                fontSize: 12,
+                color: _onSurface,
+                height: 1.45,
+              ),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            lastAiText,
-            style: const TextStyle(fontSize: 14, color: _onSurface, height: 1.4),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
+          GestureDetector(
+            onTap: () => setState(() => _infoDismissed = true),
+            child: const Padding(
+              padding: EdgeInsets.only(left: 8),
+              child: Icon(Icons.close, size: 16, color: _muted),
+            ),
           ),
         ],
       ),
@@ -991,9 +994,13 @@ class _MedicalResponseScreenState
       titleSpacing: 0,
       title: Builder(builder: (_) {
         final doctorName = ref.read(medicalSessionProvider).lastDoctorName;
+        final patientName = ref.read(patientAuthProvider).patientFirstName;
         final title = (doctorName != null && doctorName.isNotEmpty)
             ? doctorName
-            : AppStrings.of(lang, 'chat.appbar_title');
+            : (patientName != null && patientName.isNotEmpty)
+                ? AppStrings.of(lang, 'chat.appbar_title_patient')
+                    .replaceAll('{name}', patientName)
+                : AppStrings.of(lang, 'chat.appbar_title');
         return Text(
           title,
           style: const TextStyle(
