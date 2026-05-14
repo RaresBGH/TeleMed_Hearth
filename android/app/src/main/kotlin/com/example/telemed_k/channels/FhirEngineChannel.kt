@@ -712,21 +712,22 @@ class FhirEngineChannel(
                 ensureInitialized()
                 val parser = fhirContext.newJsonParser()
 
-                // ── 5 mock patients — Romanian clinic roster ─────────────────
+                // ── 4 mock patients — matches Medplum seeded clinic roster ────
                 data class PatientSeed(val id: String, val cnp: String, val family: String,
-                    val given: String, val dob: String, val phone: String, val condition: String)
+                    val given: String, val gender: String, val dob: String, val phone: String,
+                    val condition: String, val medication: String)
                 val seeds = listOf(
-                    PatientSeed("patient-2540203150013","2540203150013","Ionescu","Maria","1954-02-03","0721234567","Hipertensiune arterială"),
-                    PatientSeed("patient-1490815150027","1490815150027","Popescu","Ion","1949-08-15","0732345678","Diabet zaharat tip 2"),
-                    PatientSeed("patient-2621105150032","2621105150032","Dumitrescu","Elena","1962-11-05","0743456789","Artrită reumatoidă"),
-                    PatientSeed("patient-1551220150048","1551220150048","Stan","Gheorghe","1955-12-20","0754567890","Insuficiență cardiacă"),
-                    PatientSeed("patient-2480430150058","2480430150058","Constantin","Ana","1948-04-30","0765678901","Boală pulmonară obstructivă cronică")
+                    PatientSeed("patient-2540203150013","2540203150013","Ionescu","Maria","female","1954-02-03","0721234567","Hipertensiune arterială","Amlodipină 5mg"),
+                    PatientSeed("patient-1490815150027","1490815150027","Popescu","Ion","male","1949-08-15","0732345678","Diabet zaharat tip 2","Metformin 1000mg"),
+                    PatientSeed("patient-2621105150032","2621105150032","Dumitrescu","Sarah","female","1962-11-05","0743456789","Hypertension","Amlodipine 5mg"),
+                    PatientSeed("patient-1551220150048","1551220150048","Constantin","George","male","1955-12-20","0754567890","Type 2 Diabetes","Metformin 1000mg")
                 )
                 val patients = seeds.map { s ->
                     parser.parseResource(org.hl7.fhir.r4.model.Patient::class.java, """
                     {"resourceType":"Patient","id":"${s.id}",
                      "identifier":[{"system":"urn:oid:1.2.40.0.10.1.4.3.1","value":"${s.cnp}"}],
                      "name":[{"family":"${s.family}","given":["${s.given}"]}],
+                     "gender":"${s.gender}",
                      "birthDate":"${s.dob}",
                      "telecom":[{"system":"phone","value":"${s.phone}","use":"mobile"}]}
                     """.trimIndent())
@@ -740,6 +741,15 @@ class FhirEngineChannel(
                      "recordedDate":"2020-01-01"}
                     """.trimIndent())
                 }
+                val medications = seeds.map { s ->
+                    parser.parseResource(org.hl7.fhir.r4.model.MedicationRequest::class.java, """
+                    {"resourceType":"MedicationRequest","id":"mock-medication-${s.cnp}",
+                     "status":"active","intent":"order",
+                     "medicationCodeableConcept":{"text":"${s.medication}"},
+                     "subject":{"reference":"Patient/${s.id}"},
+                     "authoredOn":"2026-04-01T08:00:00Z"}
+                    """.trimIndent())
+                }
 
                 // Practitioner Mock
                 val practitionerJson = """
@@ -751,23 +761,7 @@ class FhirEngineChannel(
                 """.trimIndent()
                 val practitioner = parser.parseResource(org.hl7.fhir.r4.model.Practitioner::class.java, practitionerJson)
 
-                // MedicationRequest Mock
-                val medicationJson = """
-                {
-                  "resourceType": "MedicationRequest",
-                  "id": "mock-medication-1",
-                  "status": "active",
-                  "intent": "order",
-                  "medicationCodeableConcept": {
-                    "coding": [{"system": "http://www.nlm.nih.gov/research/umls/rxnorm", "code": "316049", "display": "Lisinopril 10 MG Oral Tablet"}]
-                  },
-                  "subject": {"reference": "Patient/mock-patient-1"},
-                  "authoredOn": "2026-04-01T08:00:00Z"
-                }
-                """.trimIndent()
-                val medication = parser.parseResource(org.hl7.fhir.r4.model.MedicationRequest::class.java, medicationJson)
-
-                // Pending Encounter Mock
+                // Pending Encounter Mock — references Maria Ionescu (patient-2540203150013)
                 val encounterJson = """
                 {
                   "resourceType": "Encounter",
@@ -778,14 +772,14 @@ class FhirEngineChannel(
                     "code": "VR",
                     "display": "virtual"
                   },
-                  "subject": {"reference": "Patient/mock-patient-1"},
+                  "subject": {"reference": "Patient/patient-2540203150013"},
                   "participant": [{"individual": {"reference": "Practitioner/mock-practitioner-1"}}]
                 }
                 """.trimIndent()
                 val encounter = parser.parseResource(org.hl7.fhir.r4.model.Encounter::class.java, encounterJson)
 
                 // Insert into DB if not exists (upsert pattern).
-                val resources = patients + conditions + listOf(practitioner, medication, encounter)
+                val resources = patients + conditions + medications + listOf(practitioner, encounter)
                 resources.forEach { resource ->
                     runCatching {
                         fhirEngine!!.create(resource)

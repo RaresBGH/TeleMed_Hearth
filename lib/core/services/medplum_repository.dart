@@ -367,11 +367,15 @@ class MedplumRepository {
   }
 
   /// Returns Communication resources for [patientId], newest first (max 50).
-  Future<List<Map<String, dynamic>>> getCommunications(String patientId) async {
+  /// [since] adds a &sent=ge filter to exclude older messages.
+  Future<List<Map<String, dynamic>>> getCommunications(String patientId, {DateTime? since}) async {
     if (!await auth.isOnline()) return [];
     try {
+      final sinceParam = since != null
+          ? '&sent=ge${Uri.encodeComponent(since.toUtc().toIso8601String())}'
+          : '';
       final uri = Uri.parse(
-          '$_base/Communication?subject=Patient/$patientId&_sort=-sent&_count=50');
+          '$_base/Communication?subject=Patient/$patientId&_sort=-sent&_count=50$sinceParam');
       final response = await client.get(uri, headers: await _headers());
       if (response.statusCode == 200) {
         final bundle = jsonDecode(response.body) as Map<String, dynamic>;

@@ -46,6 +46,9 @@ class MedicalResponseScreen extends ConsumerStatefulWidget {
   /// WAV file path of the patient's home-screen voice recording, used to seed
   /// the audio player on the first voice bubble.
   final String? initialAudioPath;
+  /// JPEG file path of the patient's home-screen photo capture, used to seed
+  /// the image thumbnail on the first photo bubble.
+  final String? initialImagePath;
   final bool isEmergency;
   /// When resuming a saved dialog from Dosar Medical, the prior messages are
   /// passed here and used to pre-populate the chat instead of the default
@@ -60,6 +63,7 @@ class MedicalResponseScreen extends ConsumerStatefulWidget {
     required this.initialResponse,
     this.initialAiResponse,
     this.initialAudioPath,
+    this.initialImagePath,
     required this.isEmergency,
     this.initialMessages,
     this.initialPrompt,
@@ -159,7 +163,9 @@ class _MedicalResponseScreenState
                   : null,
           attachmentPath: session.lastPatientMessage == '[Voice message]'
               ? widget.initialAudioPath
-              : null,
+              : session.lastPatientMessage == '[Photo]'
+                  ? widget.initialImagePath
+                  : null,
         ));
         _messages.add(ChatMessage(
           role: 'ai',
@@ -200,7 +206,8 @@ class _MedicalResponseScreenState
     _doctorMessagesLoaded = true;
     try {
       final cnp  = ref.read(loginCnpProvider);
-      final comms = await ref.read(fhirRepositoryProvider).getCommunications(cnp: cnp);
+      final since = DateTime.now().subtract(const Duration(days: 7));
+      final comms = await ref.read(fhirRepositoryProvider).getCommunications(cnp: cnp, since: since);
       if (!mounted) return;
       final doctorComms = comms.where((c) {
         final exts = (c['extension'] as List?) ?? [];
@@ -1099,12 +1106,18 @@ class _MedicalResponseScreenState
               child: ElevatedButton(
                 onPressed: (_isFinalizing || _isProcessing) ? null : _onFinalize,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _readyToFinalize ? _brandBlue : _outlineVar,
+                  // Always blue when active; greyed only when processing/finalizing.
+                  // _readyToFinalize adds a glow via elevation to signal the AI
+                  // is done — but button is never disabled solely because of it.
+                  backgroundColor: _brandBlue,
                   disabledBackgroundColor: _outlineVar,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
+                  elevation: _readyToFinalize ? 6 : 0,
+                  shadowColor: _readyToFinalize
+                      ? _brandBlue.withOpacity(0.55)
+                      : Colors.transparent,
                 ),
                 child: _isFinalizing
                     ? const SizedBox(

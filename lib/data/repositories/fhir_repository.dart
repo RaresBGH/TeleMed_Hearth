@@ -388,14 +388,15 @@ class FhirRepository {
   }
 
   /// Returns Communication resources for [cnp] from Medplum, newest first.
+  /// [since] filters to messages sent on or after that date (7-day window by default).
   /// Medplum-only — no local FHIR SDK fallback (Communications are cloud-only).
-  Future<List<Map<String, dynamic>>> getCommunications({required String cnp}) async {
+  Future<List<Map<String, dynamic>>> getCommunications({required String cnp, DateTime? since}) async {
     if (_medplum == null) return [];
     try {
       final patient = await _medplum.getPatientByCnp(cnp);
       final patientId = patient?['id'] as String?;
       if (patientId == null) return [];
-      return await _medplum.getCommunications(patientId);
+      return await _medplum.getCommunications(patientId, since: since);
     } catch (e) {
       debugPrint('FhirRepository.getCommunications error: $e');
       return [];

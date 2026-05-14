@@ -93,6 +93,7 @@ class TeleMedApp extends ConsumerWidget {
               'Symptoms recorded.',
           initialAiResponse: msState.lastAiResponse,
           initialAudioPath: msState.lastAudioPath,
+          initialImagePath: msState.lastImagePath,
           isEmergency: msState.lastIsEmergency,
           initialMessages: msState.lastResumeMessages,
         );

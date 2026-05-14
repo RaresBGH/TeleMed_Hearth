@@ -174,6 +174,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
       case 'booked':    return _brand;
       case 'fulfilled': return _surfHigh;
       case 'cancelled': return _errorRed;
+      case 'noshow':    return Colors.orange;
       default:          return _brand;
     }
   }
@@ -183,6 +184,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
       case 'booked':    return const Color(0x1A5BA4CF);
       case 'fulfilled': return _surfHigh;
       case 'cancelled': return const Color(0x1AAB1118);
+      case 'noshow':    return const Color(0x1AFF9800);
       default:          return const Color(0x1A5BA4CF);
     }
   }
@@ -192,6 +194,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
       case 'booked':    return _brand;
       case 'fulfilled': return _onSurfaceV;
       case 'cancelled': return _errorRed;
+      case 'noshow':    return Colors.orange.shade700;
       default:          return _brand;
     }
   }
@@ -202,22 +205,23 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
       case 'confirmed': return AppStrings.of(lang, 'appointment.confirmed');
       case 'fulfilled': return AppStrings.of(lang, 'appointment.completed');
       case 'cancelled': return AppStrings.of(lang, 'appointment.cancelled');
+      case 'noshow':    return AppStrings.of(lang, 'appointment.missed');
       default:          return AppStrings.of(lang, 'appointment.confirmed');
     }
   }
 
   bool _canEnterConsult(Map<String, dynamic> appt) {
     final status = (appt['status'] as String? ?? '').toLowerCase();
-    if (status != 'booked') return false;
+    if (status != 'booked' && status != 'confirmed') return false;
     final iso = appt['start'] as String? ?? '';
     if (iso.isEmpty) return false;
     final startTime = DateTime.tryParse(iso)?.toLocal();
     if (startTime == null) return false;
     final now = DateTime.now();
-    // Allow joining 60 minutes before and up to 120 minutes after scheduled time.
-    // Matches the doctor UI join window exactly.
-    return startTime.isAfter(now.subtract(const Duration(hours: 1))) &&
-           startTime.isBefore(now.add(const Duration(hours: 2)));
+    // Past appointments (start time already passed) never show the Enter button.
+    if (startTime.isBefore(now)) return false;
+    // Only upcoming appointments within 2 hours of their scheduled start are joinable.
+    return startTime.isBefore(now.add(const Duration(hours: 2)));
   }
 
   String _formatSlot(TimeOfDay slot) => DateFormatter.formatTime(slot);

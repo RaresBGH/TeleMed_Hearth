@@ -49,6 +49,10 @@ class MedicalSessionState {
   /// Passed to MedicalResponseScreen so the seeded voice bubble has an
   /// attachmentPath for the audio player.
   final String? lastAudioPath;
+  /// File path of the patient's home-screen photo capture (JPEG).
+  /// Passed to MedicalResponseScreen so the seeded image bubble has an
+  /// attachmentPath for the thumbnail viewer.
+  final String? lastImagePath;
 
   const MedicalSessionState({
     required this.sessionState,
@@ -63,6 +67,7 @@ class MedicalSessionState {
     this.lastSessionLanguage,
     this.lastPatientMessage,
     this.lastAudioPath,
+    this.lastImagePath,
   });
 
   static const idle = MedicalSessionState(sessionState: SessionState.idle);
@@ -112,7 +117,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
     state = const MedicalSessionState(sessionState: SessionState.processing);
     try {
       final result = await _aiEngineService.evaluateMedia(mediaFile);
-      await _handleResult(result, patientMessage: '[Photo]', patientAudioPath: null);
+      await _handleResult(result, patientMessage: '[Photo]', patientAudioPath: null, patientImagePath: mediaFile.path);
     } on EmergencyFlagException catch (_) {
       state = const MedicalSessionState(sessionState: SessionState.emergency);
     } catch (e) {
@@ -298,6 +303,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       lastPractitionerRef: state.lastPractitionerRef,
       lastSessionCategory: state.lastSessionCategory,
       lastAudioPath: state.lastAudioPath,
+      lastImagePath: state.lastImagePath,
     );
   }
 
@@ -325,6 +331,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       lastSessionCategory: state.lastSessionCategory,
       lastSessionLanguage: state.lastSessionLanguage,
       lastAudioPath: state.lastAudioPath,
+      lastImagePath: state.lastImagePath,
       // lastPatientMessage intentionally omitted → null
     );
   }
@@ -353,7 +360,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
   }
 
   Future<void> _handleResult(Map<String, dynamic> result,
-      {required String patientMessage, String? patientAudioPath}) async {
+      {required String patientMessage, String? patientAudioPath, String? patientImagePath}) async {
     final String? response  = result['response'] as String?;
     final bool isEmergency  = result['emergency'] == true;
     if (isEmergency) {
@@ -377,6 +384,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       lastSessionLanguage: _lang,
       lastPatientMessage: patientMessage,
       lastAudioPath: patientAudioPath,
+      lastImagePath: patientImagePath,
     );
   }
 }
