@@ -100,29 +100,33 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
     // Small artificial delay so the spinner is visible — mimics network call
     Future.delayed(const Duration(milliseconds: 600), () async {
       if (!mounted) return;
-      setState(() => _isAuthenticating = false);
+      // Do NOT reset _isAuthenticating here — keep spinner until outcome is known.
 
       if (otp == expectedOtp) {
-        // Persist account_created so the button label switches on next launch.
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool(_kAccountCreatedKey, true);
-        if (!mounted) return;
-
-        // Determine whether this CNP belongs to an existing registered patient.
-        final isReturning =
-            await ref.read(patientAuthProvider.notifier).loadPatient(cnp);
-        if (!mounted) return;
-        if (isReturning) {
-          final modelOnDisk = await AiEngineService.isModelOnDisk();
+        // Success path — keep _isAuthenticating = true; navigation disposes widget.
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool(_kAccountCreatedKey, true);
           if (!mounted) return;
-          ref.read(appNavigationProvider.notifier).navigateTo(
-            modelOnDisk ? AppRoute.dashboard : AppRoute.modelDownload,
-          );
-        } else {
-          // New user — collect profile details before proceeding.
-          ref
-              .read(appNavigationProvider.notifier)
-              .navigateTo(AppRoute.profileCompletion);
+
+          final isReturning =
+              await ref.read(patientAuthProvider.notifier).loadPatient(cnp);
+          if (!mounted) return;
+          if (isReturning) {
+            final modelOnDisk = await AiEngineService.isModelOnDisk();
+            if (!mounted) return;
+            ref.read(appNavigationProvider.notifier).navigateTo(
+              modelOnDisk ? AppRoute.dashboard : AppRoute.modelDownload,
+            );
+          } else {
+            // New user — collect profile details before proceeding.
+            ref
+                .read(appNavigationProvider.notifier)
+                .navigateTo(AppRoute.profileCompletion);
+          }
+        } catch (_) {
+          // Unexpected error — re-enable button so user can retry.
+          if (mounted) setState(() => _isAuthenticating = false);
         }
       } else {
         final newAttempts = _attempts + 1;
@@ -130,6 +134,7 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
           setState(() {
             _attempts = newAttempts;
             _isLocked = true;
+            _isAuthenticating = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -142,7 +147,10 @@ class _LoginVerificationScreenState extends ConsumerState<LoginVerificationScree
             ),
           );
         } else {
-          setState(() => _attempts = newAttempts);
+          setState(() {
+            _attempts = newAttempts;
+            _isAuthenticating = false;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(

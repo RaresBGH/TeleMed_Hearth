@@ -86,15 +86,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           .processMedia(File(imagePath));
       // Copy to permanent location before deleting temp file, so the photo
       // bubble in MedicalResponseScreen has a valid path after navigation.
-      final appDir = await getApplicationDocumentsDirectory();
-      final permanentPath =
-          '${appDir.path}/telemed_img_home_${DateTime.now().millisecondsSinceEpoch}.jpg';
       try {
+        final appDir = await getApplicationDocumentsDirectory();
+        final permanentPath =
+            '${appDir.path}/telemed_img_home_${DateTime.now().millisecondsSinceEpoch}.jpg';
         await File(imagePath).copy(permanentPath);
         if (mounted) {
           ref.read(medicalSessionProvider.notifier).updateImagePath(permanentPath);
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Home photo copy failed: $e');
+        // Keep original path as fallback — file still exists until deleteTempFile below.
+        if (mounted) {
+          ref.read(medicalSessionProvider.notifier).updateImagePath(imagePath);
+        }
+      }
       cameraService.deleteTempFile(imagePath);
     } catch (e) {
       if (!mounted) return;

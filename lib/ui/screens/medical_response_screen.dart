@@ -847,15 +847,27 @@ class _MedicalResponseScreenState
 
     try {
       // Generate a one-sentence clinical summary before writing to FHIR.
+      // Conversation history is embedded in the text itself (no customPrompt)
+      // to avoid the large-context issue that causes the engine to return fallback.
       String? clinicalSummary;
       try {
+        final history = _buildConversationHistory();
+        final summaryRequest = _lang == 'ro'
+            ? 'Pe baza conversației de mai sus, generează un rezumat clinic scurt de o propoziție.'
+            : 'Based on the conversation above, generate a brief one-sentence clinical summary.';
+        final combinedPrompt = history.isNotEmpty
+            ? '$history\n\n$summaryRequest'
+            : summaryRequest;
         final summaryResult = await ref.read(aiEngineServiceProvider).evaluateText(
-          _lang == 'ro'
-              ? 'Generează un rezumat clinic scurt de o propoziție al acestei consultații.'
-              : 'Generate a brief one-sentence clinical summary of this consultation.',
-          customPrompt: _buildConversationHistory(),
+          combinedPrompt,
         );
-        clinicalSummary = summaryResult['response'] as String?;
+        final raw = summaryResult['response'] as String?;
+        clinicalSummary = (raw != null &&
+                raw.isNotEmpty &&
+                !raw.contains('not available') &&
+                !raw.contains('nu este disponibil'))
+            ? raw
+            : null;
       } catch (_) {
         clinicalSummary = null;
       }
@@ -994,13 +1006,9 @@ class _MedicalResponseScreenState
       titleSpacing: 0,
       title: Builder(builder: (_) {
         final doctorName = ref.read(medicalSessionProvider).lastDoctorName;
-        final patientName = ref.read(patientAuthProvider).patientFirstName;
         final title = (doctorName != null && doctorName.isNotEmpty)
             ? doctorName
-            : (patientName != null && patientName.isNotEmpty)
-                ? AppStrings.of(lang, 'chat.appbar_title_patient')
-                    .replaceAll('{name}', patientName)
-                : AppStrings.of(lang, 'chat.appbar_title');
+            : AppStrings.of(lang, 'chat.appbar_title');
         return Text(
           title,
           style: const TextStyle(
