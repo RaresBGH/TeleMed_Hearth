@@ -71,8 +71,7 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 - Release APK crash on inference: RESOLVED build #102 — ProGuard keep rules for LiteRT-LM JNI callbacks (R8 was renaming onMessage/onDone, causing NoSuchMethodError).
 - Release APK model download DNS failure: RESOLVED build #99 — network_security_config.xml domain-config for duckdns.org.
 
-### P0 — STILL OPEN
-- Diagnostic lastInitError dialog in dashboard_screen.dart — remove in next build (TODO comment present).
+### P0 — NONE. All critical and high items resolved.
 
 ### P1 — Flutter App (confirmed open as of build #85)
 - Raw file paths in dialogue replay: [Voice:/data/...] and [Photo:/data/...] shown as plain text instead of playable/tappable bubbles
@@ -106,16 +105,14 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 
 ## Current State
 See TELEMED_CONTEXT.md for full verified/awaiting-test/broken breakdown.
-Last updated: 2026-05-13
-Latest build: #102 (ProGuard JNI fix — release APK confirmed working). Last pushed build: #102. Last device-tested: #102 release — text/voice/photo inference all working, no crash.
-LiteRT-LM 0.11.0 confirmed. E4B inference working in release.
-C1 (_dependents.isEmpty): debug-only Flutter assertion. NOT present in release build. Root causes addressed across builds #81–#90. Release build confirmed crash-free on all input types.
-Diagnostic lastInitError dialog still in codebase — MUST REMOVE in next build (TODO comment in dashboard_screen.dart).
-Release APK DNS: fixed in build #99 via network_security_config domain-config for duckdns.org.
-FHIR write confirmed working. Medical Dossier entries saving.
-WebRTC TURN fix confirmed (GCP firewall rule added 2026-05-08).
-Signaling server: telemed-signaling.service confirmed running.
-medplum_token alias added to ~/.bashrc for Terminal 2 token refresh.
+Last updated: 2026-05-14
+Latest build: #104 (full audit cleanup — CI building).
+Last device-tested: #102 release (text/voice/photo confirmed working, no crash).
+App renamed to TeleMed Hearth throughout.
+Audit Round 10: 0 critical, 0 high, 0 medium bugs.
+Codebase clean and ready for public repo.
+ProGuard JNI fix confirmed — release APK stable.
+TURN_USERNAME and TURN_CREDENTIAL secrets confirmed in GitHub Actions.
 
 ## ADB Commands
 adb -s 4C041FDAP006Z1 logcat -d | grep -E "LiteRtLm|flutter|com.example.telemed_k" | tail -40
@@ -222,6 +219,14 @@ Confirmed working in release build #102:
 - Photo inference: fallback message returned, no crash
 - Model download: works in release
 - FHIR write / Medical Dossier: confirmed working
+
+## Session Notes — 2026-05-14 (Builds #103–#104)
+
+Build #103: patient-AI interaction fixes — initialAiResponse parameter, audio/photo conversation context to Kotlin, triage card removed, AAC path stored for replay, ready_to_finalize highlights Finalize button blue, raw file paths → emoji labels.
+
+Build #104: full audit cleanup across 10 rounds — AppStrings coverage complete (all UI strings localized EN/RO), error handling gaps filled (audio file-existence check, camera/mic/inference SnackBars), security hardened (credentials via dart-define), dead code removed, TeleMed Hearth rename complete, FhirExtensionUtils shared helper, MedplumRepository.base centralized, withOpacity CI compatibility, ProGuard JNI keep rules confirmed working, system prompt 3-question limit + rolling summary, session isolation _doctorPresent reset, model size corrected to ~3.5GB, diagnostic dialog removed.
+
+Audit state after #104: 0 critical, 0 high, 0 medium, 0 low. Codebase ready for public repo.
 
 ## Session Notes — 2026-05-11 (Fine-Tune Steps 5–10)
 

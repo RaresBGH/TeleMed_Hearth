@@ -35,6 +35,11 @@ class AiEngineService {
   /// initializeModel() call.
   static String? lastInitError;
 
+  /// ValueNotifier updated on every initializeModel() attempt — widgets can
+  /// listen for immediate reactivity without depending on an outer provider rebuild.
+  static final ValueNotifier<String?> initErrorNotifier =
+      ValueNotifier<String?>(null);
+
   // Returned whenever the model is not loaded — keeps the app functional
   // without a crash and avoids an empty state for the user.
   static const Map<String, dynamic> _fallbackResponse = {
@@ -340,7 +345,8 @@ class AiEngineService {
   }
 
   Future<bool> initializeModel() async {
-    lastInitError = null; // clear before each attempt
+    lastInitError = null;
+    initErrorNotifier.value = null; // clear before each attempt
     try {
       final String? modelPath = await _getModelPath();
       if (modelPath == null) {
@@ -359,10 +365,12 @@ class AiEngineService {
       return true;
     } on PlatformException catch (e) {
       lastInitError = '${e.code}: ${e.message}';
+      initErrorNotifier.value = lastInitError;
       debugPrint('AiEngineService.initializeModel PlatformException: ${e.code}');
       return false;
     } catch (e) {
       lastInitError = e.toString();
+      initErrorNotifier.value = lastInitError;
       debugPrint('AiEngineService.initializeModel error: $e');
       return false;
     }

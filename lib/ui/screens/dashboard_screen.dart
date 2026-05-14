@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/practitioner_constants.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/services/ai_engine_service.dart';
 import '../../core/providers/app_navigation_provider.dart';
 import '../../core/providers/ai_ready_provider.dart';
 import '../../core/utils/date_formatter.dart';
@@ -496,7 +497,10 @@ class _AiStatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final String? initError = isReady ? null : AiEngineService.lastInitError;
+    final bool hasError = initError != null;
+
+    final pill = Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: isReady ? _greenBg : _amberBg,
@@ -506,7 +510,7 @@ class _AiStatusPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            isReady ? '●' : '⟳',
+            isReady ? '●' : (hasError ? '✕' : '⟳'),
             style: TextStyle(
               fontSize: 10,
               color: isReady ? _greenFg : _amberFg,
@@ -516,7 +520,7 @@ class _AiStatusPill extends StatelessWidget {
           Text(
             isReady
                 ? AppStrings.of(lang, 'home.ai_ready')
-                : AppStrings.of(lang, 'home.ai_loading'),
+                : (hasError ? 'AI error — tap for info' : AppStrings.of(lang, 'home.ai_loading')),
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -525,6 +529,27 @@ class _AiStatusPill extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (!hasError) return pill;
+
+    return GestureDetector(
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('AI Engine Error'),
+          content: SingleChildScrollView(
+            child: SelectableText(AiEngineService.lastInitError ?? ''),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      ),
+      child: pill,
     );
   }
 }

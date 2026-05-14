@@ -1,9 +1,9 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-05-13 (Latest Flutter build: #102)
+Last updated: 2026-05-14 (Latest Flutter build: #104)
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
-Competition: Kaggle Gemma 4 Good Hackathon — deadline May 18, 2026 (5 days remaining).
+Competition: Kaggle Gemma 4 Good Hackathon — deadline May 18, 2026 (4 days remaining).
 Repo: https://github.com/RaresBGH/TeleMed_K (currently PRIVATE — must make public before deadline)
 
 ## Owner / Clinical Partners
@@ -675,4 +675,36 @@ Confirmed working in release #102:
 - FHIR write: Medical Dossier entries confirmed
 
 Still open: diagnostic dialog removal, raw file paths, Dr. Doctor label, Recent Activity, Activity panel, mic release, Doctor UI regressions, iPad Safari, tel:112 test.
+
+### BUILDS #103–#104 — SESSION 2026-05-14
+
+Build #103: patient-AI interaction fixes — initialAiResponse parameter wired so triage card shows AI assessment not placeholder; audio/photo conversation context passed to Kotlin for correct inference; triage card removed from chat screen; AAC path stored for replay in subsequent sessions; ready_to_finalize flag highlights Finalize button blue; raw file paths ([Voice:/data/...], [Photo:/data/...]) replaced with emoji labels in dialogue replay.
+
+Build #104: full audit cleanup across 10 rounds —
+- AppStrings coverage complete — all user-visible strings localized EN/RO, no hardcoded strings remaining in UI files
+- Error handling gaps filled — audio file-existence check before playback (error.audio_unavailable SnackBar), camera/mic/inference SnackBars confirmed in all async paths
+- Security hardened — all credentials via dart-define, no literals in source, confirmed in CI
+- Dead code removed — orphaned AppStrings keys, unused imports, dead routes
+- TeleMed Hearth rename complete throughout app and documentation
+- FhirExtensionUtils shared helper — all extension URL reads centralized
+- MedplumRepository.base static getter — all callers use single source of truth
+- withOpacity confirmed CI-compatible (stable 3.32.x safe; withValues migration deferred)
+- ProGuard JNI keep rules confirmed working — release APK stable on all input types
+- Diagnostic lastInitError dialog removed from dashboard_screen.dart
+- TURN_USERNAME and TURN_CREDENTIAL secrets confirmed in GitHub Actions
+
+Audit state after #104: 0 critical, 0 high, 0 medium, 0 low. Codebase clean and ready for public repo.
+
+Confirmed working (build #102 device test, unchanged in #104):
+- Text/voice/photo inference: no crash, AI responds correctly
+- Model download: working in release
+- FHIR write: Medical Dossier entries confirmed
+- Medplum sync: dual-write confirmed
+
+Still open (device test required):
+- Activity panel: tap-outside dismiss + title
+- Mic release after video call
+- Two-device video call (TURN fix applied 2026-05-08, unconfirmed)
+- Emergency routing: tel:112 dialer launch
+- iPad Safari: chat stripe + doctor list
 

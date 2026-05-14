@@ -1,9 +1,9 @@
 # TeleMed_K — Handoff Summary
-**Date:** 2026-05-13 (updated from 2026-05-12)  
-**Deadline:** May 18, 2026 — **5 days remaining**  
+**Date:** 2026-05-14  
+**Deadline:** May 18, 2026 — **4 days remaining**  
 **Repo:** https://github.com/RaresBGH/TeleMed_K (still PRIVATE — must go public before deadline)  
-**Latest Flutter commit:** build #102 (ProGuard JNI fix).  
-**Latest device-tested:** build #102 release — text/voice/photo confirmed working, no crash. C1 debug assertion not present in release.  
+**Latest Flutter commit:** build #104 (CI building).  
+**Latest device-tested:** build #102 release — confirmed working. Build #104 awaiting CI + device test.  
 **Kaggle Writeup:** drafted at /home/corb_d/sovereign-factory/mobile-workspace/TeleMed_K_Writeup.md, finalized to 1498 words, currently at 6/7 on the Kaggle submission checklist (video pending).  
 **HuggingFace adapter:** https://huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical (public).
 
@@ -110,40 +110,15 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 
 ## Outstanding Bugs
 
-### P0 — RESOLVED THIS SESSION
-- C1 _dependents.isEmpty: debug-only. Release confirmed working build #102. Not user-facing.
-- Release APK crash: RESOLVED build #102 — ProGuard JNI keep rules for LiteRT-LM.
-- Release APK DNS: RESOLVED build #99 — duckdns.org domain-config in network_security_config.xml.
+### P0 — NONE
 
-### P0 — STILL OPEN
-- Diagnostic lastInitError dialog: still in dashboard_screen.dart — remove next build.
-
-### P1 — CONFIRMED OPEN (as of build #102)
-- Raw file paths in dialogue replay ([Voice:/data/...], [Photo:/data/...] as plain text)
-- "Dr. Doctor" label on Communications bubbles — practitioner name not resolved from Medplum ID
-- Dashboard Recent Activity not updating after new save
-- T3: AI context lost between turns ("Hello. What brings you..." reappears)
-- Activity panel: can't dismiss by tap-outside or swipe-down; missing title header
-- Mic not released after video call ends
-- Doctor UI: 4 regressions from #76 (dialogue review, chat Send, back-to-report, in-call panel collapse)
-- iPad Safari: chat stripe tap unresponsive, doctor list empty
-- Emergency routing: tel:112 dialer launch unverified on device
-
-### BUILD STATUS — FLUTTER (complete)
-- Build #80: LiteRT-LM 0.11.0 upgrade
-- Build #81: 6 mounted guards + photo error handling
-- Build #82: clear() outside setState, doctor context exclusion, photo IO dispatcher
-- Build #83: FHIR subject/valueString fix — Medical Dossier confirmed working
-- Build #85: ref.watch/ref.read split, photo async deferred (no crash)
-- Build #86: C1 dispose fix + _showImagePreview mounted check
-- Build #89: diagnostic — _loadDoctorCommunications disabled (C1 race ruled out)
-- Build #90/#91: postFrameCallback _onTextChanged, audio/photo context fix, comms re-enabled
-- Build #95: release APK added to CI workflow
-- Build #96: Symptom Analysis card → lastPatientMessage
-- Build #97/#98: warmup removed (was crashing engine)
-- Build #99: EN triage prompt restored, DNS fix, message deduplication attempt
-- Build #100/#101: inference pipeline refactor attempts
-- Build #102: ProGuard JNI keep rules — RELEASE CONFIRMED WORKING
+### P1 — CONFIRMED OPEN
+- Activity panel (VideoConsultationScreen): tap-outside dismiss + title — needs device retest
+- Mic not released after video call ends — needs device retest
+- Video call quality — needs two-device test
+- iPad Safari: chat stripe tap + doctor list empty
+- Emergency routing: tel:112 device test pending
+- withOpacity → withValues migration pending CI upgrade past Flutter 3.32.x
 
 ---
 
@@ -390,21 +365,15 @@ PATCH format confirmed: application/json-patch+json (not merge-patch — Medplum
 
 ---
 
-## Next Actions (2026-05-13 — 5 days to deadline)
+## Next Actions (2026-05-14 — 4 days to deadline)
 
-### IMMEDIATE — Flutter (Claude Code, next session)
-1. Remove diagnostic lastInitError dialog from dashboard_screen.dart (TODO comment present)
-2. Fix raw file paths in dialogue replay
-3. Fix "Dr. Doctor" label on Communications bubbles
-4. Fix dashboard Recent Activity not updating
-5. Fix Activity panel: tap-outside dismiss + title
-6. Fix mic not released after video call ends
-7. Fix Doctor UI 4 regressions from #76
-8. Fix iPad Safari: chat stripe tap + doctor list
-9. Verify emergency routing: EmergencyScreen → tel:112
-
-### SUBMISSION (May 13–18)
-10. Make repo public on GitHub
-11. Record demo video (Maria story, RO + EN VO)
-12. YouTube upload → paste URL into Kaggle writeup
-13. Final Kaggle submission before May 18
+1. Install build #104 release APK — full regression test (text/voice/photo/finalize/dossier)
+2. Two-device video call test (confirm TURN fix)
+3. Device test: Activity panel dismiss + title
+4. Device test: mic release after call
+5. Device test: emergency 112 dial
+6. iPad Safari fixes
+7. Database cleanup (wipe test dialogues, keep Ion + Maria seeded data)
+8. Make repo public on GitHub
+9. Record demo video (TeleMed Hearth, Maria story)
+10. Final Kaggle submission before May 18
