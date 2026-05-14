@@ -31,9 +31,10 @@ class LoginIdentityScreen extends ConsumerStatefulWidget {
 class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
   final TextEditingController _cnpController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  bool _isLoading  = false;
-  bool _cnpValid   = false;
-  bool _phoneValid = false;
+  bool _isLoading    = false;
+  bool _isSubmitting = false;
+  bool _cnpValid     = false;
+  bool _phoneValid   = false;
   String? _ageError;
   String? _phoneError;
 
@@ -367,22 +368,28 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
     }
   }
 
-  void _onContinuaTap() {
-    if (!_cnpValid || !_phoneValid) return;
-    final cnp = _cnpController.text.trim();
-    ref.read(loginCnpProvider.notifier).setCnp(cnp);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          AppStrings.of(ref.read(languageProvider), 'login.otp_sent'),
-          style: const TextStyle(fontSize: 16),
+  Future<void> _onContinuaTap() async {
+    if (_isSubmitting || !_cnpValid || !_phoneValid) return;
+    setState(() => _isSubmitting = true);
+    try {
+      final cnp = _cnpController.text.trim();
+      ref.read(loginCnpProvider.notifier).setCnp(cnp);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppStrings.of(ref.read(languageProvider), 'login.otp_sent'),
+            style: const TextStyle(fontSize: 16),
+          ),
+          duration: const Duration(seconds: 4),
         ),
-        duration: const Duration(seconds: 4),
-      ),
-    );
-    ref
-        .read(appNavigationProvider.notifier)
-        .navigateTo(AppRoute.loginVerification);
+      );
+      ref
+          .read(appNavigationProvider.notifier)
+          .navigateTo(AppRoute.loginVerification);
+      await Future.delayed(const Duration(seconds: 3));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -617,7 +624,7 @@ class _LoginIdentityScreenState extends ConsumerState<LoginIdentityScreen> {
                     // ── CONTINUĂ ───────────────────────────────────────────
                     AccessibleTouchTarget(
                       semanticLabel: AppStrings.of(lang, 'login.continue_sem'),
-                      onTap: _onContinuaTap,
+                      onTap: () { if (!_isSubmitting) unawaited(_onContinuaTap()); },
                       child: Container(
                         height: 96,
                         decoration: BoxDecoration(

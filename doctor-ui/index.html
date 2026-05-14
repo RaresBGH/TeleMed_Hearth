@@ -38,7 +38,9 @@
     border-bottom: 1px solid #e8e8e8;
     background: #f9f9f9; flex-shrink: 0;
   }
-  #panelTitle { font-size: 15px; font-weight: 700; color: #1a1c1c; }
+  #panelTitle { font-size: 15px; font-weight: 700; color: #1a1c1c; flex: 1; }
+  #backToListBtn { background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 700; color: #5BA4CF; padding: 4px 8px 4px 0; border-radius: 6px; white-space: nowrap; flex-shrink: 0; }
+  #backToListBtn:hover { color: #3a82aa; }
   #panelCloseBtn {
     background: none; border: none; cursor: pointer;
     font-size: 20px; color: #40484e; padding: 4px; line-height: 1;
@@ -188,6 +190,14 @@
   .btn-finalize { width: 100%; padding: 12px; margin-top: 16px; background: #5BA4CF; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
   .btn-finalize:hover:not(:disabled) { background: #3a82aa; }
   .btn-finalize:disabled { background: #c4c4c4; color: #888; cursor: not-allowed; }
+  .obs-summary-label { font-size: 10px; color: #40484e; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+  .btn-toggle-conv { width: 100%; margin-top: 6px; padding: 5px 0; background: none; border: none; color: #5BA4CF; font-size: 11px; font-weight: 700; cursor: pointer; text-align: left; }
+  .btn-toggle-conv:hover { color: #3a82aa; }
+  .conv-transcript { margin-top: 8px; display: none; border-top: 1px solid #e8e8e8; padding-top: 8px; max-height: 300px; overflow-y: auto; }
+  .conv-transcript.expanded { display: block; }
+  .conv-bubble-ai      { background: #f3f3f3; border-radius: 8px; padding: 5px 10px; margin: 3px 30px 3px 0; font-size: 12px; color: #1a1c1c; }
+  .conv-bubble-patient { background: #E8F4FC; border-radius: 8px; padding: 5px 10px; margin: 3px 0 3px 30px; font-size: 12px; color: #1a1c1c; text-align: right; }
+  .conv-bubble-doctor  { background: #E8F7EE; border-radius: 8px; padding: 5px 10px; margin: 3px 30px 3px 0; font-size: 12px; color: #1a6a3a; }
 
   /* ── PANEL: CHAT STATE (async Medplum) ───────────────────── */
   #stateChat { display: none; flex: 1; flex-direction: column; overflow: hidden; }
@@ -216,6 +226,7 @@
 <!-- ── SIDE PANEL ─────────────────────────────────────────── -->
 <div id="sidePanel">
   <div id="panelHeader">
+    <button id="backToListBtn" style="display:none;" onclick="backToAppointmentList()">← Appts</button>
     <span id="panelTitle">Patient Report</span>
     <button id="panelCloseBtn" title="Close panel">✕</button>
   </div>
@@ -367,6 +378,48 @@
   }
 
   // ── Panel ─────────────────────────────────────────────────────────────────────
+
+  function updateBackBtn() {
+    const btn = document.getElementById('backToListBtn');
+    if (btn) btn.style.display = (!isCallActive && currentPatientId) ? '' : 'none';
+  }
+
+  function backToAppointmentList() {
+    currentPatientId = '';
+    currentPatientName = '';
+    fetchedObservations = [];
+    closePanel();
+    document.getElementById('joinScreen').style.display = '';
+    document.getElementById('callScreen').style.display = 'none';
+    updateBackBtn();
+  }
+
+  function renderTranscript(noteText) {
+    const container = document.createElement('div');
+    container.className = 'conv-transcript';
+    noteText.split('\n').forEach(line => {
+      const t = line.trim();
+      if (!t) return;
+      let cls = '', text = '';
+      if (t.startsWith('[AI]')) {
+        cls  = 'conv-bubble-ai';
+        text = t.replace(/^\[AI\]\s*\d+:\d+:\s*/, '').trim();
+      } else if (t.startsWith('[Patient]') || t.startsWith('[Pacient]')) {
+        cls  = 'conv-bubble-patient';
+        text = t.replace(/^\[[^\]]+\]\s*\d+:\d+:\s*/, '').trim();
+      } else if (t.startsWith('[Doctor]')) {
+        cls  = 'conv-bubble-doctor';
+        text = t.replace(/^\[Doctor\]\s*\d+:\d+:\s*/, '').trim();
+      }
+      if (!cls || !text) return;
+      const b = document.createElement('div');
+      b.className = cls;
+      b.textContent = text;
+      container.appendChild(b);
+    });
+    return container;
+  }
+
   function togglePanel() {
     panelOpen = !panelOpen;
     document.getElementById('sidePanel').classList.toggle('open', panelOpen);
@@ -615,6 +668,7 @@
     document.getElementById('reportActions').innerHTML      = '';
     showPanelState('report');
     updateReportTopBtn();
+    updateBackBtn();
     const token = await ensureToken();
     if (!token) { document.getElementById('reportPatientMeta').textContent = 'Auth error — cannot load data.'; return; }
     try {
@@ -644,17 +698,40 @@
           const entry = document.createElement('div');
           const reviewed = obs.status === 'final';
           entry.className = 'observation-entry' + (reviewed ? ' reviewed' : '');
-          const val  = obs.valueString || '';
-          const date = obs.effectiveDateTime ? new Date(obs.effectiveDateTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
-          const obsExts = obs.extension || [];
+          const val      = obs.valueString || '';
+          const noteText = obs.note?.[0]?.text || '';
+          const date     = obs.effectiveDateTime ? new Date(obs.effectiveDateTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+          const obsExts  = obs.extension || [];
           const reviewedByTargetRef = obsExts.find(e => e.url && e.url.includes('reviewed-by-target'))?.valueString || null;
           const assignedDoctor = reviewedByTargetRef ? DOCTORS.find(d => reviewedByTargetRef.includes(d.id)) : null;
-          const assignedLabel = assignedDoctor ? assignedDoctor.name : (reviewedByTargetRef ? reviewedByTargetRef : null);
+          const assignedLabel  = assignedDoctor ? assignedDoctor.name : (reviewedByTargetRef ? reviewedByTargetRef : null);
           const recordedByName = obsExts.find(e => e.url === 'https://telemed-bogheanu.ro/fhir/ext/doctor-name')?.valueString || null;
-          entry.innerHTML = '<div>' + esc(val.substring(0, 160)) + (val.length > 160 ? '…' : '') + '</div>' +
+          // FIX 1: Extract last [AI] line from note as clinical summary; fall back to valueString.
+          const aiLines = noteText.split('\n').filter(l => l.startsWith('[AI]'));
+          const lastAi  = aiLines.length > 0
+            ? aiLines[aiLines.length - 1].replace(/^\[AI\]\s*\d+:\d+:\s*/, '').trim()
+            : '';
+          const summary  = lastAi || val;
+          const summaryDisplay = summary.substring(0, 200) + (summary.length > 200 ? '…' : '');
+          entry.innerHTML =
+            '<div class="obs-summary-label">Clinical Summary</div>' +
+            '<div>' + esc(summaryDisplay) + '</div>' +
             '<div class="observation-date">' + esc(date) + (reviewed ? ' · Reviewed' : '') +
             (assignedLabel ? ' · Assigned to: ' + esc(assignedLabel) : '') + '</div>' +
             (recordedByName ? '<div class="observation-date" style="color:#5BA4CF;">Recorded by: ' + esc(recordedByName) + '</div>' : '');
+          // FIX 3: Conversation transcript toggle.
+          if (noteText) {
+            const toggleBtn = document.createElement('button');
+            toggleBtn.className = 'btn-toggle-conv';
+            toggleBtn.textContent = 'Show conversation ▼';
+            const transcript = renderTranscript(noteText);
+            toggleBtn.addEventListener('click', () => {
+              const expanded = transcript.classList.toggle('expanded');
+              toggleBtn.textContent = expanded ? 'Hide conversation ▲' : 'Show conversation ▼';
+            });
+            entry.appendChild(toggleBtn);
+            entry.appendChild(transcript);
+          }
           if (!reviewed && !isCallActive) { const btn = document.createElement('button'); btn.className = 'btn-mark-reviewed'; btn.textContent = 'Mark as reviewed'; btn.addEventListener('click', () => markReviewed(obs.id, btn, entry)); entry.appendChild(btn); }
           obsEl.appendChild(entry);
         });
@@ -849,6 +926,7 @@
     document.getElementById('chatStripeBtn').classList.add('hidden');
     document.getElementById('joinScreen').style.display = 'none';
     document.getElementById('callScreen').style.display = 'block';
+    updateBackBtn(); // hide back button during calls
   }
 
   function safeSend(obj) {

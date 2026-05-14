@@ -106,12 +106,16 @@ class _VideoConsultationScreenState
     super.initState();
     _sheetController = DraggableScrollableController();
     _sheetController.addListener(() {
-      // Close chat when sheet is dragged below visible threshold.
-      if (_sheetController.isAttached &&
-          _sheetController.size < 0.05 &&
-          _chatOpen &&
-          mounted) {
-        setState(() => _chatOpen = false);
+      if (!mounted || !_chatOpen) return;
+      try {
+        if (_sheetController.size < 0.05) {
+          setState(() => _chatOpen = false);
+        }
+      } catch (_) {
+        // Controller detached during animation — close panel defensively.
+        if (mounted && _chatOpen) {
+          setState(() => _chatOpen = false);
+        }
       }
     });
     _initAnimController();
@@ -553,26 +557,38 @@ class _VideoConsultationScreenState
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                // Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),
-                  child: Row(
-                    children: [
-                      Text(
-                        AppStrings.of(_lang, 'call.activity_title'),
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => _sheetController.animateTo(
-                          0.0,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOut,
+                // Header — swipe down anywhere on the header row to dismiss
+                GestureDetector(
+                  onVerticalDragEnd: (details) {
+                    if (details.primaryVelocity != null &&
+                        details.primaryVelocity! > 200) {
+                      _sheetController.animateTo(
+                        0.0,
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOut,
+                      );
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),
+                    child: Row(
+                      children: [
+                        Text(
+                          AppStrings.of(_lang, 'call.activity_title'),
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
-                      ),
-                    ],
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => _sheetController.animateTo(
+                            0.0,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOut,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const Divider(height: 1),
@@ -719,10 +735,11 @@ class _VideoConsultationScreenState
           // Layer 5 — Bottom control panel (glassmorphism)
           _buildBottomPanel(context),
 
-          // Layer 5.5 — Peer-left overlay (shown when remote peer disconnects)
+          // Layer 5.5 — Peer-left overlay (shown when remote peer disconnects).
+          // Fully opaque black so the frozen last video frame is completely hidden.
           if (_peerLeft)
             Container(
-              color: Colors.black.withOpacity(0.75),
+              color: Colors.black,
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

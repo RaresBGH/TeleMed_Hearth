@@ -104,6 +104,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         await ref
             .read(medicalSessionProvider.notifier)
             .processAudio(File(wavPath));
+        // Replace WAV path with AAC path in session state before deleting the WAV.
+        // The AAC transcodes concurrently during AI inference and is typically ready here.
+        final aacPath = audioService.lastAacPath;
+        if (aacPath != null && File(aacPath).existsSync()) {
+          ref.read(medicalSessionProvider.notifier).updateAudioPath(aacPath);
+        }
         audioService.deleteWavFile(wavPath);
       } catch (e) {
         if (!mounted) return;

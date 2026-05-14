@@ -15,6 +15,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models/chat_message.dart';
 import '../../core/providers/auth_provider.dart';
@@ -155,6 +157,12 @@ class _MedicalResponseScreenState
       final session = ref.read(medicalSessionProvider);
       if (widget.initialResponse.isNotEmpty &&
           session.lastPatientMessage != null) {
+        // Verify the initial image path is still accessible before seeding the bubble.
+        // Camera temp files can be cleaned up between home screen and chat screen.
+        final imgPath = widget.initialImagePath;
+        final validImagePath = (imgPath != null && File(imgPath).existsSync())
+            ? imgPath
+            : null;
         _messages.add(ChatMessage(
           role: 'patient',
           text: session.lastPatientMessage!,
@@ -167,7 +175,7 @@ class _MedicalResponseScreenState
           attachmentPath: session.lastPatientMessage == '[Voice message]'
               ? widget.initialAudioPath
               : session.lastPatientMessage == '[Photo]'
-                  ? widget.initialImagePath
+                  ? validImagePath
                   : null,
         ));
         _messages.add(ChatMessage(
@@ -330,8 +338,14 @@ class _MedicalResponseScreenState
         aiResult = await ref.read(aiEngineServiceProvider).evaluateMedia(File(path),
             customPrompt: _buildConversationHistory());
       } else {
-        // PDF/doc: attempt OCR, fall back to acknowledgment prompt.
-        final ocrText = await OcrService.extractText(path);
+        // PDF/doc: attempt OCR with 10s timeout, fall back to acknowledgment prompt.
+        String ocrText = '';
+        try {
+          ocrText = await OcrService.extractText(path)
+              .timeout(const Duration(seconds: 10), onTimeout: () => '');
+        } catch (_) {
+          ocrText = '';
+        }
         if (ocrText.isNotEmpty) {
           aiResult = await ref.read(aiEngineServiceProvider).evaluateText(ocrText,
               customPrompt: _buildConversationHistory());
@@ -484,11 +498,16 @@ class _MedicalResponseScreenState
   /// Messages with non-null [attachmentType] are skipped (they carry UI
   /// placeholder text, not patient information).
   String _buildConversationHistory() {
-    final buffer = StringBuffer('\nCONVERSATION SO FAR:\n');
     // Cap to last 10 messages to prevent unbounded context growth.
     final recentMessages = _messages.length > 10
         ? _messages.sublist(_messages.length - 10)
         : _messages;
+    final aiCount = recentMessages.where((m) => m.role == 'ai').length;
+    final remaining = 5 - aiCount;
+    final header = remaining > 0
+        ? '\nCONVERSATION SO FAR (AI responses: $aiCount/5 — ask up to $remaining more questions):\n'
+        : '\nCONVERSATION SO FAR (AI responses: $aiCount/5 — PROVIDE SUMMARY AND FINALIZE):\n';
+    final buffer = StringBuffer(header);
     for (final msg in recentMessages) {
       // Skip document/pdf filename placeholders; include audio "[Voice message]"
       // and image "[Photo]" so the AI has patient-turn context on those rounds.
@@ -595,6 +614,25 @@ class _MedicalResponseScreenState
             await ref.read(aiEngineServiceProvider).evaluateAudio(
                 File(wavPath), customPrompt: _buildConversationHistory());
         audioService.deleteWavFile(wavPath);
+        // Update voice bubble with AAC path if background transcoding finished
+        // during inference. Falls back to old WAV path gracefully via existsSync check.
+        final aacPath = audioService.lastAacPath;
+        if (aacPath != null && File(aacPath).existsSync()) {
+          final idx = _messages.indexWhere((m) => m.attachmentPath == wavPath);
+          if (idx != -1 && mounted) {
+            final msg = _messages[idx];
+            setState(() {
+              _messages[idx] = ChatMessage(
+                role: msg.role,
+                text: msg.text,
+                timestamp: msg.timestamp,
+                attachmentType: msg.attachmentType,
+                attachmentPath: aacPath,
+                senderName: msg.senderName,
+              );
+            });
+          }
+        }
         if (_cancelRequested) {
           if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
           return;
@@ -635,6 +673,39 @@ class _MedicalResponseScreenState
     }
   }
 
+  // ── Camera helpers ───────────────────────────────────────────────────────────
+
+  /// Copies [tempPath] to the app documents directory so the image bubble
+  /// survives after the camera temp file is deleted.
+  /// Updates the ChatMessage in [_messages] whose attachmentPath == [tempPath].
+  /// Returns the permanent path on success, null on failure.
+  Future<String?> _copyImageToPermanentPath(String tempPath) async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final permanentPath =
+          '${appDir.path}/telemed_img_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      await File(tempPath).copy(permanentPath);
+      final idx = _messages.indexWhere((m) => m.attachmentPath == tempPath);
+      if (idx != -1 && mounted) {
+        final msg = _messages[idx];
+        setState(() {
+          _messages[idx] = ChatMessage(
+            role: msg.role,
+            text: msg.text,
+            timestamp: msg.timestamp,
+            attachmentType: msg.attachmentType,
+            attachmentPath: permanentPath,
+            senderName: msg.senderName,
+          );
+        });
+      }
+      return permanentPath;
+    } catch (e) {
+      debugPrint('_copyImageToPermanentPath error: $e');
+      return null;
+    }
+  }
+
   // ── Camera ──────────────────────────────────────────────────────────────────
 
   Future<void> _onCameraTap() async {
@@ -671,6 +742,7 @@ class _MedicalResponseScreenState
       final result =
           await ref.read(aiEngineServiceProvider).evaluateMedia(
               File(imagePath), customPrompt: _buildConversationHistory());
+      await _copyImageToPermanentPath(imagePath);
       cameraService.deleteTempFile(imagePath);
       if (_cancelRequested) {
         if (mounted) setState(() { _isProcessing = false; _isPhotoAnalyzing = false; _cancelRequested = false; });
@@ -680,6 +752,7 @@ class _MedicalResponseScreenState
       _appendAiResponse(result);
     } catch (e) {
       debugPrint('Camera evaluation error: $e');
+      await _copyImageToPermanentPath(imagePath);
       cameraService.deleteTempFile(imagePath);
       if (mounted) {
         setState(() {
@@ -1109,13 +1182,39 @@ class _MedicalResponseScreenState
 
       case AttachmentType.pdf:
       case AttachmentType.document:
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.picture_as_pdf, color: Color(0xFFAB1118), size: 32),
-            const SizedBox(width: 8),
-            Flexible(child: Text(msg.text, style: textStyle)),
-          ],
+        return GestureDetector(
+          onTap: () async {
+            final path = msg.attachmentPath;
+            if (path == null) return;
+            final uri = Uri.file(path);
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri);
+            } else {
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(AppStrings.of(_lang, 'error.pdf_open_failed')),
+                backgroundColor: Colors.red.shade700,
+              ));
+            }
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.picture_as_pdf, color: Color(0xFFAB1118), size: 32),
+                  const SizedBox(width: 8),
+                  Flexible(child: Text(msg.text, style: textStyle)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                AppStrings.of(_lang, 'attachment.tap_to_open'),
+                style: const TextStyle(fontSize: 11, color: _muted),
+              ),
+            ],
+          ),
         );
 
       case null:

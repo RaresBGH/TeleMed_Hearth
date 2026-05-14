@@ -289,6 +289,28 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
     );
   }
 
+  /// Replaces lastAudioPath with the AAC path once transcoding completes.
+  /// Called from home_screen after processAudio() returns and before the
+  /// WAV is deleted, so the voice bubble points to the permanent AAC file.
+  void updateAudioPath(String? aacPath) {
+    if (aacPath == null) return;
+    state = MedicalSessionState(
+      sessionState: state.sessionState,
+      lastAiResponse: state.lastAiResponse,
+      lastIsEmergency: state.lastIsEmergency,
+      lastResumeMessages: state.lastResumeMessages,
+      lastResumeObservationId: state.lastResumeObservationId,
+      errorMessage: state.errorMessage,
+      lastDoctorName: state.lastDoctorName,
+      lastPractitionerRef: state.lastPractitionerRef,
+      lastSessionCategory: state.lastSessionCategory,
+      lastSessionLanguage: state.lastSessionLanguage,
+      lastPatientMessage: state.lastPatientMessage,
+      lastAudioPath: aacPath,
+      lastImagePath: state.lastImagePath,
+    );
+  }
+
   /// Clears the preseed message from state after it has been injected into
   /// the chat screen. Call via postFrameCallback in MedicalResponseScreen
   /// to prevent double injection on re-entry.

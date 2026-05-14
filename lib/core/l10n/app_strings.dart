@@ -39,6 +39,7 @@ class AppStrings {
     'error.mic_unavailable':      'Microfonul nu este disponibil. Vă rugăm reîncercați.',
     'error.camera_unavailable':   'Nu s-a putut accesa camera. Vă rugăm reîncercați.',
     'error.audio_unavailable':    'Fișierul audio nu mai este disponibil.',
+    'error.pdf_open_failed':      'Nu s-a putut deschide fișierul PDF.',
     'error.inference_failed':     'Nu s-a putut procesa mesajul. Vă rugăm reîncercați.',
     'emergency.dial_error':       'Nu s-a putut deschide apelul. Sunați manual la 112.',
     'profile.cnp_prefix':     'CNP ',
@@ -58,6 +59,7 @@ class AppStrings {
 
     // ── Attachment ────────────────────────────────────────────────────────
     'attachment.pdf_label':      'Document PDF',
+    'attachment.tap_to_open':    'Atingeți pentru a deschide',
     'attachment.image_label':    'Imagine',
     'attachment.error_analyse':  'Nu s-a putut analiza documentul.',
     'attachment.fallback_msg':   'Document atașat: {filename}.',
@@ -412,6 +414,7 @@ class AppStrings {
     'error.mic_unavailable':      'Microphone unavailable. Please try again.',
     'error.camera_unavailable':   'Could not access camera. Please try again.',
     'error.audio_unavailable':    'Audio file no longer available.',
+    'error.pdf_open_failed':      'Could not open PDF file.',
     'error.inference_failed':     'Could not process your message. Please try again.',
     'emergency.dial_error':       'Could not launch dialer. Please call 112 manually.',
     'profile.cnp_prefix':     'CNP ',
@@ -431,6 +434,7 @@ class AppStrings {
 
     // ── Attachment ────────────────────────────────────────────────────────
     'attachment.pdf_label':      'PDF Document',
+    'attachment.tap_to_open':    'Tap to open',
     'attachment.image_label':    'Image',
     'attachment.error_analyse':  'Could not analyse the document.',
     'attachment.fallback_msg':   'Document attached: {filename}.',
