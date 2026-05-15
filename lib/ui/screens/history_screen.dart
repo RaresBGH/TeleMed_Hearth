@@ -85,7 +85,7 @@ class HistoryScreen extends ConsumerWidget {
                             item['effectiveDateTime'] as String? ??
                             item['recordedDate'] as String? ??
                             '';
-                        final String dateStr = DateFormatter.format(isoDate, includeTime: true);
+                        final String dateStr = DateFormatter.format(isoDate, includeTime: true, fallback: AppStrings.of(lang, 'history.recent_date'));
                         final code = item['code'] ?? {};
                         // Compute dialogue number for Observations: oldest = #1.
                         int? dialogueNumber;

@@ -179,20 +179,29 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
         final String prefix = msg.role == 'ai' ? '[$prefixAi]' : '[$prefixPatient]';
         final String timeStr =
             DateFormatter.formatTimeOfDay(msg.timestamp.hour, msg.timestamp.minute);
-        // Embed attachment path markers so they can be reconstructed on replay.
+        // Use clean localized labels for audio/photo in the FHIR note.
+        // The Doctor UI reads note[0].text verbatim; embedding file paths
+        // would expose internal Android storage paths. Replay from the Dossier
+        // uses msg.text (already a clean placeholder) with no attachmentPath.
         final String content;
-        if (msg.attachmentPath != null) {
-          if (msg.attachmentType == AttachmentType.audio) {
-            content = '[Voice:${msg.attachmentPath}]';
-          } else if (msg.attachmentType == AttachmentType.image) {
-            content = '[Photo:${msg.attachmentPath}]';
-          } else {
-            content = msg.text;
-          }
+        if (msg.attachmentType == AttachmentType.audio) {
+          content = AppStrings.of(sessionLang, 'chat.attachment_voice_label');
+        } else if (msg.attachmentType == AttachmentType.image) {
+          content = AppStrings.of(sessionLang, 'chat.attachment_photo_label');
         } else {
           content = msg.text;
         }
         noteBuffer.writeln('$prefix $timeStr: $content');
+      }
+
+      // Append the clinical summary as the final [AI] line so the Doctor UI's
+      // last-[AI]-line extraction reads the summary, not the last conversation turn.
+      // The Doctor UI reads note[0].text → filters lines starting with [AI] →
+      // takes the last one as the clinical summary display.
+      if (lastAiText != null && lastAiText!.isNotEmpty) {
+        final summaryTime = DateFormatter.formatTimeOfDay(
+            DateTime.now().hour, DateTime.now().minute);
+        noteBuffer.writeln('[$prefixAi] $summaryTime: $lastAiText');
       }
 
       // Resolve doctorName and category for attribution and classification.

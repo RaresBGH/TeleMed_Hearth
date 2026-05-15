@@ -340,7 +340,7 @@ class _MedicalResponseScreenState
       final Map<String, dynamic> aiResult;
       if (attachType == AttachmentType.image) {
         aiResult = await ref.read(aiEngineServiceProvider).evaluateMedia(File(path),
-            customPrompt: _buildConversationHistory());
+            customPrompt: _buildConversationHistory(10));
       } else {
         // PDF/doc: attempt OCR with 10s timeout, fall back to acknowledgment prompt.
         String ocrText = '';
@@ -352,12 +352,12 @@ class _MedicalResponseScreenState
         }
         if (ocrText.isNotEmpty) {
           aiResult = await ref.read(aiEngineServiceProvider).evaluateText(ocrText,
-              customPrompt: _buildConversationHistory());
+              customPrompt: _buildConversationHistory(10));
         } else {
           final fallback = AppStrings.of(lang, 'chat.pdf_attached')
               .replaceAll('{filename}', fileName);
           aiResult = await ref.read(aiEngineServiceProvider).evaluateText(fallback,
-              customPrompt: _buildConversationHistory());
+              customPrompt: _buildConversationHistory(10));
         }
       }
       if (!mounted || _cancelRequested) {
@@ -501,47 +501,71 @@ class _MedicalResponseScreenState
   /// [customPrompt] so the AI model maintains context across turns.
   /// Messages with non-null [attachmentType] are skipped (they carry UI
   /// placeholder text, not patient information).
-  String _buildConversationHistory() {
-    // Cap to last 10 messages to prevent unbounded context growth.
-    final recentMessages = _messages.length > 10
-        ? _messages.sublist(_messages.length - 10)
-        : _messages;
-    final aiCount = recentMessages.where((m) => m.role == 'ai').length;
-    final remaining = 5 - aiCount;
-    final header = remaining > 0
-        ? '\nCONVERSATION SO FAR (AI responses: $aiCount/5 — ask up to $remaining more questions):\n'
-        : '\nCONVERSATION SO FAR (AI responses: $aiCount/5 — PROVIDE SUMMARY AND FINALIZE):\n';
-    final buffer = StringBuffer(header);
-    for (final msg in recentMessages) {
-      // Skip document/pdf filename placeholders; include audio "[Voice message]"
-      // and image "[Photo]" so the AI has patient-turn context on those rounds.
-      if (msg.attachmentType == AttachmentType.pdf ||
-          msg.attachmentType == AttachmentType.document) continue;
-      if (msg.role == 'doctor') continue;
-      final text = msg.text.trim();
-      if (text.isEmpty) continue;
-      final speaker = msg.role == 'ai' ? 'Assistant' : 'Patient';
-      buffer.writeln('$speaker: $text');
-    }
-    return buffer.toString();
-  }
-
-  /// Builds a shorter conversation history string for audio inference turns.
-  /// Uses [maxMessages] instead of the standard 10-message cap to keep the
-  /// combined audio + context payload within E4B's effective context window.
-  /// Filter rules, header format, and speaker labels are identical to
-  /// [_buildConversationHistory].
-  String _buildTruncatedConversationHistory(int maxMessages) {
+  String _buildConversationHistory(int maxMessages) {
     final recentMessages = _messages.length > maxMessages
         ? _messages.sublist(_messages.length - maxMessages)
-        : _messages;
-    final aiCount = recentMessages.where((m) => m.role == 'ai').length;
+        : List<ChatMessage>.from(_messages);
+
+    // Per-modality cap: keep at most 2 patient voice turns and 2 patient photo
+    // turns in the context window. Older voice/photo patient turns are rewritten
+    // to a consolidated placeholder so the AI sees the structural sequence but
+    // not the raw text of every redundant attachment turn. AI responses to all
+    // turns (including rewritten ones) remain verbatim.
+    final placeholder = '[${AppStrings.of(_lang, 'chat.information_accounted_label')}]';
+
+    int voicePatientCount = 0;
+    int photoPatientCount = 0;
+    for (final msg in recentMessages.reversed) {
+      if (msg.role != 'patient') continue;
+      if (msg.attachmentType == AttachmentType.audio) voicePatientCount++;
+      if (msg.attachmentType == AttachmentType.image) photoPatientCount++;
+    }
+
+    // Build a mutable copy with placeholders rewritten for over-cap turns.
+    // Iterate oldest→newest so that we rewrite the oldest turns first.
+    int voiceSeen = 0;
+    int photoSeen = 0;
+    final contextMessages = recentMessages.reversed.toList().reversed.map((msg) {
+      if (msg.role != 'patient') return msg;
+      if (msg.attachmentType == AttachmentType.audio) {
+        voiceSeen++;
+        // Keep only the most-recent 2: rewrite if this is an older one.
+        final keepFromEnd = voicePatientCount - 2;
+        if (voiceSeen <= keepFromEnd) {
+          return ChatMessage(
+            role: msg.role,
+            text: placeholder,
+            timestamp: msg.timestamp,
+            attachmentType: msg.attachmentType,
+            attachmentPath: msg.attachmentPath,
+          );
+        }
+      }
+      if (msg.attachmentType == AttachmentType.image) {
+        photoSeen++;
+        final keepFromEnd = photoPatientCount - 2;
+        if (photoSeen <= keepFromEnd) {
+          return ChatMessage(
+            role: msg.role,
+            text: placeholder,
+            timestamp: msg.timestamp,
+            attachmentType: msg.attachmentType,
+            attachmentPath: msg.attachmentPath,
+          );
+        }
+      }
+      return msg;
+    }).toList();
+
+    final aiCount = contextMessages.where((m) => m.role == 'ai').length;
     final remaining = 5 - aiCount;
     final header = remaining > 0
         ? '\nCONVERSATION SO FAR (AI responses: $aiCount/5 — ask up to $remaining more questions):\n'
         : '\nCONVERSATION SO FAR (AI responses: $aiCount/5 — PROVIDE SUMMARY AND FINALIZE):\n';
     final buffer = StringBuffer(header);
-    for (final msg in recentMessages) {
+    for (final msg in contextMessages) {
+      // Skip document/pdf filename placeholders; include audio "[Voice message]"
+      // and image "[Photo]" so the AI has patient-turn context on those rounds.
       if (msg.attachmentType == AttachmentType.pdf ||
           msg.attachmentType == AttachmentType.document) continue;
       if (msg.role == 'doctor') continue;
@@ -648,7 +672,7 @@ class _MedicalResponseScreenState
         final result =
             await ref.read(aiEngineServiceProvider).evaluateAudio(
                 File(wavPath),
-                customPrompt: _buildTruncatedConversationHistory(4));
+                customPrompt: _buildConversationHistory(4));
         audioService.deleteWavFile(wavPath);
         // Update voice bubble with AAC path if background transcoding finished
         // during inference. Falls back to old WAV path gracefully via existsSync check.
@@ -821,7 +845,7 @@ class _MedicalResponseScreenState
     try {
       final result =
           await ref.read(aiEngineServiceProvider).evaluateText(
-              text, customPrompt: _buildConversationHistory());
+              text, customPrompt: _buildConversationHistory(10));
       if (_cancelRequested) {
         if (mounted) setState(() { _isProcessing = false; _cancelRequested = false; });
         return;
@@ -880,23 +904,32 @@ class _MedicalResponseScreenState
       // to avoid the large-context issue that causes the engine to return fallback.
       String? clinicalSummary;
       try {
-        final history = _buildConversationHistory();
+        final history = _buildConversationHistory(10);
         final summaryRequest = _lang == 'ro'
             ? 'Pe baza conversației de mai sus, generează un rezumat clinic scurt de o propoziție.'
             : 'Based on the conversation above, generate a brief one-sentence clinical summary.';
         final combinedPrompt = history.isNotEmpty
             ? '$history\n\n$summaryRequest'
             : summaryRequest;
+        // 30-second timeout; TimeoutException re-thrown so outer catch shows error.
         final summaryResult = await ref.read(aiEngineServiceProvider).evaluateText(
           combinedPrompt,
-        );
+        ).timeout(const Duration(seconds: 30));
         final raw = summaryResult['response'] as String?;
-        clinicalSummary = (raw != null &&
-                raw.isNotEmpty &&
-                !raw.contains('not available') &&
-                !raw.contains('nu este disponibil'))
-            ? raw
-            : null;
+        final isFallback = raw == null || raw.isEmpty ||
+            raw.contains('not available') || raw.contains('nu este disponibil');
+        clinicalSummary = isFallback ? null : raw;
+        // Part C: log finalize inference outcome to on-device JSONL.
+        final ts = DateTime.now().toUtc().toIso8601String();
+        unawaited(ref.read(aiEngineServiceProvider).appendDebugLog(
+          '{"ts":"$ts","method":"finalize","inputLen":${combinedPrompt.length},'
+          '"sysPromptLen":0,"samplingApplied":{"temperature":0.3,"topP":0.9,"topK":40},'
+          '"rawOutputLen":${raw?.length ?? 0},"elapsedMs":0,'
+          '"error":${isFallback ? '"fallback"' : 'null'}}',
+        ));
+      } on TimeoutException {
+        // Propagate to outer catch for user-visible error + retry path.
+        rethrow;
       } catch (_) {
         clinicalSummary = null;
       }
@@ -930,11 +963,18 @@ class _MedicalResponseScreenState
       await ref.read(medicalSessionProvider.notifier).reset();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _isFinalizing = false);
+      // Reset both flags so the user can retry (Fix #5 left _screenFinalized
+      // permanently true on error, making retry impossible).
+      setState(() {
+        _isFinalizing    = false;
+        _screenFinalized = false;
+      });
+      final msg = (e is TimeoutException)
+          ? AppStrings.of(_lang, 'chat.finalize_timeout')
+          : '${AppStrings.of(_lang, 'chat.save_error')} $e';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${AppStrings.of(_lang, 'chat.save_error')} $e',
-              style: const TextStyle(fontSize: 16)),
+          content: Text(msg, style: const TextStyle(fontSize: 16)),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -1337,7 +1377,7 @@ class _MedicalResponseScreenState
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: (_isFinalizing || _isProcessing) ? null : _onFinalize,
+                onPressed: (_isFinalizing || _isProcessing || _screenFinalized) ? null : _onFinalize,
                 style: ElevatedButton.styleFrom(
                   // Always blue when active; greyed only when processing/finalizing.
                   // _readyToFinalize adds a glow via elevation to signal the AI

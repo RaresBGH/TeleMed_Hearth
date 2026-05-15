@@ -12,11 +12,11 @@ class DateFormatter {
   /// Formats an ISO 8601 [iso] string.
   ///
   /// Without time (default): "DD.MM.YYYY"  — returns '' on empty/invalid.
-  /// With time: "DD.MM.YYYY  HH:mm"        — returns 'Recent Health Status' on empty/invalid.
-  static String format(String iso, {bool includeTime = false}) {
-    if (iso.isEmpty) return includeTime ? 'Recent Health Status' : '';
+  /// With time: "DD.MM.YYYY  HH:mm"        — returns [fallback] on empty/invalid.
+  static String format(String iso, {bool includeTime = false, String fallback = 'Recent Health Status'}) {
+    if (iso.isEmpty) return includeTime ? fallback : '';
     final dtUtc = DateTime.tryParse(iso);
-    if (dtUtc == null) return includeTime ? 'Recent Health Status' : iso;
+    if (dtUtc == null) return includeTime ? fallback : iso;
     // Convert to device local time so stored UTC appointment times display correctly.
     final dt  = dtUtc.toLocal();
     final d   = dt.day.toString().padLeft(2, '0');

@@ -64,6 +64,8 @@ class AppStrings {
     'attachment.error_analyse':  'Nu s-a putut analiza documentul.',
     'attachment.fallback_msg':   'Document atașat: {filename}.',
     'voice.message_label':       'Mesaj vocal',
+    'chat.attachment_voice_label': 'Mesaj vocal',
+    'chat.attachment_photo_label': 'Fotografie',
 
     // ── Voice confirm dialog ───────────────────────────────────────────────
     'voice.confirm_title':    'Înregistrare vocală',
@@ -207,10 +209,12 @@ class AppStrings {
     'chat.finalize_btn':      'Finalizează Dialogul',
     'chat.saved_snack':       'Dialogul a fost salvat în dosarul medical',
     'chat.save_error':        'Eroare la salvare:',
+    'chat.finalize_timeout':  'Salvarea a durat prea mult. Vă rugăm să încercați din nou.',
     'chat.voice_bubble':      '🎤 Mesaj vocal',
     'chat.photo_bubble':      '📷 Fotografie',
     'chat.hint':              'Scrieți sau vorbiți...',
     'chat.analyzing_photo':   'Se analizează fotografia...',
+    'chat.information_accounted_label': 'informație adăugată la context',
     'chat.no_understand':     'Nu am înțeles. Vă rog reformulați.',
     'chat.assistant_unavailable': 'Asistentul medical nu este disponibil. Vă rugăm descrieți simptomele și medicul vă va contacta.',
     'chat.priority_normal':   'Prioritate normală',
@@ -376,6 +380,8 @@ class AppStrings {
     'video.end_call':         'Închide',
 
     // ── Dashboard ─────────────────────────────────────────────────────────
+    'dashboard.loading_personal': 'Un moment, {name}…',
+    'dashboard.loading_status':   'Mă uit la ce mi-ai trimis…',
     'dashboard.greeting_small':   'Bună ziua,',
     'dashboard.health_title':     'Starea ta de sănătate',
     'dashboard.no_condition':     'Nicio condiție înregistrată',
@@ -445,6 +451,8 @@ class AppStrings {
     'attachment.error_analyse':  'Could not analyse the document.',
     'attachment.fallback_msg':   'Document attached: {filename}.',
     'voice.message_label':       'Voice message',
+    'chat.attachment_voice_label': 'Voice message',
+    'chat.attachment_photo_label': 'Photo',
 
     // ── Voice confirm dialog ───────────────────────────────────────────────
     'voice.confirm_title':    'Voice recording',
@@ -588,10 +596,12 @@ class AppStrings {
     'chat.finalize_btn':      'Finalize Dialog',
     'chat.saved_snack':       'Dialog saved to medical record',
     'chat.save_error':        'Save error:',
+    'chat.finalize_timeout':  'Saving took too long. Please try again.',
     'chat.voice_bubble':      '🎤 Voice message',
     'chat.photo_bubble':      '📷 Photo',
     'chat.hint':              'Write or speak...',
     'chat.analyzing_photo':   'Analyzing photo...',
+    'chat.information_accounted_label': 'information accounted',
     'chat.no_understand':     "I didn't understand. Please rephrase.",
     'chat.assistant_unavailable': 'The medical assistant is not available. Please describe your symptoms and the doctor will follow up with you.',
     'chat.priority_normal':   'Normal priority',
@@ -757,6 +767,8 @@ class AppStrings {
     'video.end_call':         'End',
 
     // ── Dashboard ─────────────────────────────────────────────────────────
+    'dashboard.loading_personal': 'One moment, {name}…',
+    'dashboard.loading_status':   'Looking at what you shared…',
     'dashboard.greeting_small':   'Good day,',
     'dashboard.health_title':     'Your health status',
     'dashboard.no_condition':     'No condition recorded',

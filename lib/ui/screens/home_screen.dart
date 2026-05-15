@@ -480,7 +480,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    AppStrings.greeting(lang, patientName),
+                    sessionState == SessionState.processing
+                        ? AppStrings.of(lang, 'dashboard.loading_personal')
+                            .replaceAll('{name}', patientName ?? '')
+                        : AppStrings.greeting(lang, patientName),
                     style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w700,
@@ -490,7 +493,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    AppStrings.of(lang, 'home.subtitle'),
+                    sessionState == SessionState.processing
+                        ? AppStrings.of(lang, 'dashboard.loading_status')
+                        : AppStrings.of(lang, 'home.subtitle'),
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w600,

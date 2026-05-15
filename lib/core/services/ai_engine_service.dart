@@ -383,6 +383,26 @@ class AiEngineService {
     }
   }
 
+  // ── Diagnostic log ────────────────────────────────────────────────────────
+
+  /// Appends a single JSONL line to the on-device debug log (Part C / Fix #11).
+  /// Fire-and-forget; failure is silently swallowed.
+  Future<void> appendDebugLog(String line) async {
+    try {
+      await _channel.invokeMethod<void>('appendDebugLog', {'line': line});
+    } catch (_) {}
+  }
+
+  /// Reads back the last [maxBytes] of the on-device debug log.
+  /// Returns null if the file does not exist or on any error.
+  Future<String?> readDebugLog({int maxBytes = 50000}) async {
+    try {
+      return await _channel.invokeMethod<String>('readDebugLog', {'maxBytes': maxBytes});
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ── Inference ──────────────────────────────────────────────────────────────
 
   /// Queries the Kotlin engine state via MethodChannel to detect Dart/Kotlin

@@ -278,6 +278,34 @@ class _VideoConsultationScreenState
         if (mounted) setState(() => _remoteRenderer.srcObject = stream);
       };
 
+      // Peer-left detection via peer-connection and ICE state transitions.
+      // These fire even when the remote peer disconnects without sending a
+      // signaling 'leave' message (e.g. browser tab closed, network drop).
+      _peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
+        debugPrint('VideoConsultationScreen: peer connection state → $state');
+        if ((state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
+             state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
+             state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) &&
+            mounted && !_peerLeft) {
+          setState(() {
+            _peerLeft = true;
+            _remoteRenderer.srcObject = null;
+          });
+        }
+      };
+
+      _peerConnection!.onIceConnectionState = (RTCIceConnectionState state) {
+        debugPrint('VideoConsultationScreen: ICE state → $state');
+        if ((state == RTCIceConnectionState.RTCIceConnectionStateDisconnected ||
+             state == RTCIceConnectionState.RTCIceConnectionStateFailed) &&
+            mounted && !_peerLeft) {
+          setState(() {
+            _peerLeft = true;
+            _remoteRenderer.srcObject = null;
+          });
+        }
+      };
+
       // Forward ICE candidates to the signaling server for the remote peer.
       _peerConnection!.onIceCandidate = (RTCIceCandidate candidate) {
         if (candidate.candidate == null) return;
@@ -840,11 +868,17 @@ class _VideoConsultationScreenState
 
   Widget _buildRemoteVideo() {
     if (_peerLeft) {
-      // Peer has disconnected — return a plain black container to remove
-      // the RTCVideoView (SurfaceView) from the widget tree. SurfaceView on
-      // Android renders below Flutter's layer ("punches through"), so an
-      // overlay widget cannot visually cover it. Removing it from the tree
-      // is the only reliable way to prevent the frozen last frame from showing.
+      // Peer has disconnected — remove SurfaceView from tree to prevent
+      // frozen-frame punch-through (same pattern as _chatOpen below).
+      return Container(color: Colors.black);
+    }
+    if (_chatOpen) {
+      // Activity panel is open — remove the RTCVideoView (SurfaceView) from
+      // the widget tree. Android's SurfaceView renders at the native graphics
+      // layer below Flutter's compositing and absorbs touch events regardless
+      // of widget z-order, defeating Fix #8/#8b's barrier. Removing it
+      // eliminates the SurfaceView entirely; the renderer's srcObject remains
+      // valid and restores automatically when _chatOpen becomes false.
       return Container(color: Colors.black);
     }
     if (_isConnecting) {
@@ -865,7 +899,7 @@ class _VideoConsultationScreenState
     }
     return RTCVideoView(
       _remoteRenderer,
-      objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+      objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
     );
   }
 

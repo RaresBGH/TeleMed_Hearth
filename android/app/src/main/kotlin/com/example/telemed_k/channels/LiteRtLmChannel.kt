@@ -10,6 +10,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Environment
 import android.util.Log
+import java.time.Instant
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
@@ -133,6 +134,29 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
                 result.success(null)
             }
 
+            "appendDebugLog" -> {
+                val line = call.argument<String>("line") ?: ""
+                try {
+                    java.io.File(context.getExternalFilesDir(null), "telemed-ai-debug.jsonl")
+                        .appendText(line + "\n")
+                } catch (_: Exception) {}
+                result.success(null)
+            }
+
+            "readDebugLog" -> {
+                val maxBytes = call.argument<Int>("maxBytes") ?: 50000
+                try {
+                    val f = java.io.File(context.getExternalFilesDir(null), "telemed-ai-debug.jsonl")
+                    if (f.exists()) {
+                        val bytes = f.readBytes()
+                        val slice = if (bytes.size > maxBytes)
+                            bytes.sliceArray(bytes.size - maxBytes until bytes.size)
+                        else bytes
+                        result.success(String(slice))
+                    } else result.success(null)
+                } catch (_: Exception) { result.success(null) }
+            }
+
             else -> result.notImplemented()
         }
     }
@@ -253,7 +277,8 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
                     }
                     runEngineInference(
                         systemPrompt = effectivePrompt,
-                        contents = audioContents
+                        contents = audioContents,
+                        method = "audio"
                     )
                 } else {
                     Log.w(TAG, "Engine not ready — keyword fallback for audio")
@@ -351,7 +376,8 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
                         val inferenceDeferred = scope.async(Dispatchers.IO) {
                             runEngineInference(
                                 systemPrompt = effectivePrompt,
-                                contents = imageContents
+                                contents = imageContents,
+                                method = "media"
                             )
                         }
                         try {
@@ -407,7 +433,8 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
                     // inside runEngineInference(). Pass only the user turn as content.
                     runEngineInference(
                         systemPrompt = effectivePrompt,
-                        contents = listOf(Content.Text(text))
+                        contents = listOf(Content.Text(text)),
+                        method = "text"
                     )
                 } else {
                     Log.w(TAG, "Engine not ready — keyword fallback for text")
@@ -427,8 +454,11 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
 
     private suspend fun runEngineInference(
         systemPrompt: String,
-        contents: List<Content>
+        contents: List<Content>,
+        method: String = "text"
     ): String {
+        val startMs = System.currentTimeMillis()
+        val inputLen = contents.sumOf { it.toString().length }
         val liveEngine = checkNotNull(engine) { "Engine is null inside runEngineInference" }
 
         // Sampling parameters: low temperature for instruction-following discipline
@@ -460,7 +490,11 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
                 }
 
             val raw = sb.toString().trim()
+            val elapsedMs = System.currentTimeMillis() - startMs
             Log.d(TAG, "Engine response: ${raw.take(120)}…")
+
+            // Part B: append one JSONL line to on-device debug log.
+            appendDebugLogEntry(method, inputLen, systemPrompt.length, raw.length, elapsedMs, null)
 
             coerceToJsonSchema(raw)
         }
@@ -550,6 +584,22 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
                 "Sistemul AI nu este disponibil momentan. Vă rugăm descrieți simptomele medicului.")
             put("fallback", true)
         }.toString()
+    }
+
+    /** Appends one JSONL line to the on-device debug log. Silent on failure. */
+    private fun appendDebugLogEntry(
+        method: String, inputLen: Int, sysPromptLen: Int,
+        rawOutputLen: Int, elapsedMs: Long, error: String?
+    ) {
+        try {
+            val ts = Instant.now().toString()
+            val errorJson = if (error != null) "\"${error.replace("\"", "\\\"")}\"" else "null"
+            val line = """{"ts":"$ts","method":"$method","inputLen":$inputLen,"sysPromptLen":$sysPromptLen,"samplingApplied":{"temperature":0.3,"topP":0.9,"topK":40},"rawOutputLen":$rawOutputLen,"elapsedMs":$elapsedMs,"error":$errorJson}"""
+            java.io.File(context.getExternalFilesDir(null), "telemed-ai-debug.jsonl")
+                .appendText(line + "\n")
+        } catch (_: Exception) {
+            // Diagnostic write failure must not affect inference.
+        }
     }
 
     /**

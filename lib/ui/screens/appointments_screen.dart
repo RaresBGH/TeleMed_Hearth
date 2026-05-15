@@ -853,6 +853,8 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
       });
 
       if (!mounted) return;
+      // Reset the load guard so _loadAppointments() re-fetches (not no-ops).
+      _hasLoaded = false;
       await _loadAppointments();
       ref.invalidate(appointmentsProvider); // refresh dashboard cache
       setState(() {
