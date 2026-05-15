@@ -428,6 +428,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
   }
 
+  // Error contract: getCommunications/evaluateText failures propagate to _runRefreshSequentially's
+  // catch, leaving the summary-refresh-needed flag in place for retry on next Dossier open.
+  // patchObservationValueString is void/never-throws, so a PATCH failure is silently swallowed.
   Future<void> _refreshObservationSummary(Map<String, dynamic> obs, String lang) async {
     final obsId = obs['id'] as String?;
     if (obsId == null || obsId.isEmpty) return;

@@ -976,10 +976,17 @@
       if (!getRes.ok) throw new Error('GET failed: ' + getRes.status);
       const obs = await getRes.json();
       const currentDoctorId = document.getElementById('doctorSelect').value;
+      // Strip any pre-existing entries for these two URLs before appending fresh ones.
+      // Guards against duplicate extensions if two doctors click simultaneously.
+      const REVIEWED_BY_URL      = 'https://telemed-bogheanu.ro/fhir/ext/reviewed-by';
+      const REFRESH_NEEDED_URL   = 'https://telemed-bogheanu.ro/fhir/ext/summary-refresh-needed';
+      const baseExtensions = (obs.extension || []).filter(
+        e => e.url !== REVIEWED_BY_URL && e.url !== REFRESH_NEEDED_URL
+      );
       const updatedExtensions = [
-        ...(obs.extension || []),
-        { url: 'https://telemed-bogheanu.ro/fhir/ext/reviewed-by', valueString: 'Practitioner/' + currentDoctorId },
-        { url: 'https://telemed-bogheanu.ro/fhir/ext/summary-refresh-needed', valueBoolean: true },
+        ...baseExtensions,
+        { url: REVIEWED_BY_URL,    valueString: 'Practitioner/' + currentDoctorId },
+        { url: REFRESH_NEEDED_URL, valueBoolean: true },
       ];
       const patchRes = await fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, {
         method: 'PATCH',

@@ -33,6 +33,7 @@ class _ObservationThreadScreenState extends ConsumerState<ObservationThreadScree
   List<Map<String, dynamic>> _communications = [];
   bool _loading = true;
   bool _sending = false;
+  String? _loadError;
   late String _noteText;
   late bool _isReviewed;
 
@@ -57,7 +58,7 @@ class _ObservationThreadScreenState extends ConsumerState<ObservationThreadScree
   }
 
   Future<void> _loadThread() async {
-    setState(() => _loading = true);
+    setState(() { _loading = true; _loadError = null; });
     try {
       final cnp = ref.read(loginCnpProvider);
       final comms = await ref.read(fhirRepositoryProvider).getCommunications(
@@ -77,7 +78,7 @@ class _ObservationThreadScreenState extends ConsumerState<ObservationThreadScree
       _scrollToBottom();
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() { _loading = false; _loadError = ''; });
     }
   }
 
@@ -110,9 +111,10 @@ class _ObservationThreadScreenState extends ConsumerState<ObservationThreadScree
       if (!mounted) return;
       await _loadThread();
     } catch (_) {
-      if (!mounted) return;
+      // Intentional silent catch — network failures leave thread unchanged.
     }
-    setState(() => _sending = false);
+    // Reset _sending regardless of success/failure, guarded for unmount.
+    if (mounted) setState(() => _sending = false);
   }
 
   bool _isPatientMessage(Map<String, dynamic> comm) {
@@ -180,7 +182,7 @@ class _ObservationThreadScreenState extends ConsumerState<ObservationThreadScree
                     if (_noteText.isNotEmpty) _buildTranscriptBlock(lang),
                     const SizedBox(height: 8),
                     // Communication bubbles
-                    if (_communications.isEmpty)
+                    if (_communications.isEmpty && _loadError == null)
                       Center(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -195,8 +197,45 @@ class _ObservationThreadScreenState extends ConsumerState<ObservationThreadScree
                   ],
                 ),
         ),
+        if (_loadError != null) _buildErrorBanner(lang),
         _buildInputRow(lang),
       ],
+    );
+  }
+
+  Widget _buildErrorBanner(String lang) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFFF3F3),
+        border: Border(top: BorderSide(color: Color(0xFFFFCDD2))),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, size: 18, color: Color(0xFFB00020)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              AppStrings.of(lang, 'thread.load_error'),
+              style: const TextStyle(fontSize: 13, color: Color(0xFFB00020)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: _loadThread,
+            style: TextButton.styleFrom(
+              foregroundColor: _brandBlue,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              AppStrings.of(lang, 'thread.retry'),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -216,7 +255,7 @@ class _ObservationThreadScreenState extends ConsumerState<ObservationThreadScree
         crossAxisAlignment: CrossAxisAlignment.start,
         children: lines.map((line) {
           Color textColor = const Color(0xFF40484E);
-          if (line.startsWith('[AI]') || line.startsWith('[Doctor]')) textColor = const Color(0xFF1A6495);
+          if (line.startsWith('[AI]')) textColor = const Color(0xFF1A6495);
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
             child: Text(

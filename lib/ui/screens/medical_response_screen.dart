@@ -609,6 +609,7 @@ class _MedicalResponseScreenState
         final result =
             await ref.read(aiEngineServiceProvider).evaluateAudio(
                 File(wavPath),
+                // Audio path uses 4-message cap (vs 10 for text/photo): audio tokens compete with conversation history within E4B's effective context window.
                 customPrompt: _buildConversationHistory(4));
         audioService.deleteWavFile(wavPath);
         // Update voice bubble with AAC path if background transcoding finished
