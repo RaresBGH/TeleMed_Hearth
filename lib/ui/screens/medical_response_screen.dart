@@ -90,8 +90,6 @@ class _MedicalResponseScreenState
   bool _isPhotoAnalyzing = false;
   // Screen-level duplicate guard: set true in _onFinalize() before writing.
   bool _screenFinalized  = false;
-  // Guard: doctor Communications loaded once per screen open.
-  bool _doctorMessagesLoaded = false;
   // Info card dismissed for this session.
   bool _infoDismissed = false;
   // True when the AI signals the conversation is complete (ready_to_finalize).
@@ -202,10 +200,6 @@ class _MedicalResponseScreenState
       }
     }
     _textController.addListener(_onTextChanged);
-    // Load doctor Communications after the initial message list is set.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadDoctorCommunications();
-    });
   }
 
   void _onTextChanged() {
@@ -214,61 +208,6 @@ class _MedicalResponseScreenState
       if (!mounted) return;
       setState(() {});
     });
-  }
-
-  /// Resolves a FHIR Practitioner reference string to a display name using
-  /// the known practitioner UUIDs in [Practitioners]. Falls back to the
-  /// localized 'role.doctor' string when no match is found.
-  String _resolvePractitionerName(String ref) {
-    if (ref.contains(Practitioners.familyDoctorBareId))   return Practitioners.familyDoctorName;
-    if (ref.contains(Practitioners.bogheanuId.replaceFirst('Practitioner/', ''))) return Practitioners.bogheanuName;
-    if (ref.contains(Practitioners.cardioId.replaceFirst('Practitioner/', '')))   return Practitioners.cardioName;
-    if (ref.contains(Practitioners.neuroId.replaceFirst('Practitioner/', '')))    return Practitioners.neuroName;
-    if (ref.contains(Practitioners.dermId.replaceFirst('Practitioner/', '')))     return Practitioners.dermName;
-    if (ref.contains(Practitioners.orthoId.replaceFirst('Practitioner/', '')))    return Practitioners.orthoName;
-    if (ref.contains(Practitioners.ophthaId.replaceFirst('Practitioner/', '')))   return Practitioners.ophthaName;
-    if (ref.contains(Practitioners.psychId.replaceFirst('Practitioner/', '')))    return Practitioners.psychName;
-    if (ref.contains(Practitioners.gyneId.replaceFirst('Practitioner/', '')))     return Practitioners.gyneName;
-    return AppStrings.of(_lang, 'role.doctor');
-  }
-
-  Future<void> _loadDoctorCommunications() async {
-    if (_doctorMessagesLoaded) return;
-    _doctorMessagesLoaded = true;
-    try {
-      final cnp  = ref.read(loginCnpProvider);
-      final since = DateTime.now().subtract(const Duration(days: 7));
-      final comms = await ref.read(fhirRepositoryProvider).getCommunications(cnp: cnp, since: since);
-      if (!mounted) return;
-      final doctorComms = comms.where((c) {
-        final exts = (c['extension'] as List?) ?? [];
-        return exts.any((e) =>
-            e['url'] == FhirExtensionUtils.isPatientUrl && e['valueBoolean'] == false);
-      }).toList();
-      if (doctorComms.isEmpty) return;
-      final doctorMessages = doctorComms.map((c) {
-        final payload = (c['payload'] as List?)?.first as Map?;
-        final text = payload?['contentString'] as String? ?? '';
-        final sentStr = c['sent'] as String? ?? '';
-        final ts = sentStr.isNotEmpty
-            ? DateTime.tryParse(sentStr) ?? DateTime.now()
-            : DateTime.now();
-        final senderRef = (c['sender'] as Map?)?['reference'] as String? ?? '';
-        return ChatMessage(
-          role: 'doctor',
-          text: text,
-          timestamp: ts,
-          senderName: _resolvePractitionerName(senderRef),
-        );
-      }).toList();
-      setState(() {
-        _messages.addAll(doctorMessages);
-        _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-      });
-    } catch (e) {
-      // Silent failure intentional — doctor messages are supplementary, not blocking.
-      debugPrint('MedicalResponseScreen._loadDoctorCommunications error: $e');
-    }
   }
 
   @override
@@ -1127,58 +1066,6 @@ class _MedicalResponseScreenState
   // ── Chat bubbles ──────────────────────────────────────────────────────────────
 
   Widget _buildBubble(ChatMessage msg, String lang) {
-    // Doctor bubble — distinct left-aligned warm grey card with doctor label.
-    if (msg.role == 'doctor') {
-      final doctorName = msg.senderName ?? AppStrings.of(lang, 'role.doctor');
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.82,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 2),
-                  child: Text(
-                    '${AppStrings.of(lang, 'role.doctor_prefix')}$doctorName',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF40A060),
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEAF7EE),
-                    borderRadius: const BorderRadius.only(
-                      topLeft:     Radius.circular(4),
-                      topRight:    Radius.circular(20),
-                      bottomLeft:  Radius.circular(20),
-                      bottomRight: Radius.circular(20),
-                    ),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0x0A000000), blurRadius: 4, offset: Offset(0, 2)),
-                    ],
-                  ),
-                  child: Text(
-                    msg.text,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500,
-                        color: _onSurface, height: 1.45),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     final bool isAi = msg.role == 'ai';
     final Widget content = _buildBubbleContent(msg, isAi, lang);
     return Padding(

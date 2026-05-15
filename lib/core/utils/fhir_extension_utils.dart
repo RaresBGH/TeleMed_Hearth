@@ -17,8 +17,10 @@ class FhirExtensionUtils {
       'https://telemed-bogheanu.ro/fhir/ext/reviewed-by';
   static const String doctorNameUrl =
       'https://telemed-bogheanu.ro/fhir/ext/doctor-name';
-  /// Bare (non-FHIR-domain) URL for the isPatient Communication extension.
-  static const String isPatientUrl = 'isPatient';
+  static const String isPatientUrl =
+      'https://telemed-bogheanu.ro/fhir/ext/isPatient';
+  static const String summaryRefreshNeededUrl =
+      'https://telemed-bogheanu.ro/fhir/ext/summary-refresh-needed';
 
   static bool isSessionCategory(String url) => url.endsWith('session-category');
   // Used by doctor-ui/index.html JS reader only.

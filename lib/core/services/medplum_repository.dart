@@ -300,11 +300,10 @@ class MedplumRepository {
   Future<Map<String, dynamic>?> saveCommunication({
     required String patientCnp,
     String? appointmentId,
+    String? observationId,
     required String text,
     required bool isPatient,
     required DateTime timestamp,
-    // TODO: attachmentPath not yet serialized into FHIR payload — post-hackathon:
-    // add as Attachment content in payload body.
     String? attachmentPath,
     String? mimeType,
     String? attachmentTitle,
@@ -332,7 +331,9 @@ class MedplumRepository {
         'sender': isPatient ? patientRef : (practRef ?? <String, dynamic>{}),
         // recipient: the intended receiver of the message.
         'recipient': [isPatient ? (practRef ?? <String, dynamic>{}) : patientRef],
-        if (appointmentId != null && appointmentId.isNotEmpty)
+        if (observationId != null && observationId.isNotEmpty)
+          'about': [{'reference': 'Observation/$observationId'}]
+        else if (appointmentId != null && appointmentId.isNotEmpty)
           'about': [{'reference': 'Appointment/$appointmentId'}],
         'payload': [
           {'contentString': text},
@@ -367,15 +368,18 @@ class MedplumRepository {
   }
 
   /// Returns Communication resources for [patientId], newest first (max 50).
-  /// [since] adds a &sent=ge filter to exclude older messages.
-  Future<List<Map<String, dynamic>>> getCommunications(String patientId, {DateTime? since}) async {
+  /// [since] filters by sent timestamp. [aboutReference] filters by about (e.g. 'Observation/{id}').
+  Future<List<Map<String, dynamic>>> getCommunications(String patientId, {DateTime? since, String? aboutReference}) async {
     if (!await auth.isOnline()) return [];
     try {
       final sinceParam = since != null
           ? '&sent=ge${Uri.encodeComponent(since.toUtc().toIso8601String())}'
           : '';
+      final aboutParam = aboutReference != null && aboutReference.isNotEmpty
+          ? '&about=${Uri.encodeComponent(aboutReference)}'
+          : '';
       final uri = Uri.parse(
-          '$_base/Communication?subject=Patient/$patientId&_sort=-sent&_count=50$sinceParam');
+          '$_base/Communication?subject=Patient/$patientId&_sort=sent&_count=50$sinceParam$aboutParam');
       final response = await client.get(uri, headers: await _headers());
       if (response.statusCode == 200) {
         final bundle = jsonDecode(response.body) as Map<String, dynamic>;
@@ -386,6 +390,34 @@ class MedplumRepository {
     } catch (e) {
       debugPrint('MedplumRepository.getCommunications error: $e');
       return [];
+    }
+  }
+
+  /// Patches an Observation's valueString and extension list.
+  /// Used for summary refresh after a doctor marks an Observation as reviewed.
+  Future<void> patchObservationValueString({
+    required String obsId,
+    required String newSummary,
+    required List<Map<String, dynamic>> updatedExtensions,
+  }) async {
+    if (!await auth.isOnline()) return;
+    try {
+      final response = await client.patch(
+        Uri.parse('$_base/Observation/$obsId'),
+        headers: {
+          ...await _headers(),
+          'Content-Type': 'application/json-patch+json',
+        },
+        body: jsonEncode([
+          {'op': 'replace', 'path': '/valueString', 'value': newSummary},
+          {'op': 'replace', 'path': '/extension', 'value': updatedExtensions},
+        ]),
+      );
+      if (response.statusCode != 200) {
+        debugPrint('MedplumRepository.patchObservationValueString: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('MedplumRepository.patchObservationValueString error: $e');
     }
   }
 

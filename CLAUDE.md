@@ -80,50 +80,64 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 - Release APK crash on inference: RESOLVED build #102 — ProGuard keep rules for LiteRT-LM JNI callbacks (R8 was renaming onMessage/onDone, causing NoSuchMethodError).
 - Release APK model download DNS failure: RESOLVED build #99 — network_security_config.xml domain-config for duckdns.org.
 
-### P1 — CONFIRMED WORKING ON DEVICE (#110)
-- Auto language switch on login (Maria/Ion→RO, Sarah/George→EN) ✓
-- Dashboard data correct per patient (condition/medication/appointment) ✓
-- Voice bubble playback (AAC path fix) ✓
-- Photo suggestion by AI (conditional — only when no photo sent yet) ✓
-- Info card in chat (dismissible) ✓
-- Finalize button works (no longer stuck) ✓
-- Dialogue numbering in Dossier (#1, #2…) ✓
-- Clinical Summary label in Dossier ✓
-- Conversation continuation from Dossier ✓
-- Doctor UI: clinical summary from obs.note, expand conversation, back to appointments ✓
-- Video call stable 5+ minutes (laptop Brave + Pixel 9 Pro) ✓
-- Appointment status labels (Completed/Cancelled/Missed) ✓
-- Past appointments hide Enter button ✓
-- Join window -60/+120min ✓
-- Dr. name resolved in Communications bubbles ✓
-- Activity panel title added ✓
-- Mic released after video call ✓
-- All 4 patients correct in Medplum ✓
-- All 9 practitioners named in Medplum ✓
+### P1 — CONFIRMED WORKING ON DEVICE (#110 + #112)
+- Auto language switch on login (Maria/Ion→RO, Elena/George→EN) ✓ (#110)
+- Dashboard data correct per patient (condition/medication/appointment) ✓ (#110)
+- Voice bubble playback (AAC path fix) ✓ (#110)
+- Photo suggestion by AI (conditional — only when no photo sent yet) ✓ (#110)
+- Info card in chat (dismissible) ✓ (#110)
+- Dialogue numbering in Dossier (#1, #2…) ✓ (#110)
+- Clinical Summary label in Dossier ✓ (#110)
+- Conversation continuation from Dossier ✓ (#110)
+- Video call stable 5+ minutes (laptop Brave + Pixel 9 Pro) ✓ (#110)
+- Appointment status labels (Completed/Cancelled/Missed) ✓ (#110)
+- Past appointments hide Enter button ✓ (#110)
+- Join window -60/+120min ✓ (#110)
+- Dr. name resolved in Communications bubbles ✓ (#110)
+- Activity panel title added ✓ (#110)
+- Mic released after video call ✓ (#110)
+- All 4 patients correct in Medplum ✓ (#110)
+- All 9 practitioners named in Medplum ✓ (#110)
+- Fix #1: state corruption recovery (no English fallback) ✓ (#112)
+- Fix #2: EN system prompt parity ✓ (#112)
+- Fix #3: EN no-diagnosis safety clause ✓ (#112)
+- Fix #4: voice-in-chat conversation history ✓ (#112)
+- Fix #6: photo inference 1024px resize ✓ (#112)
+- Fix #10: Programări back-navigation ✓ (#112)
+- Tab navigation (Medic, Specialiști) ✓ (#112)
 
-### P1 — PENDING (test on #111)
-- Clinical summary appears in Dossier after finalization
-- Photo thumbnail shows correctly (not broken image)
-- In-chat voice AI understands correctly (customPrompt removed)
-- OTP button stays disabled after tap (permanent disable)
-- Activity panel dismisses by swipe/tap-outside (snap:false fix)
-- Peer left overlay shows black screen (fully opaque)
-- AI stops at 5 questions + delivers finalize prompt
-- AppBar shows generic title (patient name removed)
+### P1 — PENDING (test on #113 device install)
+- Finalize button spinner hangs indefinitely (#112 regression; Fix #19 guard + Fix #11 timeout applied in #113)
+- Activity panel still won't dismiss (#112 regression; Fix #14 SurfaceView removal applied in #113)
+- Peer-left overlay frozen frame (#112 regression; Fix #15 connection-state listeners + objectFit applied in #113)
+- Clinical summary shows wrong content in Doctor UI (#112; Fix #12 [AI]-line append applied in #113)
+- Raw Android file paths in Doctor UI transcript (#112; Fix #13 localized labels applied in #113)
+- New appointment not in list until restart (#112; Fix #16 _hasLoaded reset applied in #113)
+- "Recent Health Status" EN in RO session (#112; Fix #17 AppStrings routing applied in #113)
+- First-input loading-state greeting mismatch (#112; Fix #18 state-gated copy applied in #113)
+- 5-question limit still ignored by model — sampling applied (Fix #7) but model compliance unverified; accepted limitation for demo; choreograph script to finalize around question 4–5
+- Doctor UI controls layout: Unmute cut off at left edge — accepted cosmetic for demo
+- Ion/Sarah (#112 device): empty Recent Activity — seeded 2 Observations + 1 Appointment each in Medplum (curl, no commits)
 
-### P1 — STILL OPEN
+### P1 — STILL OPEN (post-hackathon)
 - Emergency routing: EmergencyScreen → tel:112 — device test pending
-- Fine-tuned adapter deployment (Path A3 — base model + engineered prompt in use; adapter at huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical available as artifact)
+- Fine-tuned adapter deployment: Path A1 blocked (MediaPipe no Gemma 4); litert-torch hf_export.export() supports Gemma 4 text-only but vision encoder LoRA merge unsupported; revisit post-hackathon
 - withOpacity→withValues migration pending CI upgrade past Flutter 3.32.x
+- Token refresh hardening for >1hr judge sessions
+- Login flow: Medplum CNP search at auth (currently local FHIR SDK only)
+- Duplicate Observation schema between finalizeConsultation and VideoConsultationScreen._saveCallSummary
+- JSONL debug log rotation (currently unbounded)
+- Doctor UI Unmute button layout polish
 
 ## Current State
 See TELEMED_CONTEXT.md for full verified/awaiting-test/broken breakdown.
 Last updated: 2026-05-15
-Latest build: #111 (CI building — staged locally).
-Last device-tested: #110 release.
+Latest build: #113 (staged locally; commit 95eda78 covers fixes #11–#20).
+Last device-tested: #112 release.
 3 days to deadline (May 18, 2026).
 App name: TeleMed Hearth.
 Repo: PRIVATE — must go public before May 18.
+Demo-day morning: verify Patient ID Case 1, seed Ion's 10:00 appointment, full #113 regression test.
 
 ## ADB Commands
 adb -s 4C041FDAP006Z1 logcat -d | grep -E "LiteRtLm|flutter|com.example.telemed_k" | tail -40
@@ -164,7 +178,7 @@ Basic auth gate at Caddy: **demo / telemed2026** (credentials published in Kaggl
 |---|---|---|---|---|---|
 | Maria Ionescu | 2540203150013 | 0c6daf94-7c53-499e-9c46-7d8e77e99b8f | RO | Hipertensiune arterială | Amlodipină 5mg |
 | Ion Popescu | 1490815150027 | ba0c27f1-d943-4eda-9789-2a2a77ba3d13 | RO | Diabet zaharat tip 2 | Metformin 1000mg |
-| Sarah Dumitrescu | 2621105150032 | f4fd5d5d-6553-4b44-9561-06119b0c8f04 | EN | Hypertension | Amlodipine 5mg |
+| Elena Dumitrescu | 2621105150032 | f4fd5d5d-6553-4b44-9561-06119b0c8f04 | EN | Hypertension | Amlodipine 5mg |
 | George Constantin | 1551220150048 | b79e4919-ef7e-4c1a-9274-6869eafbe444 | EN | Type 2 Diabetes | Metformin 1000mg |
 
 Duplicate patients cleaned up — old records (a0e44abc, 510b8c93, 118149bf, 6955bb14) deleted. Only 1 patient per CNP now.
@@ -300,11 +314,65 @@ DEVICE-TESTED BUILD #110:
 
 Build #111 (CI building): Clinical summary combined prompt fix (no customPrompt, history embedded in text); photo thumbnail existsSync removed (direct try/catch copy with fallback); photo AI suggestion conditional (only when no photo sent); OTP verification button permanent disable correct; AppBar title reverted to generic (patient name removed); snap:false confirmed. Credential injection reminder added to CLAUDE.md Doctor UI section.
 
+## Session Notes — 2026-05-15 (Builds #112–#113)
+
+### Build #112 device-test results (release APK on Pixel 9 Pro)
+PASS: Fix #1 (state corruption recovery), Fix #2 (EN system prompt), Fix #3 (EN safety clause), Fix #4 (voice-in-chat history), Fix #6 (photo resize), Fix #10 (Programări back-nav), tab navigation (Medic / Specialiști).
+FAIL: Fix #5 (Finalize spinner hangs indefinitely — regression), Fix #7 (5-question limit still ignored by model), Fix #8/#8b (activity panel still won't dismiss), Fix #9 (peer-left frozen frame persists).
+
+New issues surfaced during #112:
+- Ion and Elena had empty Recent Activity (no Observations in Medplum) → seeded 2 Obs + 1 Appointment each via curl
+- "Recent Health Status" rendered EN in RO session (hardcoded in DateFormatter)
+- New appointment didn't appear in list until app restart (_hasLoaded guard blocked re-fetch)
+- Doctor UI Patient Report showed AI clarifying question as Clinical Summary (note[0].text field-read mismatch)
+- Doctor UI transcript showed raw Android file paths ([Voice:/data/user/...])
+- Doctor UI video aspect ratio wrong (objectFit:cover instead of contain)
+- Doctor UI Unmute button partially cut off at left edge (cosmetic, accepted for demo)
+- Home screen greeting mismatched loading state ("Good day, Sarah!")
+
+Medplum cleanup performed (curl-based, no code commits):
+- Sarah Dumitrescu renamed to Elena Dumitrescu (Patient f4fd5d5d-..., CNP 2621105150032)
+- 7 orphan Appointments deleted (referencing deleted patients a0e44abc + 510b8c93)
+- 3 stale booked Appointments for Ion cancelled (May 14–15)
+- Ion: seeded 2 Observations (May 9 diabetes, April 18 neuropathy) + 1 fulfilled Appointment (May 9)
+- Elena: seeded 2 Observations (May 8 arthritis, April 22 wrist pain) + 1 fulfilled Appointment (May 8)
+- Default Client credentials confirmed: id=c18b54d9-f511-46db-903e-882b47dc3c63; old credentials (d5d39070-... / TeleMed_K_Client_Secret_2026!) returned invalid_client
+
+Architectural decisions resolved:
+- Path A3 final: litert-torch hf_export.export() (commit 1572220e9b) supports Gemma 4 text-only, but vision encoder LoRA merge unsupported; post-hackathon
+- Patient ID Case 1 confirmed: login uses local FHIR SDK; Ion's #112 Observation 67b2925a landed against ba0c27f1, confirming all writes use correct Medplum ID; Medplum-search-by-CNP at login is post-hackathon
+- No fine-tune deployment: adapter artifact published on HuggingFace; base + system prompt + sampling (temp=0.3, top_p=0.9, top_k=40) is shipped config
+
+### Build #113 fixes (commit 95eda78)
+- Fix #11: 30s timeout on clinical summary evaluateText; JSONL diagnostic log; _screenFinalized reset on error
+- Fix #12: Clinical summary surfaced in Doctor UI — [AI] line appended to note[0].text; Doctor UI filter(l => l.startsWith('[AI]')).last picks it up
+- Fix #13: Attachment path leak — voice/photo FHIR transcript uses localized labels (AppStrings chat.attachment_voice_label / chat.attachment_photo_label) instead of raw file paths
+- Fix #14: Activity panel dismiss — same SurfaceView removal pattern as Fix #9: _chatOpen==true → _buildRemoteVideo() returns black Container
+- Fix #15: Peer-left detection via onConnectionState (Disconnected/Failed/Closed) + onIceConnectionState (Disconnected/Failed) + signaling 'leave'; RTCVideoView objectFit → Contain; peer-left nulls srcObject
+- Fix #16: Appointment list refresh — reset _hasLoaded = false before _loadAppointments() in save-success branch; ref.invalidate(appointmentsProvider) was already present but _hasLoaded guard blocked re-fetch
+- Fix #17: "Recent Health Status" — DateFormatter.format() fallback param added; history_screen.dart passes AppStrings.of(lang, 'history.recent_date')
+- Fix #18: Loading-state headline — sessionState==processing swaps "Good day, {name}!" / "How do you feel today?" to "One moment, {name}…" / "Looking at what you shared…" (AppStrings keys dashboard.loading_personal / dashboard.loading_status)
+- Fix #19: Finalize button onPressed guard adds || _screenFinalized so button stays visually disabled throughout entire _onFinalize() execution (was only _isFinalizing || _isProcessing)
+- Fix #20: Deduped _buildConversationHistory() + _buildTruncatedConversationHistory(int) → unified _buildConversationHistory(int maxMessages); added per-modality cap: max 2 patient-voice + 2 patient-photo in AI context; older turns rewritten to [information accounted] / [informație adăugată la context] in context copy only (UI unchanged); AppStrings key chat.information_accounted_label
+
+Demo-day morning pending:
+- Patient ID Case 1 re-verify after first Ion login on #113 APK
+- Seed Ion's 10:00 demo Appointment (curl, ~30 seconds) — NOT YET CREATED
+- Full #113 device regression against demo-flow script
+
 ## Post-Hackathon Roadmap
 - Gemma real-time call summarization (WebRTC audio → STT → Gemma → FHIR Observation)
 - Patient PDF send to doctor via DocumentReference
 - Doctor Communications real-time polling
 - WiFi-triggered background sync
+- Fine-tuned adapter deployment via litert-torch hf_export.export() when vision encoder support lands
+- Login flow: replace local FHIR SDK seed with Medplum CNP search
+- Emergency keyword safety net redesign (EMERGENCY_KEYWORDS_RO has 12 terms, too narrow)
+- Voice/photo context bridging: raise cap from 4, proper FHIR-block trimming
+- Running session summary architecture (investigated, deferred)
+- Stale Default Client secret rotation (c18b54d9-... credential flagged)
+- Doctor UI controls layout polish (Unmute cut off)
+- JSONL debug log rotation (currently unbounded)
 
 ## Claude Code Custom Commands
 Location: .claude/commands/

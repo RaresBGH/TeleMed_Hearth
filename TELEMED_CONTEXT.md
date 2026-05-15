@@ -1,5 +1,5 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-05-15 (Latest Flutter build: #111 CI building)
+Last updated: 2026-05-15 (Latest Flutter build: #113 staged; last device-tested: #112)
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
@@ -122,7 +122,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 
 ### BUILT — AWAITING DEVICE TEST
 
-- **Mock patient DB (4 patients)** — `FhirEngineChannel.kt` seeds 4 patients matching Medplum (Maria Ionescu CNP 2540203150013, Ion Popescu CNP 1490815150027, Sarah Dumitrescu CNP 2621105150032, George Constantin CNP 1551220150048) each with valid CNP, gender, DOB, phone, Condition, and individual MedicationRequest. 5th patient (Ana Constantin) removed in build #106.
+- **Mock patient DB (4 patients)** — `FhirEngineChannel.kt` seeds 4 patients matching Medplum (Maria Ionescu CNP 2540203150013, Ion Popescu CNP 1490815150027, Elena Dumitrescu CNP 2621105150032, George Constantin CNP 1551220150048) each with valid CNP, gender, DOB, phone, Condition, and individual MedicationRequest. 5th patient (Ana Constantin) removed in build #106.
 - **Returning vs new user detection** — `PatientAuthNotifier.loadPatient(cnp)` searches FHIR by `urn:oid:1.2.40.0.10.1.4.3.1` identifier; returning user → first name extracted, `isReturningUser=true`, navigates to home/download; new user → navigates to `AppRoute.profileCompletion`
 - **Profile completion screen** — new users enter first name, last name, phone; creates FHIR Patient resource via `handleSavePatient`; sets `patientFirstName`; navigates to home or model download based on model presence
 - **Dynamic patient name greeting** — home screen reads `patientAuthProvider.patientFirstName`; shows "Bună ziua, [Prenume]!" or "Bună ziua!" if name not loaded; reactive to `patientAuthProvider` via `ref.watch`
@@ -313,37 +313,48 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Admin:** admin@telemed-bogheanu.ro / TeleMed_Sovereign_2026!
 
 ### Medplum Flutter Client
-- **Client ID:** d5d39070-c8a4-43a6-92e5-1a78b695ca72
-- **Client Secret:** TeleMed_K_Client_Secret_2026!
+- **Client ID:** c18b54d9-f511-46db-903e-882b47dc3c63
+- **Client Secret:** 7f86f3b5c08e94d711f61a4565c7d577cb303e78a5d57b5d340b74baf8c0b283
 - **Grant type:** client_credentials (hackathon); PKCE auth_code (future)
 - **Redirect URI:** com.example.telemed_k://callback
+- **STALE (do not use):** old credentials d5d39070-c8a4-43a6-92e5-1a78b695ca72 / TeleMed_K_Client_Secret_2026! return invalid_client as of 2026-05-15
+- **FLAG:** rotate current secret post-hackathon
 
-### Medplum Seeded Data
-Patients (CNP → FHIR ID):
-  Maria Ionescu     2540203150013 → Patient/a0e44abc-acc5-442e-a316-be70192fc72b
-  Ion Popescu       1490815150027 → Patient/118149bf-26e0-46e1-87de-7149e8066284
-  Elena Dumitrescu  2621105150032 → Patient/510b8c93-ef4a-43bc-b265-197fcfc03c2b
-  Gheorghe Stan     1551220150048 → Patient/6955bb14-46d7-4a9b-b7a4-d98e95051f3f
-  Ana Constantin    2480430150058 → Patient/40d2b51f-5a36-4e13-9755-5e7b6bb9ba85
+### Medplum Seeded Data (verified 2026-05-15 post-cleanup)
+Active patients — 4 only (CNP → FHIR ID):
+  Maria Ionescu     2540203150013 → Patient/0c6daf94-7c53-499e-9c46-7d8e77e99b8f
+  Ion Popescu       1490815150027 → Patient/ba0c27f1-d943-4eda-9789-2a2a77ba3d13
+  Elena Dumitrescu  2621105150032 → Patient/f4fd5d5d-6553-4b44-9561-06119b0c8f04
+  George Constantin 1551220150048 → Patient/b79e4919-ef7e-4c1a-9274-6869eafbe444
+
+Note: Old duplicate/stale records deleted 2026-05-15 — a0e44abc, 510b8c93, 118149bf, 6955bb14 (all HTTP 410 Gone).
+"Sarah Dumitrescu" renamed to "Elena Dumitrescu" in Patient f4fd5d5d (same CNP 2621105150032).
+Gheorghe Stan and Ana Constantin: 5th/extra patient records removed from app in build #106; not in local FHIR seed.
 
 Demo OTPs (last 6 digits of each CNP):
   Maria Ionescu:    150013
   Ion Popescu:      150027
   Elena Dumitrescu: 150032
-  Gheorghe Stan:    150048
-  Ana Constantin:   150058
+  George Constantin: 150048
 
-Conditions:
-  Arterial Hypertension       → Condition/36d3b343-a8e9-4b7b-bcfc-52dfe5c51073 → Maria Ionescu (patched to EN 2026-05-07)
-  Type 2 Diabetes             → Condition/1b02b21e-e6ae-4723-961b-cecd4cb2085e → Ion Popescu (patched to EN 2026-05-07)
-  Artrită reumatoidă          → Condition/59f9db2b → Elena Dumitrescu
-  Insuficiență cardiacă       → Condition/9feb7821 → Gheorghe Stan
-  Boală pulmonară obstructivă → Condition/e7161115 → Ana Constantin
+Conditions (4 active):
+  Hipertensiune arterială → Condition (Maria Ionescu)
+  Diabet zaharat tip 2    → Condition/1b02b21e-e6ae-4723-961b-cecd4cb2085e (Ion Popescu)
+  Hypertension            → Condition (Elena Dumitrescu)
+  Type 2 Diabetes         → Condition (George Constantin)
 
-Rich test data (Ion Popescu and Maria Ionescu — fully populated):
-  Ion Popescu   — 1 condition, 2 medications, 3 fulfilled appointments (April 22); 6 Observations (2 exam + 4 survey, all categories correct)
-  Maria Ionescu — 1 condition, 2 medications, 3 fulfilled appointments (April 22); 6 Observations (3 exam + 3 survey, all categories correct)
-  Binary storage confirmed: file:///var/medplum/storage
+Observations seeded 2026-05-15:
+  Ion Popescu   — 2 Observations (May 9 diabetes triage, April 18 neuropathy concern)
+  Elena         — 2 Observations (May 8 arthritis, April 22 wrist pain)
+  Maria/George  — pre-existing Observations from earlier sessions
+
+Appointments:
+  George Constantin: upcoming 2598af45 (May 16 10:00)
+  Ion Popescu: demo 10:00 May 18 NOT YET SEEDED (pending Patient ID re-verify)
+  Ion Popescu: 3 stale booked Appointments (May 14–15) cancelled 2026-05-15
+  7 orphan Appointments referencing deleted patients deleted 2026-05-15
+
+Binary storage confirmed: file:///var/medplum/storage
 
 Practitioners:
   Dr. Elena Ionescu   Family Doctor (Medic de Familie)        Practitioner/733e1972-b42d-4bd0-82c7-66db72b2d311
@@ -398,7 +409,19 @@ Four full audit cycles completed (2026-05-02 – 2026-05-07). Build #75+#76 batc
 Build #75 additions: join window corrected; dashboard filter broadened; 'Family Medicine'; doctor UI panel guards; Medplum timestamps patched.
 Build #76 additions: UI-1 exit dialog fix; in-call chat removed (Activity only); doctor Communications data layer (getCommunications, sender/recipient in saveCommunication); 'doctor' role + 'document' AttachmentType; doctor UI panel restructured (Appointments removed, async Medplum chat, read-only report during call).
 Known limitations: patient PDF send → plain text only (post-hackathon); doctor Communications not real-time — patient must reopen to see new messages (post-hackathon: polling/push).
-Post-hackathon deferred: duplicate Observation schema between `finalizeConsultation()` and `VideoConsultationScreen._saveCallSummary()` (refactor to shared factory method).
+Post-hackathon deferred:
+- Duplicate Observation schema between `finalizeConsultation()` and `VideoConsultationScreen._saveCallSummary()` (refactor to shared factory method)
+- Fine-tuned adapter deployment via litert-torch hf_export.export() — text-only export works on commit 1572220e9b; vision encoder LoRA merge not yet supported
+- Login flow: replace local FHIR SDK seed with Medplum Patient search by CNP at auth
+- Emergency keyword safety net redesign — EMERGENCY_KEYWORDS_RO has 12 terms, too narrow for real use; EmergencyFlagException in voice path swallowed by generic catch in some flows
+- Voice/photo context bridging: raise cap from 4 messages; proper FHIR-block trimming for large histories
+- Running session summary architecture (investigated for context management; deferred)
+- Stale Default Client credentials rotation (c18b54d9-... secret; post-hackathon)
+- JSONL debug log rotation (currently unbounded file growth on device)
+- Doctor UI controls layout polish — Unmute button cosmetically cut off at left edge
+- Token refresh hardening for sessions exceeding 1 hour (judge demo risk)
+- _screenFinalized edge-case review: Fix #19 + Fix #11 cover the main paths; deeper audit deferred
+- withOpacity→withValues migration (pending Flutter stable CI upgrade past 3.32.x)
 
 FHIR extension URL consistency (all confirmed matching Flutter writer ↔ doctor UI JavaScript reader):
   https://telemed-bogheanu.ro/fhir/ext/reviewed-by-target  (Flutter writes on finalizeConsultation)
@@ -525,15 +548,16 @@ C1 still open pending build #86 device test.
 
 ## Hackathon
 
-- **Deadline:** May 18, 2026 — **6 days remaining**
+- **Deadline:** May 18, 2026 — **3 days remaining**
 - **Public repo required:** currently PRIVATE — must make public before deadline
 - **Demo video:** not yet recorded
-- **Gemma 4 on-device status:** BROKEN — ENGINE_INIT_ERROR on LiteRT-LM initialize(). Diagnostic in place. Fix is next session priority. NOT addressed 2026-05-11 (data-prep session).
-- **Latest tested build:** #79 — installed 2026-05-08
-- **Latest commit:** dcc5b60 (tools/finetune only, no Flutter changes)
-- **Fine-tune status:** train.jsonl (109) + eval.jsonl (12) ready. Unsloth QLoRA = next session.
-- **Medplum status:** CONFIRMED WORKING
-- **WebRTC status:** TURN fix applied 2026-05-08 — stability past 15s awaiting two-device confirmation
+- **Gemma 4 on-device status:** WORKING — LiteRT-LM 0.11.0, ENGINE_INIT_ERROR resolved in build #80. Text/voice/photo inference confirmed. Sampling (temp=0.3, top_p=0.9, top_k=40) applied via Fix #7.
+- **Latest device-tested build:** #112
+- **Latest staged build:** #113 (commit 95eda78, fixes #11–#20)
+- **Fine-tune status:** COMPLETE — adapter published at huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical. Deployment: Path A3 (base model + engineered system prompt). litert-torch path for adapter integration is post-hackathon.
+- **Medplum status:** CONFIRMED WORKING — 4 patients, demo data seeded 2026-05-15
+- **WebRTC status:** WORKING — stable 5+ minutes Pixel 9 Pro + laptop Brave (#110 confirmed)
+- **Demo-day morning:** seed Ion 10:00 Appointment, full #113 regression, make repo public
 - **Known open issues:** see HANDOFF.md Outstanding Bugs section
 
 ---
@@ -757,15 +781,37 @@ CONFIRMED WORKING ON #110 (full device test):
 - Dr. name resolved in Communications bubbles ✓
 - All 4 Medplum patients + 9 practitioners correct ✓
 
-Build #111 (CI building): Clinical summary combined prompt (history embedded, no customPrompt); photo thumbnail try/catch copy (existsSync removed); photo AI suggestion conditional; OTP permanent disable corrected; AppBar generic title; snap:false confirmed; credential injection documented.
+Build #111: Clinical summary combined prompt (history embedded, no customPrompt); photo thumbnail try/catch copy (existsSync removed); photo AI suggestion conditional; OTP permanent disable corrected; AppBar generic title; snap:false confirmed; credential injection documented.
 
-PENDING on #111:
-- Clinical summary appears in Dossier after finalization
-- Photo thumbnail not broken
-- In-chat voice AI understands correctly
-- OTP button stays disabled after tap
-- Activity panel dismisses (snap:false)
-- Peer left overlay black
-- AI 5-question limit enforced
-- AppBar generic title confirmed
+### BUILDS #112–#113 — SESSION 2026-05-15 (continued)
+
+Build #112 device-test results (Pixel 9 Pro, release APK):
+PASS: Fix #1 (state corruption recovery), #2 (EN system prompt), #3 (EN safety clause), #4 (voice-in-chat history), #6 (photo resize 1024px), #10 (Programări back-nav), tab navigation (Medic/Specialiști).
+FAIL: Fix #5 (Finalize spinner hangs — regression), Fix #7 (5-question limit ignored by model), Fix #8/#8b (activity panel won't dismiss), Fix #9 (peer-left frozen frame).
+
+New issues found in #112:
+- Ion/Elena had empty Recent Activity (no Medplum Observations) → seeded 2 each via curl
+- "Recent Health Status" rendered EN in RO session
+- Appointment list didn't refresh after save
+- Doctor UI Patient Report showed wrong Clinical Summary (note field mismatch)
+- Doctor UI transcript showed raw Android file paths
+- Doctor UI video aspect ratio wrong (cover instead of contain)
+- Doctor UI Unmute button cut off at left edge (cosmetic)
+- Home screen greeting mismatched loading state
+
+Medplum cleanup 2026-05-15: old duplicate Patient IDs deleted; Sarah renamed to Elena; stale/orphan Appointments removed; demo seed data created; Default Client re-confirmed (old d5d39070-... credentials stale).
+
+Build #113 (commit 95eda78, staged 2026-05-15):
+- Fix #11: Finalize 30s timeout + JSONL diagnostic log + _screenFinalized reset
+- Fix #12: Clinical summary in Doctor UI ([AI]-line append to note[0].text)
+- Fix #13: Attachment path leak → localized labels (AppStrings chat.attachment_voice_label / chat.attachment_photo_label)
+- Fix #14: Activity panel dismiss — SurfaceView removed when _chatOpen==true
+- Fix #15: Peer-left detection (onConnectionState + onIceConnectionState + signaling 'leave'); RTCVideoView objectFit → Contain
+- Fix #16: Appointment list refresh (_hasLoaded reset before _loadAppointments in save-success branch)
+- Fix #17: "Recent Health Status" — DateFormatter.format() fallback param; history_screen uses AppStrings.of(lang, 'history.recent_date')
+- Fix #18: Loading-state headline state-gated ("One moment, {name}…" / "Looking at what you shared…" when SessionState.processing)
+- Fix #19: Finalize button guard adds _screenFinalized check — button stays disabled entire _onFinalize() execution
+- Fix #20: Unified _buildConversationHistory(int maxMessages); per-modality cap (max 2 voice + 2 photo patient turns in context); older turns rewritten to [information accounted] in context copy only
+
+Pending device test on #113 APK: all 10 fixes listed above.
 

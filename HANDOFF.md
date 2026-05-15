@@ -2,8 +2,8 @@
 **Date:** 2026-05-15  
 **Deadline:** May 18, 2026 — **3 days remaining**  
 **Repo:** https://github.com/RaresBGH/TeleMed_K (still PRIVATE — must go public before deadline)  
-**Latest Flutter commit:** build #110 pushed; #111 staged locally, CI building.  
-**Latest device-tested:** build #110 — see confirmed working list below.  
+**Latest Flutter commit:** build #113 (commit 95eda78, fixes #11–#20); builds #111–#112 pushed.  
+**Latest device-tested:** build #112 — see confirmed working list below.  
 **Kaggle Writeup:** drafted at /home/corb_d/sovereign-factory/mobile-workspace/TeleMed_K_Writeup.md, finalized to 1498 words, currently at 6/7 on the Kaggle submission checklist (video pending).  
 **HuggingFace adapter:** https://huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical (public).
 
@@ -89,20 +89,29 @@ FHIR backend: Google Android FHIR SDK (local encrypted SQLite) + Medplum 5.1.10 
 
 ---
 
-## Built — Awaiting Confirmation on #111
+## Built — Awaiting Confirmation on #113
 
-| Feature | Status |
-|---|---|
-| Clinical summary in Dossier | pending #111 |
-| Photo thumbnail (no broken image) | pending #111 |
-| In-chat voice AI understanding | pending #111 |
-| OTP button permanent disable | pending #111 |
-| Activity panel dismiss (snap:false) | pending #111 |
-| Peer left overlay (black screen) | pending #111 |
-| AI 5-question limit enforced | pending #111 |
-| AppBar generic title | pending #111 |
+Items confirmed resolved in #113 (not yet device-tested on #113 APK):
 
-Emergency 112: tel: URI launch never device-tested — pending.
+| Feature | Fix | Status |
+|---|---|---|
+| Finalize button spinner hangs | #19 (guard) + #11 (timeout) | pending #113 device test |
+| Activity panel dismiss | #14 (SurfaceView removal) | pending #113 device test |
+| Peer-left overlay frozen frame | #15 (connection-state listeners) | pending #113 device test |
+| Clinical summary in Doctor UI | #12 ([AI]-line append) | pending #113 device test |
+| Raw paths in Doctor UI transcript | #13 (localized labels) | pending #113 device test |
+| Appointment list refresh after save | #16 (_hasLoaded reset) | pending #113 device test |
+| "Recent Health Status" EN in RO session | #17 (AppStrings routing) | pending #113 device test |
+| Loading-state greeting mismatch | #18 (state-gated copy) | pending #113 device test |
+| Clinical summary in Dossier | #111 fix | pending confirmation |
+| Photo thumbnail (no broken image) | #111 fix | pending confirmation |
+| In-chat voice AI understanding | #111 fix | pending confirmation |
+| OTP button permanent disable | #111 fix | confirmed #112 PASS (implicit) |
+| AppBar generic title | #111 fix | confirmed #112 PASS (implicit) |
+| AI 5-question limit enforced | system prompt | FAIL #112 — accepted limitation; choreograph demo |
+
+Emergency 112: tel: URI launch never device-tested — still pending.
+Doctor UI Unmute cut off: cosmetic, accepted for demo (framing workaround).
 
 ---
 
@@ -110,43 +119,52 @@ Emergency 112: tel: URI launch never device-tested — pending.
 
 ### P0 — NONE
 
-### CONFIRMED WORKING ON #110
-- Auto language switch on login (Maria/Ion→RO, Sarah/George→EN) ✓
-- Dashboard data correct per patient (condition/medication/appointment) ✓
-- Voice bubble playback (AAC path fix) ✓
-- Photo suggestion by AI (conditional — only when no photo sent yet) ✓
-- Info card in chat (dismissible) ✓
-- Finalize button works (no longer stuck) ✓
-- Dialogue numbering in Dossier (#1, #2…) ✓
-- Clinical Summary label in Dossier ✓
-- Conversation continuation from Dossier ✓
-- Doctor UI: clinical summary, expand conversation, back to appointments ✓
-- Video call stable 5+ minutes (laptop Brave + Pixel 9 Pro) ✓
-- Appointment status labels (Completed/Cancelled/Missed) ✓
-- Past appointments hide Enter button ✓
-- Join window -60/+120min ✓
-- Dr. name resolved in Communications bubbles ✓
-- Activity panel title added ✓
-- Mic released after video call ✓
-- All 4 patients correct in Medplum ✓
-- All 9 practitioners named in Medplum ✓
+### CONFIRMED WORKING — #110 + #112
+- Auto language switch on login (Maria/Ion→RO, Elena/George→EN) ✓ (#110)
+- Dashboard data correct per patient (condition/medication/appointment) ✓ (#110)
+- Voice bubble playback (AAC path fix) ✓ (#110)
+- Photo suggestion by AI (conditional — only when no photo sent yet) ✓ (#110)
+- Info card in chat (dismissible) ✓ (#110)
+- Dialogue numbering in Dossier (#1, #2…) ✓ (#110)
+- Clinical Summary label in Dossier ✓ (#110)
+- Conversation continuation from Dossier ✓ (#110)
+- Video call stable 5+ minutes (laptop Brave + Pixel 9 Pro) ✓ (#110)
+- Appointment status labels (Completed/Cancelled/Missed) ✓ (#110)
+- Past appointments hide Enter button ✓ (#110)
+- Join window -60/+120min ✓ (#110)
+- Dr. name resolved in Communications bubbles ✓ (#110)
+- Activity panel title added ✓ (#110)
+- Mic released after video call ✓ (#110)
+- All 4 patients correct in Medplum ✓ (#110)
+- All 9 practitioners named in Medplum ✓ (#110)
+- Fix #1 state corruption recovery ✓ (#112)
+- Fix #2 EN system prompt parity ✓ (#112)
+- Fix #3 EN no-diagnosis safety clause ✓ (#112)
+- Fix #4 voice-in-chat conversation history ✓ (#112)
+- Fix #6 photo inference 1024px resize ✓ (#112)
+- Fix #10 Programări back-navigation ✓ (#112)
+- Tab navigation Medic/Specialiști ✓ (#112)
 
-### PENDING — test on #111
-- Clinical summary appears in Dossier after finalization
-- Photo thumbnail shows correctly (not broken image)
-- In-chat voice AI understands correctly (customPrompt removed)
-- OTP button stays disabled after tap (permanent disable)
-- Activity panel dismisses by swipe/tap-outside (snap:false)
-- Peer left overlay shows black screen (fully opaque)
-- AI stops at 5 questions + delivers finalize prompt
-- AppBar shows generic title (patient name removed)
+### FIXED IN #113 — awaiting device test
+- Finalize spinner hangs (Fix #11 timeout + Fix #19 guard)
+- Activity panel won't dismiss (Fix #14 SurfaceView removal)
+- Peer-left overlay frozen (Fix #15 connection-state + objectFit)
+- Doctor UI wrong clinical summary (Fix #12 [AI]-line append)
+- Raw file paths in Doctor UI transcript (Fix #13 localized labels)
+- Appointment list not refreshing after save (Fix #16 _hasLoaded reset)
+- "Recent Health Status" EN in RO session (Fix #17 AppStrings routing)
+- Loading-state greeting mismatch (Fix #18 state-gated copy)
 
-### STILL OPEN — not yet fixed
-- Emergency 112 device test
-- Fine-tuned adapter deployment (base model + engineered prompt in use; adapter published on HuggingFace as artifact)
+### STILL OPEN — accepted for demo or post-hackathon
+- AI 5-question limit ignored by model — accepted; choreograph demo script around question 4–5
+- Doctor UI Unmute button cosmetically cut off — accepted; frame workaround in demo
+- Emergency 112 device test — still pending
 - Repo must go public before May 18
-- Demo video not recorded
+- Demo video not yet recorded
 - withOpacity→withValues migration pending CI upgrade
+- Fine-tuned adapter deployment — Path A1 blocked; litert-torch path post-hackathon
+- Login: Medplum CNP search at auth — post-hackathon
+- Tomorrow's Ion 10:00 demo appointment not yet seeded in Medplum
 
 ---
 
@@ -301,26 +319,35 @@ The fine-tuned adapter is a published artifact on HuggingFace (proof of work, cl
 ### Medplum
 
 - HTTP 200 confirmed on `/fhir/R4/metadata`
-- 5 patients + 5 conditions + 2 practitioners seeded
-- Client credentials: ID `c18b54d9-f511-46db-903e-882b47dc3c63` / Secret `7f86f3b5c08e94d711f61a4565c7d577cb303e78a5d57b5d340b74baf8c0b283`
+- 4 patients + 4 conditions + 9 practitioners (cleanup 2026-05-15)
+- **Default Client credentials (current):** ID `c18b54d9-f511-46db-903e-882b47dc3c63` / Secret `7f86f3b5c08e94d711f61a4565c7d577cb303e78a5d57b5d340b74baf8c0b283`
+  - Old credentials (d5d39070-... / TeleMed_K_Client_Secret_2026!) returned invalid_client — stale, do not use
+  - **FLAG for post-hackathon: rotate this secret**
 - **In-app credentials are dart-define** — not hardcoded in source (R1 fix)
 - GitHub Actions CI builds with empty credentials unless secrets are added
 
-**Rich test data (Ion Popescu, Maria Ionescu — patched to English):**
+**Current patient data (verified 2026-05-15):**
 
-Ion Popescu (Patient/118149bf-26e0-46e1-87de-7149e8066284)
+Ion Popescu (Patient/ba0c27f1-d943-4eda-9789-2a2a77ba3d13)
   CNP: 1490815150027 | OTP: 150027
-  Condition: Type 2 Diabetes (ID: 1b02b21e-e6ae-4723-961b-cecd4cb2085e)
-  Medications: 2 active
-  Appointments: 3 fulfilled (April 22) + booked
-  Observations: 6 (2 exam + 4 survey) — all categories correct
+  Condition: Diabet zaharat tip 2 | Medication: Metformin 1000mg
+  Appointments: 1 fulfilled (May 9) + 3 stale cancelled cleaned up; demo 10:00 NOT YET SEEDED
+  Observations: 2 (May 9 diabetes triage + April 18 neuropathy)
 
-Maria Ionescu (Patient/a0e44abc-acc5-442e-a316-be70192fc72b)
+Maria Ionescu (Patient/0c6daf94-7c53-499e-9c46-7d8e77e99b8f)
   CNP: 2540203150013 | OTP: 150013
-  Condition: Arterial Hypertension (ID: 36d3b343-a8e9-4b7b-bcfc-52dfe5c51073)
-  Medications: 2 active
-  Appointments: 3 fulfilled (April 22) + booked
-  Observations: 6 (3 exam + 3 survey) — all categories correct
+  Condition: Hipertensiune arterială | Medication: Amlodipină 5mg
+
+Elena Dumitrescu (Patient/f4fd5d5d-6553-4b44-9561-06119b0c8f04) — formerly "Sarah"
+  CNP: 2621105150032 | OTP: 150032
+  Condition: Hypertension | Medication: Amlodipine 5mg
+  Observations: 2 (May 8 arthritis + April 22 wrist pain)
+  Appointment: 1 fulfilled (May 8)
+
+George Constantin (Patient/b79e4919-ef7e-4c1a-9274-6869eafbe444)
+  CNP: 1551220150048 | OTP: 150048
+  Condition: Type 2 Diabetes | Medication: Metformin 1000mg
+  Appointment: upcoming 2598af45 (May 16 10:00)
 
 Binary storage: file:///var/medplum/storage (confirmed working)
 
@@ -330,15 +357,16 @@ Binary storage: file:///var/medplum/storage (confirmed working)
   https://telemed-bogheanu.ro/fhir/ext/session-category
 PATCH format confirmed: application/json-patch+json (not merge-patch — Medplum 5.1.10 rejects merge-patch with 400)
 
-### Demo Login Credentials
+### Demo Login Credentials (4 active patients, 2026-05-15 cleanup)
 
-| Patient | CNP | OTP |
-|---|---|---|
-| Maria Ionescu (72, Hipertensiune) | 2540203150013 | 150013 |
-| Ion Popescu (77, Diabet) | 1490815150027 | 150027 |
-| Elena Dumitrescu (63, Artrită) | 2621105150032 | 150032 |
-| Gheorghe Stan (70, Cord) | 1551220150048 | 150048 |
-| Ana Constantin (78, BPOC) | 2480430150058 | 150058 |
+| Patient | CNP | OTP | Lang |
+|---|---|---|---|
+| Maria Ionescu (Hipertensiune) | 2540203150013 | 150013 | RO |
+| Ion Popescu (Diabet zaharat tip 2) | 1490815150027 | 150027 | RO |
+| Elena Dumitrescu (Hypertension) | 2621105150032 | 150032 | EN |
+| George Constantin (Type 2 Diabetes) | 1551220150048 | 150048 | EN |
+
+Note: Gheorghe Stan (1551220150048) and Ana Constantin (2480430150058) removed from app (5th patient deleted in build #106). Local FHIR seed in FhirEngineChannel.kt has 4 patients. The 5th-patient local seed was cleared.
 
 ### Practitioner Roles (important — commonly confused)
 
@@ -393,27 +421,43 @@ PATCH format confirmed: application/json-patch+json (not merge-patch — Medplum
 
 ---
 
-## Next Actions (2026-05-15 — 3 days to deadline)
+## Next Actions (demo-day contingency — morning of May 18)
 
-**IMMEDIATE (before May 18):**
-1. Test #111 release APK — full regression checklist (voice/photo/finalize/dossier/video call)
-2. Fix anything #111 surfaces
-3. Make repo public on GitHub
-4. Create demo appointments in Medplum for filming date
-5. Record demo video (Maria RO story + Sarah EN story; doctor on laptop Brave)
-6. YouTube upload → Kaggle submission
-7. Deploy fine-tuned adapter (Path A3 — next session after testing complete)
+**Demo-day morning checklist (in order):**
+1. Install #113 APK from CI artifact on Pixel 9 Pro
+2. Login as Ion Popescu → verify Patient ID (Medplum write target = ba0c27f1-...); curl-seed Ion's 10:00 Appointment if confirmed
+3. Full regression: voice triage → finalize → Dossier → Doctor UI → video call (Brave laptop)
+4. Verify all #113 fixes: activity panel dismiss, peer-left black, finalize no spinner, Doctor UI clinical summary, Doctor UI video aspect, appointment refresh, language RO switches dossier date correctly
+5. Confirm Elena's Recent Activity shows 2 entries (May 8 + April 22)
+6. Make GitHub repo public
+7. Record demo video (Maria RO story + Elena EN story; doctor on Brave)
+8. YouTube upload → Kaggle submission
 
-## Medplum Patient Data (verified 2026-05-15)
+**Accepted limitations for demo:**
+- AI 5-question limit not enforced by model — choreograph script to finalize naturally at question 4–5
+- RO model quality (base without adapter) — multiple takes acceptable
+- Doctor UI Unmute cosmetically cut off — frame around it or zoom
+
+## Medplum Patient Data (verified 2026-05-15, post-cleanup)
 
 | Patient | CNP | Medplum ID | Lang | Condition | Medication |
 |---|---|---|---|---|---|
 | Maria Ionescu | 2540203150013 | 0c6daf94-7c53-499e-9c46-7d8e77e99b8f | RO | Hipertensiune arterială | Amlodipină 5mg |
 | Ion Popescu | 1490815150027 | ba0c27f1-d943-4eda-9789-2a2a77ba3d13 | RO | Diabet zaharat tip 2 | Metformin 1000mg |
-| Sarah Dumitrescu | 2621105150032 | f4fd5d5d-6553-4b44-9561-06119b0c8f04 | EN | Hypertension | Amlodipine 5mg |
+| Elena Dumitrescu | 2621105150032 | f4fd5d5d-6553-4b44-9561-06119b0c8f04 | EN | Hypertension | Amlodipine 5mg |
 | George Constantin | 1551220150048 | b79e4919-ef7e-4c1a-9274-6869eafbe444 | EN | Type 2 Diabetes | Metformin 1000mg |
 
-Duplicate patients cleaned up. Only 1 patient per CNP. Appointments: each patient has upcoming + 2 past fulfilled. George's upcoming: 2598af45 (May 16 10:00).
+Cleanup (2026-05-15): old duplicate records a0e44abc, 510b8c93, 118149bf, 6955bb14 deleted; Sarah renamed to Elena; 7 orphan Appointments referencing deleted records deleted; 3 stale booked Appointments for Ion cancelled.
+
+Observations seeded 2026-05-15:
+- Ion: 2 Observations (May 9 diabetes triage, April 18 neuropathy concern) + 1 fulfilled Appointment (May 9)
+- Elena: 2 Observations (May 8 arthritis, April 22 wrist pain) + 1 fulfilled Appointment (May 8)
+
+Appointments:
+- Maria: upcoming TBD + 2 past fulfilled
+- Ion: upcoming demo Appointment (10:00 May 18) NOT YET SEEDED — pending Patient ID re-verify; cancel ion's cancelled appointments cleaned up
+- Elena: upcoming TBD + fulfilled May 8
+- George: upcoming 2598af45 (May 16 10:00) + 2 past fulfilled
 
 ## Doctor UI Credential Injection
 

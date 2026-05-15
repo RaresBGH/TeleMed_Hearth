@@ -387,20 +387,46 @@ class FhirRepository {
     }
   }
 
-  /// Returns Communication resources for [cnp] from Medplum, newest first.
-  /// [since] filters to messages sent on or after that date (7-day window by default).
+  /// Returns Communication resources for [cnp] from Medplum, ascending by sent.
+  /// [since] filters by sent timestamp. [aboutReference] filters by about field.
   /// Medplum-only — no local FHIR SDK fallback (Communications are cloud-only).
-  Future<List<Map<String, dynamic>>> getCommunications({required String cnp, DateTime? since}) async {
+  Future<List<Map<String, dynamic>>> getCommunications({
+    required String cnp,
+    DateTime? since,
+    String? aboutReference,
+  }) async {
     if (_medplum == null) return [];
     try {
       final patient = await _medplum.getPatientByCnp(cnp);
       final patientId = patient?['id'] as String?;
       if (patientId == null) return [];
-      return await _medplum.getCommunications(patientId, since: since);
+      return await _medplum.getCommunications(patientId, since: since, aboutReference: aboutReference);
     } catch (e) {
       debugPrint('FhirRepository.getCommunications error: $e');
       return [];
     }
+  }
+
+  /// Saves a Communication resource to Medplum. Medplum-only, fire-and-forget.
+  Future<void> saveCommunication({
+    required String patientCnp,
+    String? observationId,
+    String? appointmentId,
+    required String text,
+    required bool isPatient,
+    required DateTime timestamp,
+    String? practitionerId,
+  }) async {
+    if (_medplum == null) return;
+    await _medplum.saveCommunication(
+      patientCnp: patientCnp,
+      observationId: observationId,
+      appointmentId: appointmentId,
+      text: text,
+      isPatient: isPatient,
+      timestamp: timestamp,
+      practitionerId: practitionerId,
+    );
   }
 
   Future<void> updateEncounterConsent(String callId) async {

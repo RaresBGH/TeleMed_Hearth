@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ro">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>TeleMed Hearth — Doctor Interface</title>
+<title>TeleMed Hearth — Interfață Medic</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -13,6 +13,33 @@
     min-height: 100dvh;
     overflow-x: hidden;
   }
+
+  /* ── LANGUAGE TOGGLE ─────────────────────────────────────── */
+  #langToggle {
+    position: fixed;
+    top: 14px; right: 16px;
+    z-index: 300;
+    display: flex;
+    background: #fff;
+    border-radius: 20px;
+    border: 1.5px solid #5BA4CF;
+    overflow: hidden;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.10);
+  }
+  #langToggle.hidden { display: none; }
+  #langToggle button {
+    padding: 5px 13px;
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    color: #5BA4CF;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    transition: background 0.15s, color 0.15s;
+  }
+  #langToggle button.active { background: #5BA4CF; color: #fff; }
+  #langToggle button:hover:not(.active) { background: #eaf2f9; }
 
   /* ── SIDE PANEL ───────────────────────────────────────────── */
   #sidePanel {
@@ -41,24 +68,15 @@
   #panelTitle { font-size: 15px; font-weight: 700; color: #1a1c1c; flex: 1; }
   #backToListBtn { background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 700; color: #5BA4CF; padding: 4px 8px 4px 0; border-radius: 6px; white-space: nowrap; flex-shrink: 0; }
   #backToListBtn:hover { color: #3a82aa; }
-  #panelCloseBtn {
-    background: none; border: none; cursor: pointer;
-    font-size: 20px; color: #40484e; padding: 4px; line-height: 1;
-  }
+  #panelCloseBtn { background: none; border: none; cursor: pointer; font-size: 20px; color: #40484e; padding: 4px; line-height: 1; }
   #panelCloseBtn:hover { color: #1a1c1c; }
 
-  #panelContent {
-    flex: 1; overflow: hidden;
-    display: flex; flex-direction: column;
-  }
+  #panelContent { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 
-  .panel-state {
-    display: none; flex: 1;
-    flex-direction: column; overflow: hidden;
-  }
+  .panel-state { display: none; flex: 1; flex-direction: column; overflow: hidden; }
   .panel-state.active { display: flex; }
 
-  /* ── CHAT STRIPE (outside call only) ────────────────────── */
+  /* ── CHAT STRIPE ─────────────────────────────────────────── */
   #chatStripeBtn {
     position: fixed;
     top: 50%; right: 0;
@@ -69,8 +87,6 @@
     cursor: pointer; z-index: 201;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    /* Use transform (not right) for the open/close animation so the visual
-       position and Safari's hit-test rectangle stay in sync. */
     transition: transform 0.28s cubic-bezier(0.4,0,0.2,1), background 0.15s;
     box-shadow: -2px 0 8px rgba(0,0,0,0.15);
     font-size: 11px; font-weight: 700;
@@ -79,72 +95,38 @@
     touch-action: manipulation;
   }
   #chatStripeBtn:hover { background: #3a82aa; }
-  /* panel-open shifts the stripe left by the panel width using translateX
-     so both axes are in the same transform — no right-property animation. */
   #chatStripeBtn.panel-open { transform: translateX(-360px) translateY(-50%); }
   #chatStripeBtn.hidden { display: none; }
   @media (max-width: 1023px) { #chatStripeBtn.panel-open { transform: translateX(-300px) translateY(-50%); } }
   @media (max-width: 767px)  { #chatStripeBtn.panel-open { transform: translateX(-100vw) translateY(-50%); } }
 
   /* ── MAIN CONTENT ────────────────────────────────────────── */
-  #mainContent {
-    width: 100%; min-height: 100dvh;
-    transition: padding-right 0.28s cubic-bezier(0.4,0,0.2,1);
-  }
-  @media (min-width: 1024px) {
-    #mainContent.panel-open { padding-right: 360px; }
-  }
+  #mainContent { width: 100%; min-height: 100dvh; transition: padding-right 0.28s cubic-bezier(0.4,0,0.2,1); }
+  @media (min-width: 1024px) { #mainContent.panel-open { padding-right: 360px; } }
 
   /* ── JOIN SCREEN ─────────────────────────────────────────── */
-  #joinScreen {
-    display: flex; align-items: flex-start;
-    justify-content: center;
-    min-height: 100dvh; padding: 32px 24px;
-  }
-  .card {
-    background: #fff; border-radius: 12px;
-    padding: 32px 28px; width: 100%; max-width: 540px;
-    box-shadow: 0 4px 40px rgba(26,28,28,0.08);
-  }
+  #joinScreen { display: flex; align-items: flex-start; justify-content: center; min-height: 100dvh; padding: 32px 24px; }
+  .card { background: #fff; border-radius: 12px; padding: 32px 28px; width: 100%; max-width: 540px; box-shadow: 0 4px 40px rgba(26,28,28,0.08); }
   .card-title { font-size: 22px; font-weight: 700; color: #1a1c1c; margin-bottom: 4px; }
   .card-subtitle { font-size: 15px; color: #40484e; margin-bottom: 24px; }
   .field-label { font-size: 13px; color: #40484e; font-weight: 600; margin-bottom: 8px; display: block; }
-  select {
-    width: 100%; height: 48px; font-size: 15px;
-    border: 2px solid #5BA4CF; border-radius: 8px;
-    padding: 0 12px; background: #f9f9f9; color: #1a1c1c;
-    outline: none; cursor: pointer; margin-bottom: 16px;
-  }
+  select { width: 100%; height: 48px; font-size: 15px; border: 2px solid #5BA4CF; border-radius: 8px; padding: 0 12px; background: #f9f9f9; color: #1a1c1c; outline: none; cursor: pointer; margin-bottom: 16px; }
   select:focus { border-color: #3a82aa; background: #fff; }
   #todayDate { font-size: 13px; font-weight: 600; color: #5BA4CF; margin-bottom: 20px; letter-spacing: 0.02em; }
   .section-label { font-size: 12px; font-weight: 700; color: #40484e; letter-spacing: 0.06em; margin-bottom: 10px; }
-  .appt-card {
-    background: #f3f3f3; border-radius: 10px;
-    padding: 14px 16px; margin-bottom: 10px;
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  }
+  .appt-card { background: #f3f3f3; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .appt-patient { font-weight: 700; font-size: 15px; color: #1a1c1c; }
   .appt-time { font-size: 13px; color: #40484e; margin-top: 2px; }
   .appt-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
-  .join-btn {
-    background: #5BA4CF; color: #fff; border: none; border-radius: 8px;
-    padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background 0.15s;
-  }
+  .join-btn { background: #5BA4CF; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
   .join-btn:hover:not(:disabled) { background: #3a82aa; }
   .join-btn:disabled { background: #c4c4c4; color: #888; cursor: not-allowed; }
-  .view-report-btn {
-    background: none; border: 1.5px solid #5BA4CF; color: #5BA4CF;
-    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
-  }
+  .view-report-btn { background: none; border: 1.5px solid #5BA4CF; color: #5BA4CF; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
   .view-report-btn:hover { background: #eaf2f9; }
   .empty-state { font-size: 14px; color: #40484e; padding: 16px 0; text-align: center; }
   details { margin-top: 24px; border-top: 1px solid #e8e8e8; padding-top: 16px; }
   summary { cursor: pointer; font-size: 13px; color: #40484e; font-weight: 600; margin-bottom: 12px; }
-  #appointmentInput {
-    width: 100%; height: 48px; font-size: 15px;
-    border: 2px solid #5BA4CF; border-radius: 8px;
-    padding: 0 12px; outline: none; background: #f9f9f9; color: #1a1c1c; margin-bottom: 10px;
-  }
+  #appointmentInput { width: 100%; height: 48px; font-size: 15px; border: 2px solid #5BA4CF; border-radius: 8px; padding: 0 12px; outline: none; background: #f9f9f9; color: #1a1c1c; margin-bottom: 10px; }
   #appointmentInput:focus { border-color: #3a82aa; background: #fff; }
   #joinBtn { width: 100%; height: 52px; background: #5BA4CF; color: #fff; font-size: 16px; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
   #joinBtn:hover { background: #3a82aa; }
@@ -174,9 +156,6 @@
 
   /* ── PANEL: PATIENT REPORT STATE ────────────────────────── */
   #stateReport { overflow-y: auto; }
-  #reportTopBtn { padding: 10px 16px 0; }
-  #reportTopBtn button { width: 100%; padding: 8px 12px; background: none; border: 1.5px solid #5BA4CF; color: #5BA4CF; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
-  #reportTopBtn button:hover { background: #eaf2f9; }
   #reportInner { padding: 16px; }
   #reportPatientName { font-size: 18px; font-weight: 700; color: #1a1c1c; margin-bottom: 4px; }
   #reportPatientMeta { font-size: 13px; color: #40484e; margin-bottom: 12px; }
@@ -185,7 +164,7 @@
   .observation-entry { background: #f3f3f3; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; font-size: 13px; color: #1a1c1c; line-height: 1.5; }
   .observation-entry.reviewed { opacity: 0.6; border-left: 3px solid #c4c4c4; padding-left: 10px; }
   .observation-date { font-size: 11px; color: #40484e; margin-top: 4px; }
-  .btn-mark-reviewed { width: 100%; margin-top: 8px; padding: 8px; background: #f3f3f3; color: #1a1c1c; border: 1px solid #d0d0d0; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .btn-mark-reviewed { flex: 1; margin-top: 0; padding: 7px; background: #f3f3f3; color: #1a1c1c; border: 1px solid #d0d0d0; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
   .btn-mark-reviewed:hover { background: #e0e0e0; }
   .btn-finalize { width: 100%; padding: 12px; margin-top: 16px; background: #5BA4CF; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
   .btn-finalize:hover:not(:disabled) { background: #3a82aa; }
@@ -199,69 +178,65 @@
   .conv-bubble-patient { background: #E8F4FC; border-radius: 8px; padding: 5px 10px; margin: 3px 0 3px 30px; font-size: 12px; color: #1a1c1c; text-align: right; }
   .conv-bubble-doctor  { background: #E8F7EE; border-radius: 8px; padding: 5px 10px; margin: 3px 30px 3px 0; font-size: 12px; color: #1a6a3a; }
 
-  /* ── PANEL: CHAT STATE (async Medplum) ───────────────────── */
-  #stateChat { display: none; flex: 1; flex-direction: column; overflow: hidden; }
-  #stateChat.active { display: flex; }
-  #chatToReportBtn { padding: 10px 16px 0; flex-shrink: 0; }
-  #chatToReportBtn button { width: 100%; padding: 8px 12px; background: none; border: 1.5px solid #5BA4CF; color: #5BA4CF; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
-  #chatToReportBtn button:hover { background: #eaf2f9; }
-  #asyncChatPatientHeader { padding: 8px 16px 4px; font-size: 13px; font-weight: 600; color: #40484e; flex-shrink: 0; border-bottom: 1px solid #f0f0f0; }
-  #asyncChatMessages { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
-  .async-msg { max-width: 85%; padding: 8px 12px; border-radius: 10px; font-size: 14px; line-height: 1.5; }
+  /* ── OBS-LEVEL ACTION ROW ────────────────────────────────── */
+  .obs-actions-row { display: flex; gap: 6px; margin-top: 8px; }
+  .btn-add-note { flex: 1; padding: 7px; background: none; border: 1.5px solid #5BA4CF; color: #5BA4CF; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; }
+  .btn-add-note:hover { background: #eaf2f9; }
+
+  /* ── OBS-LEVEL CHAT SECTION ──────────────────────────────── */
+  .obs-chat-section { display: none; flex-direction: column; margin-top: 10px; border: 1px solid #d4e9f7; border-radius: 8px; background: #fafcff; overflow: hidden; }
+  .obs-chat-header { font-size: 11px; font-weight: 700; color: #40484e; letter-spacing: 0.06em; text-transform: uppercase; padding: 7px 12px 6px; border-bottom: 1px solid #e0eff8; background: #eaf2f9; }
+  .obs-chat-messages { padding: 8px 12px; display: flex; flex-direction: column; gap: 5px; max-height: 260px; overflow-y: auto; }
+  .obs-chat-transcript-block { background: #f3f3f3; border-radius: 6px; padding: 6px 8px; margin-bottom: 4px; font-size: 11px; color: #40484e; }
+  .obs-chat-separator { height: 1px; background: #d4e9f7; margin: 6px 0; }
+  .obs-chat-input-row { display: flex; gap: 6px; padding: 8px 12px; border-top: 1px solid #d4e9f7; background: #f0f7fd; flex-shrink: 0; }
+  .obs-chat-input { flex: 1; height: 34px; border: 1.5px solid #c0d8ec; border-radius: 6px; padding: 0 10px; font-size: 13px; outline: none; background: #fff; color: #1a1c1c; }
+  .obs-chat-input:focus { border-color: #5BA4CF; }
+  .obs-chat-send-btn { height: 34px; padding: 0 14px; background: #5BA4CF; color: #fff; border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .obs-chat-send-btn:hover { background: #3a82aa; }
+  .obs-chat-send-btn:disabled { background: #c4c4c4; cursor: not-allowed; }
+
+  /* ── SHARED BUBBLE STYLES (obs chat + legacy) ─────────────── */
+  .async-msg { max-width: 90%; padding: 7px 11px; border-radius: 10px; font-size: 13px; line-height: 1.45; }
   .async-msg.doctor { background: #E8F4FC; align-self: flex-end; color: #1a1c1c; }
-  .async-msg.patient { background: #f3f3f3; align-self: flex-start; color: #1a1c1c; }
-  .async-msg-label { font-size: 11px; font-weight: 700; margin-bottom: 3px; }
+  .async-msg.patient { background: #f0f0f0; align-self: flex-start; color: #1a1c1c; }
+  .async-msg-label { font-size: 10px; font-weight: 700; margin-bottom: 2px; }
   .async-msg.doctor .async-msg-label { color: #5BA4CF; }
   .async-msg.patient .async-msg-label { color: #40484e; }
-  #asyncChatInputRow { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #e8e8e8; background: #f9f9f9; flex-shrink: 0; }
-  #asyncChatInput { flex: 1; height: 40px; border: 1.5px solid #d0d0d0; border-radius: 8px; padding: 0 12px; font-size: 14px; outline: none; background: #fff; color: #1a1c1c; }
-  #asyncChatInput:focus { border-color: #5BA4CF; }
-  #asyncChatSendBtn { height: 40px; padding: 0 16px; background: #5BA4CF; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
-  #asyncChatSendBtn:hover { background: #3a82aa; }
-  .chat-empty { font-size: 14px; color: #40484e; font-style: italic; padding: 16px; text-align: center; }
+  .chat-empty { font-size: 13px; color: #40484e; font-style: italic; padding: 8px 0; text-align: center; }
 </style>
 </head>
 <body>
 
+<!-- ── LANGUAGE TOGGLE ────────────────────────────────────── -->
+<div id="langToggle">
+  <button id="langRO">RO</button>
+  <button id="langEN">EN</button>
+</div>
+
 <!-- ── SIDE PANEL ─────────────────────────────────────────── -->
 <div id="sidePanel">
   <div id="panelHeader">
-    <button id="backToListBtn" style="display:none;" onclick="backToAppointmentList()">← Appts</button>
-    <span id="panelTitle">Patient Report</span>
-    <button id="panelCloseBtn" title="Close panel">✕</button>
+    <button id="backToListBtn" style="display:none;" onclick="backToAppointmentList()"></button>
+    <span id="panelTitle"></span>
+    <button id="panelCloseBtn">✕</button>
   </div>
   <div id="panelContent">
-
-    <!-- State 1: Patient Triage Report -->
+    <!-- Patient Triage Report (only panel state) -->
     <div id="stateReport" class="panel-state">
-      <div id="reportTopBtn"></div>
       <div id="reportInner">
-        <div id="reportPatientName">Patient</div>
+        <div id="reportPatientName"></div>
         <div id="reportPatientMeta"></div>
         <div id="reportConditions"></div>
         <div id="reportObservations"></div>
         <div id="reportActions"></div>
       </div>
     </div>
-
-    <!-- State 2: Async Chat via Medplum Communications -->
-    <div id="stateChat" class="panel-state">
-      <div id="chatToReportBtn">
-        <button onclick="showPanelState('report')">← Patient Report</button>
-      </div>
-      <div id="asyncChatPatientHeader">Select a patient to start chatting</div>
-      <div id="asyncChatMessages"></div>
-      <div id="asyncChatInputRow">
-        <input id="asyncChatInput" type="text" placeholder="Type a message..." />
-        <button id="asyncChatSendBtn">Send</button>
-      </div>
-    </div>
-
   </div>
 </div>
 
-<!-- ── CHAT STRIPE (outside call — opens async chat) ─────── -->
-<button id="chatStripeBtn" title="Open chat">Chat</button>
+<!-- ── REPORT STRIPE (opens Patient Report panel) ────────── -->
+<button id="chatStripeBtn" title=""></button>
 
 <!-- ── MAIN CONTENT ──────────────────────────────────────── -->
 <div id="mainContent">
@@ -269,24 +244,21 @@
   <!-- JOIN SCREEN -->
   <div id="joinScreen">
     <div class="card">
-      <p class="card-title">TeleMed Hearth — Doctor Interface</p>
-      <p class="card-subtitle">Video consultation management</p>
+      <p class="card-title" id="cardTitle"></p>
+      <p class="card-subtitle" id="cardSubtitle"></p>
 
-      <label class="field-label" for="doctorSelect">Select doctor:</label>
+      <label class="field-label" for="doctorSelect" id="selectDoctorLabel"></label>
       <select id="doctorSelect"></select>
 
       <p id="todayDate"></p>
-
-      <div id="appointmentsList">
-        <p class="empty-state">Loading today's appointments...</p>
-      </div>
+      <div id="appointmentsList"></div>
 
       <details>
-        <summary>Or enter appointment code manually</summary>
+        <summary id="orEnterManuallyLabel"></summary>
         <div style="margin-top:12px;">
-          <label class="field-label" for="appointmentInput">Appointment code</label>
-          <input id="appointmentInput" type="text" placeholder="e.g. appt-12345" autocomplete="off" />
-          <button id="joinBtn">Join</button>
+          <label class="field-label" for="appointmentInput" id="apptCodeLabel"></label>
+          <input id="appointmentInput" type="text" autocomplete="off" />
+          <button id="joinBtn"></button>
         </div>
       </details>
       <p id="statusText"></p>
@@ -297,24 +269,23 @@
   <div id="callScreen">
     <video id="remoteVideo" autoplay playsinline></video>
     <video id="localVideo"  autoplay playsinline muted></video>
-    <div id="callStatus">Waiting for patient...</div>
-
+    <div id="callStatus"></div>
     <div id="controlBar">
       <button class="ctrl-btn" id="muteBtn">
         <div class="ctrl-circle">🎤</div>
-        <span class="ctrl-label">Mute</span>
+        <span class="ctrl-label" id="muteBtnLabel"></span>
       </button>
       <button class="ctrl-btn" id="endBtn">
         <div class="ctrl-circle">■</div>
-        <span class="ctrl-label">End call</span>
+        <span class="ctrl-label" id="endBtnLabel"></span>
       </button>
       <button class="ctrl-btn" id="cameraBtn">
         <div class="ctrl-circle">📷</div>
-        <span class="ctrl-label">Stop video</span>
+        <span class="ctrl-label" id="cameraBtnLabel"></span>
       </button>
       <button class="ctrl-btn" id="panelBtn">
         <div class="ctrl-circle">📋</div>
-        <span class="ctrl-label">Report</span>
+        <span class="ctrl-label" id="panelBtnLabel"></span>
       </button>
     </div>
   </div>
@@ -323,98 +294,292 @@
 
 <!-- ── PEER LEFT OVERLAY ───────────────────────────────── -->
 <div id="peerLeftOverlay">
-  <p>The patient has left the call.</p>
-  <button id="peerLeftEndBtn">End Call</button>
+  <p id="peerLeftMsg"></p>
+  <button id="peerLeftEndBtn"></button>
 </div>
 
 <script>
+  // ── i18n ──────────────────────────────────────────────────────────────────────
+  const STRINGS = {
+    en: {
+      pageTitle:          'TeleMed Hearth — Doctor Interface',
+      cardTitle:          'TeleMed Hearth — Doctor Interface',
+      cardSubtitle:       'Video consultation management',
+      selectDoctor:       'Select doctor:',
+      loadingAppts:       "Loading today's appointments...",
+      orEnterManually:    'Or enter appointment code manually',
+      apptCode:           'Appointment code',
+      apptPlaceholder:    'e.g. appt-12345',
+      joinBtn:            'Join',
+      todaysAppts:        "TODAY'S APPOINTMENTS",
+      appointmentsFor:    'Appointments for: {date}',
+      noApptsToday:       'No appointments for today.',
+      authErrAppts:       'Could not load appointments (auth error).',
+      errLoadAppts:       'Error loading appointments. Use manual code below.',
+      joinConsultation:   'Join consultation',
+      viewReport:         'View report',
+      waitingForPatient:  'Waiting for patient...',
+      mute:               'Mute',
+      unmute:             'Unmute',
+      endCall:            'End call',
+      stopVideo:          'Stop video',
+      startVideo:         'Start video',
+      report:             'Report',
+      inConsultation:     'In consultation',
+      connectingCall:     'Patient connected — establishing call...',
+      connecting:         'Connecting...',
+      enterApptCode:      'Enter an appointment code.',
+      signalingError:     'Signaling connection error.',
+      peerLeft:           'The patient has left the call.',
+      endCallBtn:         'End Call',
+      panelTitleReport:   'Patient Report',
+      backToAppts:        '← Appts',
+      loadingClinical:    'Loading clinical data...',
+      authErrClinical:    'Auth error — cannot load data.',
+      errLoadClinical:    'Error loading clinical data.',
+      activeConditions:   'Active Conditions',
+      triageObs:          'Triage Observations',
+      noObs:              'No observations recorded.',
+      clinicalSummary:    'Clinical Summary',
+      reviewed:           'Reviewed',
+      assignedTo:         'Assigned to: {name}',
+      recordedBy:         'Recorded by: {name}',
+      showConv:           'Show conversation ▼',
+      hideConv:           'Hide conversation ▲',
+      markReviewed:       'Mark as reviewed',
+      marking:            'Marking...',
+      reviewedDone:       'Reviewed ✓',
+      finalizeReport:     'Finalize consultation report',
+      finalizing:         'Finalizing...',
+      reportFinalized:    'Report finalized ✓',
+      unknownCondition:   'Unknown',
+      dobLabel:           'DOB: {date}',
+      addNote:            'Add note',
+      closeNote:          'Close note',
+      transcriptLabel:    'Transcript',
+      noMessages:         'No messages yet.',
+      chatPlaceholder:    'Type a message...',
+      send:               'Send',
+      bubbleDoctor:       'Doctor',
+      bubblePatient:      'Patient',
+      errLoadChat:        'Error loading messages: {error}',
+      alertSelectPatient: 'Please select a patient first.',
+      alertNotAuth:       'Not authenticated',
+      alertSendFailed:    'Send failed: {error}',
+      alertNotConfigured: 'Doctor UI not configured. Contact admin.',
+      alertPdfUploaded:   '📄 {name} uploaded successfully.',
+      alertPdfFailed:     'Failed to upload PDF: {error}',
+      patientFallback:    'Patient',
+      specialtyFamily:    'Family Doctor',
+      specialtyPeds:      'Pediatrics',
+      specialtyCardio:    'Cardiology',
+      specialtyNeuro:     'Neurology',
+      specialtyDerm:      'Dermatology',
+      specialtyOrtho:     'Orthopedics',
+      specialtyOphtho:    'Ophthalmology',
+      specialtyPsych:     'Psychiatry',
+      specialtyGyne:      'Gynecology',
+    },
+    ro: {
+      pageTitle:          'TeleMed Hearth — Interfață Medic',
+      cardTitle:          'TeleMed Hearth — Interfață Medic',
+      cardSubtitle:       'Gestionarea consultațiilor video',
+      selectDoctor:       'Selectați medicul:',
+      loadingAppts:       'Se încarcă programările de astăzi...',
+      orEnterManually:    'Sau introduceți manual codul programării',
+      apptCode:           'Cod programare',
+      apptPlaceholder:    'ex. appt-12345',
+      joinBtn:            'Conectare',
+      todaysAppts:        'PROGRAMĂRILE DE ASTĂZI',
+      appointmentsFor:    'Programări pentru: {date}',
+      noApptsToday:       'Nicio programare pentru astăzi.',
+      authErrAppts:       'Nu s-au putut încărca programările (eroare autentificare).',
+      errLoadAppts:       'Eroare la încărcarea programărilor. Folosiți codul manual de mai jos.',
+      joinConsultation:   'Intră în consultație',
+      viewReport:         'Vezi raportul',
+      waitingForPatient:  'Se așteaptă pacientul...',
+      mute:               'Dezactivează micro',
+      unmute:             'Activează micro',
+      endCall:            'Închide apelul',
+      stopVideo:          'Oprește video',
+      startVideo:         'Pornește video',
+      report:             'Raport',
+      inConsultation:     'În consultație',
+      connectingCall:     'Pacient conectat — se stabilește apelul...',
+      connecting:         'Se conectează...',
+      enterApptCode:      'Introduceți un cod de programare.',
+      signalingError:     'Eroare de conexiune la server.',
+      peerLeft:           'Pacientul a părăsit apelul.',
+      endCallBtn:         'Închide apelul',
+      panelTitleReport:   'Raport Pacient',
+      backToAppts:        '← Programări',
+      loadingClinical:    'Se încarcă datele clinice...',
+      authErrClinical:    'Eroare autentificare — datele nu pot fi încărcate.',
+      errLoadClinical:    'Eroare la încărcarea datelor clinice.',
+      activeConditions:   'Afecțiuni Active',
+      triageObs:          'Observații Triaj',
+      noObs:              'Nicio observație înregistrată.',
+      clinicalSummary:    'Rezumat Clinic',
+      reviewed:           'Revizuit',
+      assignedTo:         'Atribuit: {name}',
+      recordedBy:         'Înregistrat de: {name}',
+      showConv:           'Afișează conversația ▼',
+      hideConv:           'Ascunde conversația ▲',
+      markReviewed:       'Marchează ca revizuit',
+      marking:            'Se procesează...',
+      reviewedDone:       'Revizuit ✓',
+      finalizeReport:     'Finalizează raportul de consultație',
+      finalizing:         'Se finalizează...',
+      reportFinalized:    'Raport finalizat ✓',
+      unknownCondition:   'Necunoscut',
+      dobLabel:           'Data nașterii: {date}',
+      addNote:            'Adaugă o notă',
+      closeNote:          'Închide nota',
+      transcriptLabel:    'Transcript',
+      noMessages:         'Niciun mesaj încă.',
+      chatPlaceholder:    'Scrieți un mesaj...',
+      send:               'Trimite',
+      bubbleDoctor:       'Medic',
+      bubblePatient:      'Pacient',
+      errLoadChat:        'Eroare la încărcarea mesajelor: {error}',
+      alertSelectPatient: 'Selectați mai întâi un pacient.',
+      alertNotAuth:       'Neautentificat',
+      alertSendFailed:    'Trimitere eșuată: {error}',
+      alertNotConfigured: 'Interfața medicului nu este configurată. Contactați administratorul.',
+      alertPdfUploaded:   '📄 {name} încărcat cu succes.',
+      alertPdfFailed:     'Eroare la încărcarea PDF-ului: {error}',
+      patientFallback:    'Pacient',
+      specialtyFamily:    'Medic de Familie',
+      specialtyPeds:      'Pediatrie',
+      specialtyCardio:    'Cardiologie',
+      specialtyNeuro:     'Neurologie',
+      specialtyDerm:      'Dermatologie',
+      specialtyOrtho:     'Ortopedie',
+      specialtyOphtho:    'Oftalmologie',
+      specialtyPsych:     'Psihiatrie',
+      specialtyGyne:      'Ginecologie',
+    }
+  };
+
+  let currentLang = localStorage.getItem('doctorUiLang') || 'ro';
+
+  function t(key, vars) {
+    let s = (STRINGS[currentLang] && STRINGS[currentLang][key]) ??
+            (STRINGS.en[key]) ??
+            key;
+    if (vars) Object.entries(vars).forEach(([k, v]) => { s = s.replace('{' + k + '}', v); });
+    return s;
+  }
+
+  function applyStrings() {
+    document.documentElement.lang = currentLang;
+    document.title = t('pageTitle');
+    document.getElementById('langRO').classList.toggle('active', currentLang === 'ro');
+    document.getElementById('langEN').classList.toggle('active', currentLang === 'en');
+    document.getElementById('cardTitle').textContent           = t('cardTitle');
+    document.getElementById('cardSubtitle').textContent        = t('cardSubtitle');
+    document.getElementById('selectDoctorLabel').textContent   = t('selectDoctor');
+    document.getElementById('orEnterManuallyLabel').textContent = t('orEnterManually');
+    document.getElementById('apptCodeLabel').textContent       = t('apptCode');
+    document.getElementById('appointmentInput').placeholder    = t('apptPlaceholder');
+    document.getElementById('joinBtn').textContent             = t('joinBtn');
+    document.getElementById('muteBtnLabel').textContent        = isMuted ? t('unmute') : t('mute');
+    document.getElementById('endBtnLabel').textContent         = t('endCall');
+    document.getElementById('cameraBtnLabel').textContent      = isCameraOff ? t('startVideo') : t('stopVideo');
+    document.getElementById('panelBtnLabel').textContent       = t('report');
+    document.getElementById('peerLeftMsg').textContent         = t('peerLeft');
+    document.getElementById('peerLeftEndBtn').textContent      = t('endCallBtn');
+    document.getElementById('backToListBtn').textContent       = t('backToAppts');
+    document.getElementById('chatStripeBtn').textContent       = t('report');
+    document.getElementById('panelTitle').textContent          = t('panelTitleReport');
+  }
+
+  // ── Config ────────────────────────────────────────────────────────────────────
   const SIGNALING_URL = 'wss://telemed-signal.duckdns.org';
   const MEDPLUM_BASE  = 'https://telemed-medplum.duckdns.org';
-  // CREDENTIALS: populated at deploy time.
-  // Never commit real values to this file.
   const CLIENT_ID     = ''; // injected at deploy time
   const CLIENT_SECRET = ''; // injected at deploy time
   const TURN_PASSWORD = ''; // injected at deploy time
   const TURN_USERNAME = ''; // injected at deploy time
   const ICE_SERVERS   = [
     { urls: 'stun:stun.l.google.com:19302' },
-    // TODO: Replace hardcoded IP with a DNS name when GCP VM gets a stable hostname.
     { urls: 'turn:34.185.191.34:3478', username: TURN_USERNAME, credential: TURN_PASSWORD }
   ];
   const DOCTORS = [
-    { name: 'Dr. Elena Ionescu',     specialty: 'Family Doctor',  id: '733e1972-b42d-4bd0-82c7-66db72b2d311' },
-    { name: 'Dr. Andrei Popescu',    specialty: 'Pediatrics',     id: '474f526b-7919-48dd-9528-3c0eaff80cb6' },
-    { name: 'Dr. Ioan Petrescu',     specialty: 'Cardiology',     id: '89b433f1-6c1d-41c3-bba8-f0e62011f86d' },
-    { name: 'Dr. Mihai Dumitrescu',  specialty: 'Neurology',      id: '1eb50655-492c-4e65-9e9c-3c4c52592ca4' },
-    { name: 'Dr. Cristina Florescu', specialty: 'Dermatology',    id: 'da372669-0950-4e0c-8e1a-cc24f667b3df' },
-    { name: 'Dr. Radu Constantin',   specialty: 'Orthopedics',    id: '7cd1e41c-c484-4873-8d1d-22ec6af86e51' },
-    { name: 'Dr. Anca Muresan',      specialty: 'Ophthalmology',  id: '45965f71-a4e1-43cc-a0f9-532fc84b9e24' },
-    { name: 'Dr. Sorin Nistor',      specialty: 'Psychiatry',     id: '94fcc35d-7fcd-4773-ab0f-5f5974435762' },
-    { name: 'Dr. Luminita Gheorghe', specialty: 'Gynecology',     id: 'c9e9b208-ace2-4b87-b8ea-0c366b194b80' },
+    { name: 'Dr. Elena Ionescu',     specialtyKey: 'specialtyFamily',  id: '733e1972-b42d-4bd0-82c7-66db72b2d311' },
+    { name: 'Dr. Andrei Popescu',    specialtyKey: 'specialtyPeds',    id: '474f526b-7919-48dd-9528-3c0eaff80cb6' },
+    { name: 'Dr. Ioan Petrescu',     specialtyKey: 'specialtyCardio',  id: '89b433f1-6c1d-41c3-bba8-f0e62011f86d' },
+    { name: 'Dr. Mihai Dumitrescu',  specialtyKey: 'specialtyNeuro',   id: '1eb50655-492c-4e65-9e9c-3c4c52592ca4' },
+    { name: 'Dr. Cristina Florescu', specialtyKey: 'specialtyDerm',    id: 'da372669-0950-4e0c-8e1a-cc24f667b3df' },
+    { name: 'Dr. Radu Constantin',   specialtyKey: 'specialtyOrtho',   id: '7cd1e41c-c484-4873-8d1d-22ec6af86e51' },
+    { name: 'Dr. Anca Muresan',      specialtyKey: 'specialtyOphtho',  id: '45965f71-a4e1-43cc-a0f9-532fc84b9e24' },
+    { name: 'Dr. Sorin Nistor',      specialtyKey: 'specialtyPsych',   id: '94fcc35d-7fcd-4773-ab0f-5f5974435762' },
+    { name: 'Dr. Luminita Gheorghe', specialtyKey: 'specialtyGyne',    id: 'c9e9b208-ace2-4b87-b8ea-0c366b194b80' },
   ];
 
-  let pc              = null;
-  let localStream     = null;
-  let signalingSocket = null;
-  let currentRoom     = null;
-  let currentPatientId = '';
-  let currentPatientName = '';
-  let isMuted         = false;
-  let isCameraOff     = false;
-  let medplumToken    = null;
-  let panelOpen       = false;
-  let currentPanelState = 'report';
-  let allAppointments   = [];
-  let allPatients       = {};
+  let pc = null, localStream = null, signalingSocket = null, currentRoom = null;
+  let currentPatientId = '', currentPatientName = '';
+  let isMuted = false, isCameraOff = false;
+  let medplumToken = null;
+  let panelOpen = false, currentPanelState = 'report';
+  let allAppointments = [], allPatients = {};
   let reviewedInSession = new Set();
   let fetchedObservations = [];
-  let isCallActive      = false;
+  let isCallActive = false;
 
   function esc(str) {
     if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function dateLocale() { return currentLang === 'ro' ? 'ro-RO' : 'en-US'; }
+
+  // Normalize isPatient flag — accepts both full URL and legacy bare 'isPatient'
+  function isPatientFlag(exts) {
+    return exts.some(e =>
+      (e.url === 'https://telemed-bogheanu.ro/fhir/ext/isPatient' || e.url === 'isPatient')
+      && e.valueBoolean === true
+    );
   }
 
   // ── Panel ─────────────────────────────────────────────────────────────────────
-
   function updateBackBtn() {
     const btn = document.getElementById('backToListBtn');
     if (btn) btn.style.display = (!isCallActive && currentPatientId) ? '' : 'none';
   }
 
+  function updateChatStripeVisibility() {
+    const btn = document.getElementById('chatStripeBtn');
+    btn.classList.toggle('hidden', isCallActive || !currentPatientId);
+  }
+
   function backToAppointmentList() {
-    currentPatientId = '';
-    currentPatientName = '';
+    currentPatientId = ''; currentPatientName = '';
     fetchedObservations = [];
     closePanel();
     document.getElementById('joinScreen').style.display = '';
     document.getElementById('callScreen').style.display = 'none';
     updateBackBtn();
+    updateChatStripeVisibility();
   }
 
   function renderTranscript(noteText) {
     const container = document.createElement('div');
     container.className = 'conv-transcript';
     noteText.split('\n').forEach(line => {
-      const t = line.trim();
-      if (!t) return;
+      const tx = line.trim();
+      if (!tx) return;
       let cls = '', text = '';
-      if (t.startsWith('[AI]')) {
-        cls  = 'conv-bubble-ai';
-        text = t.replace(/^\[AI\]\s*\d+:\d+:\s*/, '').trim();
-      } else if (t.startsWith('[Patient]') || t.startsWith('[Pacient]')) {
-        cls  = 'conv-bubble-patient';
-        text = t.replace(/^\[[^\]]+\]\s*\d+:\d+:\s*/, '').trim();
-      } else if (t.startsWith('[Doctor]')) {
-        cls  = 'conv-bubble-doctor';
-        text = t.replace(/^\[Doctor\]\s*\d+:\d+:\s*/, '').trim();
+      if (tx.startsWith('[AI]')) {
+        cls = 'conv-bubble-ai'; text = tx.replace(/^\[AI\]\s*\d+:\d+:\s*/, '').trim();
+      } else if (tx.startsWith('[Patient]') || tx.startsWith('[Pacient]')) {
+        cls = 'conv-bubble-patient'; text = tx.replace(/^\[[^\]]+\]\s*\d+:\d+:\s*/, '').trim();
+      } else if (tx.startsWith('[Doctor]')) {
+        cls = 'conv-bubble-doctor'; text = tx.replace(/^\[Doctor\]\s*\d+:\d+:\s*/, '').trim();
       }
       if (!cls || !text) return;
       const b = document.createElement('div');
-      b.className = cls;
-      b.textContent = text;
+      b.className = cls; b.textContent = text;
       container.appendChild(b);
     });
     return container;
@@ -427,7 +592,6 @@
     document.body.classList.toggle('panel-open', panelOpen);
     document.getElementById('chatStripeBtn').classList.toggle('panel-open', panelOpen);
   }
-
   function openPanel() { if (!panelOpen) togglePanel(); }
   function closePanel() { if (panelOpen) togglePanel(); }
 
@@ -435,127 +599,91 @@
     currentPanelState = state;
     document.querySelectorAll('.panel-state').forEach(el => el.classList.remove('active'));
     const id = 'state' + state.charAt(0).toUpperCase() + state.slice(1);
-    document.getElementById(id).classList.add('active');
-    const titles = { report: 'Patient Report', chat: 'Chat' };
-    document.getElementById('panelTitle').textContent = titles[state] || 'Panel';
-    if (state === 'chat') loadChatMessages();
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
+    document.getElementById('panelTitle').textContent = t('panelTitleReport');
     openPanel();
   }
 
-  function updateReportTopBtn() {
-    const btn = document.getElementById('reportTopBtn');
-    if (isCallActive) {
-      btn.innerHTML = '';  // no top button during call
-      document.getElementById('reportActions').style.display = 'none';
-    } else {
-      btn.innerHTML = '<button onclick="showPanelState(\'chat\')">💬 Chat</button>';
-      const ra = document.getElementById('reportActions');
-      if (ra) ra.style.display = '';
-    }
+  // ── Per-Observation chat ──────────────────────────────────────────────────────
+
+  async function fetchObservationCommunications(observationId) {
+    const token = await ensureToken();
+    if (!token) throw new Error(t('alertNotAuth'));
+    const aboutRef = encodeURIComponent('Observation/' + observationId);
+    const res = await fetch(
+      MEDPLUM_BASE + '/fhir/R4/Communication?subject=Patient/' + currentPatientId +
+      '&about=' + aboutRef + '&_sort=sent&_count=50',
+      { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' } }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const bundle = await res.json();
+    return (bundle.entry || []).map(e => e.resource).filter(Boolean);
   }
 
-  // ── Async Chat (Medplum Communications) ───────────────────────────────────────
-  async function loadChatMessages() {
-    const header = document.getElementById('asyncChatPatientHeader');
-    const msgs   = document.getElementById('asyncChatMessages');
-    if (!currentPatientId) {
-      header.textContent = 'No patient selected';
-      msgs.innerHTML = '<p class="chat-empty">Select a patient from the appointments list first.</p>';
-      return;
-    }
-    header.textContent = currentPatientName || 'Patient';
-    msgs.innerHTML = '<p style="font-size:12px;color:#40484e;padding:8px 0;font-style:italic;">Loading…</p>';
-    try {
-      const token = await ensureToken();
-      if (!token) { msgs.innerHTML = '<p style="color:red;font-size:12px;">Auth error</p>'; return; }
-      const patId = currentPatientId;
-      const res = await fetch(
-        MEDPLUM_BASE + '/fhir/R4/Communication?subject=Patient/' + patId + '&_sort=sent&_count=50',
-        { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' } }
-      );
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const bundle = await res.json();
-      const entries = (bundle.entry || []).map(e => e.resource).filter(Boolean);
-      msgs.innerHTML = '';
-      if (entries.length === 0) {
-        msgs.innerHTML = '<p style="font-size:13px;color:#40484e;font-style:italic;padding:12px 0;">No messages yet.</p>';
-        return;
-      }
-      entries.forEach(comm => {
-        const exts = comm.extension || [];
-        const isPatient = exts.some(e => e.url === 'https://telemed-bogheanu.ro/fhir/ext/isPatient' && e.valueBoolean === true);
-        const text = comm.payload?.[0]?.contentString || '';
-        const sentStr = comm.sent || '';
-        const timeLabel = sentStr ? new Date(sentStr).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
-        const div = document.createElement('div');
-        div.className = 'async-msg ' + (isPatient ? 'patient' : 'doctor');
-        div.innerHTML =
-          '<div class="async-msg-label">' + (isPatient ? 'Patient' : 'Doctor') + (timeLabel ? ' · ' + timeLabel : '') + '</div>' +
-          '<div>' + esc(text) + '</div>';
-        msgs.appendChild(div);
-      });
-      msgs.scrollTop = msgs.scrollHeight;
-    } catch(e) {
-      msgs.innerHTML = '<p style="color:red;font-size:12px;">Error loading messages: ' + esc(e.message) + '</p>';
-    }
+  function appendObsBubble(container, text, isPatient, sentStr) {
+    const locale = currentLang === 'ro' ? 'ro-RO' : 'en-GB';
+    const timeLabel = sentStr ? new Date(sentStr).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '';
+    const div = document.createElement('div');
+    div.className = 'async-msg ' + (isPatient ? 'patient' : 'doctor');
+    div.innerHTML =
+      '<div class="async-msg-label">' + esc(isPatient ? t('bubblePatient') : t('bubbleDoctor')) +
+      (timeLabel ? ' · ' + timeLabel : '') + '</div>' +
+      '<div>' + esc(text) + '</div>';
+    container.appendChild(div);
   }
 
-  async function sendMedplumChatMessage() {
-    const input = document.getElementById('asyncChatInput');
-    const text  = input.value.trim();
-    if (!currentPatientId) { alert('Please select a patient first.'); return; }
-    if (!text) return;
-    input.value = '';
+  async function sendObservationMessage(observationId, text, msgsEl, inputEl, sendBtn) {
+    inputEl.disabled = true; sendBtn.disabled = true;
     const currentDoctorId = document.getElementById('doctorSelect').value;
     try {
       const token = await ensureToken();
-      if (!token) { alert('Not authenticated'); return; }
+      if (!token) { alert(t('alertNotAuth')); return; }
       const payload = {
         resourceType: 'Communication',
         status: 'completed',
         sent: new Date().toISOString(),
         subject: { reference: 'Patient/' + currentPatientId },
         sender: { reference: 'Practitioner/' + currentDoctorId },
+        about: [{ reference: 'Observation/' + observationId }],
         payload: [{ contentString: text }],
         extension: [{ url: 'https://telemed-bogheanu.ro/fhir/ext/isPatient', valueBoolean: false }],
       };
       const res = await fetch(MEDPLUM_BASE + '/fhir/R4/Communication', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/fhir+json', 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' },
+        headers: { 'Content-Type': 'application/fhir+json', 'Authorization': 'Bearer ' + (await ensureToken()), 'Accept': 'application/fhir+json' },
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      // Append bubble locally
-      const msgs = document.getElementById('asyncChatMessages');
-      const div  = document.createElement('div');
-      div.className = 'async-msg doctor';
-      div.innerHTML = '<div class="async-msg-label">Doctor</div><div>' + esc(text) + '</div>';
-      msgs.appendChild(div);
-      msgs.scrollTop = msgs.scrollHeight;
+      // Remove "no messages" placeholder if present
+      const emptyEl = msgsEl.querySelector('.chat-empty');
+      if (emptyEl) emptyEl.remove();
+      appendObsBubble(msgsEl, text, false, new Date().toISOString());
+      msgsEl.scrollTop = msgsEl.scrollHeight;
     } catch(e) {
-      alert('Send failed: ' + e.message);
+      alert(t('alertSendFailed', { error: e.message }));
+    } finally {
+      inputEl.disabled = false; sendBtn.disabled = false; inputEl.focus();
     }
   }
 
-  // ── Medplum auth ─────────────────────────────────────────────────────────────
+  // ── Medplum auth ──────────────────────────────────────────────────────────────
   async function fetchMedplumToken() {
     if (!CLIENT_ID || !CLIENT_SECRET) {
       const apptList = document.getElementById('appointmentsList');
-      if (apptList) apptList.innerHTML = '<p style="color:#c0392b;padding:12px;">Doctor UI not configured. Contact admin.</p>';
+      if (apptList) apptList.innerHTML = '<p style="color:#c0392b;padding:12px;">' + esc(t('alertNotConfigured')) + '</p>';
       return null;
     }
     try {
       const res = await fetch(MEDPLUM_BASE + '/oauth2/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'grant_type=client_credentials&client_id=' + CLIENT_ID +
-              '&client_secret=' + encodeURIComponent(CLIENT_SECRET),
+        body: 'grant_type=client_credentials&client_id=' + CLIENT_ID + '&client_secret=' + encodeURIComponent(CLIENT_SECRET),
       });
       if (!res.ok) throw new Error('Token fetch failed: ' + res.status);
       return (await res.json()).access_token;
     } catch(e) { console.error('Medplum token error:', e); return null; }
   }
-
   async function ensureToken() {
     if (!medplumToken) medplumToken = await fetchMedplumToken();
     return medplumToken;
@@ -564,41 +692,33 @@
   // ── Doctor dropdown & date ────────────────────────────────────────────────────
   function populateDoctorDropdown() {
     const sel = document.getElementById('doctorSelect');
-    sel.innerHTML = DOCTORS.map(d =>
-      `<option value="${d.id}">${d.name} — ${d.specialty}</option>`
-    ).join('');
+    sel.innerHTML = DOCTORS.map(d => `<option value="${d.id}">${d.name} — ${t(d.specialtyKey)}</option>`).join('');
     if (sel.value) loadAppointments();
   }
 
   function showTodayDate() {
-    const formatted = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    document.getElementById('todayDate').textContent = 'Appointments for: ' + formatted;
+    const formatted = new Date().toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    document.getElementById('todayDate').textContent = t('appointmentsFor', { date: formatted });
   }
 
   function isJoinable(startISO) {
-    const start = new Date(startISO).getTime();
-    const now   = Date.now();
+    const start = new Date(startISO).getTime(), now = Date.now();
     return now >= start - 60 * 60 * 1000 && now <= start + 2 * 60 * 60 * 1000;
   }
 
   // ── Appointments ─────────────────────────────────────────────────────────────
   async function loadAppointments() {
-    const listEl  = document.getElementById('appointmentsList');
+    const listEl = document.getElementById('appointmentsList');
     const doctorId = document.getElementById('doctorSelect').value;
-    listEl.innerHTML = '<p class="empty-state">Loading today\'s appointments...</p>';
+    listEl.innerHTML = '<p class="empty-state">' + esc(t('loadingAppts')) + '</p>';
     medplumToken = await fetchMedplumToken();
-    if (!medplumToken) { listEl.innerHTML = '<p class="empty-state">Could not load appointments (auth error).</p>'; return; }
+    if (!medplumToken) { listEl.innerHTML = '<p class="empty-state">' + esc(t('authErrAppts')) + '</p>'; return; }
     try {
-      const now = new Date();
-      const pad = n => String(n).padStart(2, '0');
+      const now = new Date(), pad = n => String(n).padStart(2, '0');
       const localToday = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-      const tomorrowDate = new Date(now);
-      tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-      const localTomorrow = `${tomorrowDate.getFullYear()}-${pad(tomorrowDate.getMonth()+1)}-${pad(tomorrowDate.getDate())}`;
-      const url = MEDPLUM_BASE + '/fhir/R4/Appointment' +
-        '?date=ge' + localToday + 'T00:00:00Z' +
-        '&date=lt' + localTomorrow + 'T00:00:00Z' +
-        '&status=booked&_include=Appointment:actor&_count=50';
+      const tmr = new Date(now); tmr.setDate(tmr.getDate() + 1);
+      const localTomorrow = `${tmr.getFullYear()}-${pad(tmr.getMonth()+1)}-${pad(tmr.getDate())}`;
+      const url = MEDPLUM_BASE + '/fhir/R4/Appointment?date=ge' + localToday + 'T00:00:00Z&date=lt' + localTomorrow + 'T00:00:00Z&status=booked&_include=Appointment:actor&_count=50';
       const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + medplumToken, 'Accept': 'application/fhir+json' } });
       if (!res.ok) throw new Error('Appointment fetch failed: ' + res.status);
       const bundle = await res.json();
@@ -606,7 +726,7 @@
       (bundle.entry || []).forEach(e => {
         if (e.resource?.resourceType === 'Patient') {
           const n = e.resource.name?.[0];
-          allPatients[e.resource.id] = { name: n ? ((n.given || []).join(' ') + ' ' + (n.family || '')).trim() : 'Patient', resource: e.resource };
+          allPatients[e.resource.id] = { name: n ? ((n.given || []).join(' ') + ' ' + (n.family || '')).trim() : t('patientFallback'), resource: e.resource };
         }
       });
       allAppointments = (bundle.entry || [])
@@ -616,41 +736,35 @@
       renderAppointments(listEl);
     } catch(e) {
       console.error('Appointment load error:', e);
-      listEl.innerHTML = '<p class="empty-state">Error loading appointments. Use manual code below.</p>';
+      listEl.innerHTML = '<p class="empty-state">' + esc(t('errLoadAppts')) + '</p>';
     }
   }
 
   function renderAppointments(listEl) {
     listEl.innerHTML = '';
-    if (allAppointments.length === 0) { listEl.innerHTML = '<p class="empty-state">No appointments for today.</p>'; return; }
+    if (allAppointments.length === 0) { listEl.innerHTML = '<p class="empty-state">' + esc(t('noApptsToday')) + '</p>'; return; }
     const header = document.createElement('p');
-    header.className = 'section-label';
-    header.textContent = 'TODAY\'S APPOINTMENTS';
+    header.className = 'section-label'; header.textContent = t('todaysAppts');
     listEl.appendChild(header);
+    const locale = currentLang === 'ro' ? 'ro-RO' : 'en-GB';
     allAppointments.forEach(appt => {
-      const apptId  = appt.id || '';
-      const start   = appt.start ? new Date(appt.start) : null;
-      const timeStr = start ? start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '--:--';
-      const patRef  = (appt.participant || []).find(p => p.actor?.reference?.startsWith('Patient/'));
-      const patId   = patRef?.actor?.reference?.replace('Patient/', '') || '';
-      const patName = (allPatients[patId] || {}).name || 'Patient';
+      const apptId = appt.id || '';
+      const start  = appt.start ? new Date(appt.start) : null;
+      const timeStr = start ? start.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '--:--';
+      const patRef = (appt.participant || []).find(p => p.actor?.reference?.startsWith('Patient/'));
+      const patId  = patRef?.actor?.reference?.replace('Patient/', '') || '';
+      const patName = (allPatients[patId] || {}).name || t('patientFallback');
       const joinable = start ? isJoinable(appt.start) : false;
       const card = document.createElement('div');
       card.className = 'appt-card';
       card.innerHTML =
-        '<div style="flex:1;">' +
-          '<div class="appt-patient">' + esc(patName) + '</div>' +
-          '<div class="appt-time">&#128336; ' + timeStr + '</div>' +
-        '</div>' +
-        '<div class="appt-actions">' +
-          '<button class="join-btn"' + (joinable ? '' : ' disabled') + '>Join consultation</button>' +
-          '<button class="view-report-btn">View report</button>' +
-        '</div>';
+        '<div style="flex:1;"><div class="appt-patient">' + esc(patName) + '</div><div class="appt-time">&#128336; ' + timeStr + '</div></div>' +
+        '<div class="appt-actions"><button class="join-btn"' + (joinable ? '' : ' disabled') + '>' + esc(t('joinConsultation')) + '</button>' +
+        '<button class="view-report-btn">' + esc(t('viewReport')) + '</button></div>';
       card.querySelector('.join-btn').addEventListener('click', e => { e.stopPropagation(); joinWithId(apptId); });
       card.querySelector('.view-report-btn').addEventListener('click', e => {
         e.stopPropagation();
-        currentPatientId = patId;
-        currentPatientName = patName;
+        currentPatientId = patId; currentPatientName = patName;
         viewPatientReport(patId, patName);
       });
       listEl.appendChild(card);
@@ -659,18 +773,19 @@
 
   // ── Patient report ────────────────────────────────────────────────────────────
   async function viewPatientReport(patientId, patientName) {
-    reviewedInSession   = new Set();
-    fetchedObservations = [];
+    reviewedInSession = new Set(); fetchedObservations = [];
     document.getElementById('reportPatientName').textContent = patientName;
-    document.getElementById('reportPatientMeta').textContent = 'Loading clinical data...';
-    document.getElementById('reportConditions').innerHTML   = '';
+    document.getElementById('reportPatientMeta').textContent = t('loadingClinical');
+    document.getElementById('reportConditions').innerHTML = '';
     document.getElementById('reportObservations').innerHTML = '';
-    document.getElementById('reportActions').innerHTML      = '';
+    document.getElementById('reportActions').innerHTML = '';
     showPanelState('report');
-    updateReportTopBtn();
     updateBackBtn();
+    updateChatStripeVisibility();
+    const actEl = document.getElementById('reportActions');
+    if (actEl) actEl.style.display = isCallActive ? 'none' : '';
     const token = await ensureToken();
-    if (!token) { document.getElementById('reportPatientMeta').textContent = 'Auth error — cannot load data.'; return; }
+    if (!token) { document.getElementById('reportPatientMeta').textContent = t('authErrClinical'); return; }
     try {
       const headers = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' };
       const [condRes, obsRes] = await Promise.all([
@@ -684,100 +799,227 @@
       if (patInfo?.resource) {
         const dob = patInfo.resource.birthDate || '';
         const gender = patInfo.resource.gender || '';
-        document.getElementById('reportPatientMeta').textContent = [gender, dob ? 'DOB: ' + dob : ''].filter(Boolean).join(' · ') || '';
+        document.getElementById('reportPatientMeta').textContent = [gender, dob ? t('dobLabel', { date: dob }) : ''].filter(Boolean).join(' · ') || '';
       } else { document.getElementById('reportPatientMeta').textContent = ''; }
       const condEl = document.getElementById('reportConditions');
       if (conditions.length > 0) {
-        condEl.innerHTML = '<div class="report-section-title">Active Conditions</div>';
-        conditions.forEach(c => { const chip = document.createElement('span'); chip.className = 'condition-chip'; chip.textContent = c.code?.text || c.code?.coding?.[0]?.display || 'Unknown'; condEl.appendChild(chip); });
+        condEl.innerHTML = '<div class="report-section-title">' + esc(t('activeConditions')) + '</div>';
+        conditions.forEach(c => {
+          const chip = document.createElement('span');
+          chip.className = 'condition-chip'; chip.textContent = c.code?.text || c.code?.coding?.[0]?.display || t('unknownCondition');
+          condEl.appendChild(chip);
+        });
       }
       const obsEl = document.getElementById('reportObservations');
-      obsEl.innerHTML = '<div class="report-section-title">Triage Observations</div>';
+      obsEl.innerHTML = '<div class="report-section-title">' + esc(t('triageObs')) + '</div>';
       if (observations.length > 0) {
+        const dateLocaleStr = currentLang === 'ro' ? 'ro-RO' : 'en-GB';
         observations.forEach(obs => {
           const entry = document.createElement('div');
           const reviewed = obs.status === 'final';
           entry.className = 'observation-entry' + (reviewed ? ' reviewed' : '');
           const val      = obs.valueString || '';
           const noteText = obs.note?.[0]?.text || '';
-          const date     = obs.effectiveDateTime ? new Date(obs.effectiveDateTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+          const date     = obs.effectiveDateTime ? new Date(obs.effectiveDateTime).toLocaleDateString(dateLocaleStr, { day: '2-digit', month: 'short', year: 'numeric' }) : '';
           const obsExts  = obs.extension || [];
           const reviewedByTargetRef = obsExts.find(e => e.url && e.url.includes('reviewed-by-target'))?.valueString || null;
           const assignedDoctor = reviewedByTargetRef ? DOCTORS.find(d => reviewedByTargetRef.includes(d.id)) : null;
           const assignedLabel  = assignedDoctor ? assignedDoctor.name : (reviewedByTargetRef ? reviewedByTargetRef : null);
           const recordedByName = obsExts.find(e => e.url === 'https://telemed-bogheanu.ro/fhir/ext/doctor-name')?.valueString || null;
-          // FIX 1: Extract last [AI] line from note as clinical summary; fall back to valueString.
           const aiLines = noteText.split('\n').filter(l => l.startsWith('[AI]'));
-          const lastAi  = aiLines.length > 0
-            ? aiLines[aiLines.length - 1].replace(/^\[AI\]\s*\d+:\d+:\s*/, '').trim()
-            : '';
-          const summary  = lastAi || val;
+          const lastAi  = aiLines.length > 0 ? aiLines[aiLines.length - 1].replace(/^\[AI\]\s*\d+:\d+:\s*/, '').trim() : '';
+          const summary = lastAi || val;
           const summaryDisplay = summary.substring(0, 200) + (summary.length > 200 ? '…' : '');
+
           entry.innerHTML =
-            '<div class="obs-summary-label">Clinical Summary</div>' +
+            '<div class="obs-summary-label">' + esc(t('clinicalSummary')) + '</div>' +
             '<div>' + esc(summaryDisplay) + '</div>' +
-            '<div class="observation-date">' + esc(date) + (reviewed ? ' · Reviewed' : '') +
-            (assignedLabel ? ' · Assigned to: ' + esc(assignedLabel) : '') + '</div>' +
-            (recordedByName ? '<div class="observation-date" style="color:#5BA4CF;">Recorded by: ' + esc(recordedByName) + '</div>' : '');
-          // FIX 3: Conversation transcript toggle.
+            '<div class="observation-date">' + esc(date) + (reviewed ? ' · ' + esc(t('reviewed')) : '') +
+            (assignedLabel ? ' · ' + esc(t('assignedTo', { name: assignedLabel })) : '') + '</div>' +
+            (recordedByName ? '<div class="observation-date" style="color:#5BA4CF;">' + esc(t('recordedBy', { name: recordedByName })) + '</div>' : '');
+
+          if (reviewed) {
+            // Locked card — no transcript, no chat, no action buttons
+            obsEl.appendChild(entry);
+            return;
+          }
+
+          // Conversation transcript toggle
           if (noteText) {
             const toggleBtn = document.createElement('button');
             toggleBtn.className = 'btn-toggle-conv';
-            toggleBtn.textContent = 'Show conversation ▼';
+            toggleBtn.textContent = t('showConv');
             const transcript = renderTranscript(noteText);
             toggleBtn.addEventListener('click', () => {
               const expanded = transcript.classList.toggle('expanded');
-              toggleBtn.textContent = expanded ? 'Hide conversation ▲' : 'Show conversation ▼';
+              toggleBtn.textContent = expanded ? t('hideConv') : t('showConv');
             });
             entry.appendChild(toggleBtn);
             entry.appendChild(transcript);
           }
-          if (!reviewed && !isCallActive) { const btn = document.createElement('button'); btn.className = 'btn-mark-reviewed'; btn.textContent = 'Mark as reviewed'; btn.addEventListener('click', () => markReviewed(obs.id, btn, entry)); entry.appendChild(btn); }
+
+          if (!isCallActive) {
+            // Action buttons row
+            const actionsRow = document.createElement('div');
+            actionsRow.className = 'obs-actions-row';
+
+            const mrBtn = document.createElement('button');
+            mrBtn.className = 'btn-mark-reviewed';
+            mrBtn.textContent = t('markReviewed');
+            mrBtn.addEventListener('click', () => markReviewed(obs.id, mrBtn, entry));
+            actionsRow.appendChild(mrBtn);
+
+            const noteBtn = document.createElement('button');
+            noteBtn.className = 'btn-add-note';
+            noteBtn.textContent = t('addNote');
+            actionsRow.appendChild(noteBtn);
+            entry.appendChild(actionsRow);
+
+            // Inline chat section (collapsed by default)
+            const chatSection = document.createElement('div');
+            chatSection.className = 'obs-chat-section';
+            chatSection.innerHTML =
+              '<div class="obs-chat-header">' + esc(t('transcriptLabel')) + '</div>' +
+              '<div class="obs-chat-messages"></div>' +
+              '<div class="obs-chat-input-row">' +
+                '<input type="text" class="obs-chat-input" placeholder="' + esc(t('chatPlaceholder')) + '" />' +
+                '<button class="obs-chat-send-btn">' + esc(t('send')) + '</button>' +
+              '</div>';
+            entry.appendChild(chatSection);
+
+            const msgsEl    = chatSection.querySelector('.obs-chat-messages');
+            const inputEl   = chatSection.querySelector('.obs-chat-input');
+            const sendBtn   = chatSection.querySelector('.obs-chat-send-btn');
+
+            // Note button toggles chat section
+            noteBtn.addEventListener('click', async () => {
+              const isOpen = chatSection.style.display === 'flex';
+              if (isOpen) {
+                chatSection.style.display = 'none';
+                noteBtn.textContent = t('addNote');
+              } else {
+                chatSection.style.display = 'flex';
+                chatSection.style.flexDirection = 'column';
+                noteBtn.textContent = t('closeNote');
+                if (!chatSection.dataset.loaded) {
+                  chatSection.dataset.loaded = 'true';
+                  // Render original transcript as leading block
+                  if (noteText) {
+                    const transcriptBlock = document.createElement('div');
+                    transcriptBlock.className = 'obs-chat-transcript-block';
+                    transcriptBlock.appendChild(renderTranscript(noteText));
+                    msgsEl.appendChild(transcriptBlock);
+                    const sep = document.createElement('div');
+                    sep.className = 'obs-chat-separator';
+                    msgsEl.appendChild(sep);
+                  }
+                  // Load Communications for this Observation
+                  try {
+                    const comms = await fetchObservationCommunications(obs.id);
+                    if (comms.length === 0) {
+                      const p = document.createElement('p');
+                      p.className = 'chat-empty'; p.textContent = t('noMessages');
+                      msgsEl.appendChild(p);
+                    } else {
+                      comms.forEach(comm => {
+                        const isPatient = isPatientFlag(comm.extension || []);
+                        appendObsBubble(msgsEl, comm.payload?.[0]?.contentString || '', isPatient, comm.sent || '');
+                      });
+                    }
+                  } catch(e) {
+                    const p = document.createElement('p');
+                    p.style.cssText = 'color:red;font-size:12px;padding:4px 0;';
+                    p.textContent = t('errLoadChat', { error: e.message });
+                    msgsEl.appendChild(p);
+                  }
+                  msgsEl.scrollTop = msgsEl.scrollHeight;
+                }
+                setTimeout(() => inputEl.focus(), 100);
+              }
+            });
+
+            // Send button handler
+            const doSend = async () => {
+              const text = inputEl.value.trim();
+              if (!text) return;
+              inputEl.value = '';
+              await sendObservationMessage(obs.id, text, msgsEl, inputEl, sendBtn);
+            };
+            sendBtn.addEventListener('click', doSend);
+            inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') doSend(); });
+          }
+
           obsEl.appendChild(entry);
         });
-      } else { obsEl.innerHTML += '<p class="empty-state" style="text-align:left;">No observations recorded.</p>'; }
+      } else {
+        obsEl.innerHTML += '<p class="empty-state" style="text-align:left;">' + esc(t('noObs')) + '</p>';
+      }
       if (!isCallActive) {
-        const actEl = document.getElementById('reportActions');
+        const actEl2 = document.getElementById('reportActions');
         const finBtn = document.createElement('button');
-        finBtn.id = 'finalizeBtn'; finBtn.className = 'btn-finalize'; finBtn.textContent = 'Finalize consultation report';
+        finBtn.id = 'finalizeBtn'; finBtn.className = 'btn-finalize'; finBtn.textContent = t('finalizeReport');
         finBtn.addEventListener('click', () => finalizeReport(finBtn));
-        actEl.appendChild(finBtn);
+        actEl2.appendChild(finBtn);
         updateFinalizeButton();
       }
-    } catch(e) { console.error('Report load error:', e); document.getElementById('reportPatientMeta').textContent = 'Error loading clinical data.'; }
+    } catch(e) { console.error('Report load error:', e); document.getElementById('reportPatientMeta').textContent = t('errLoadClinical'); }
   }
 
   async function markReviewed(obsId, btn, entryEl) {
-    if (!currentPatientId) { alert('Please select a patient first.'); return; }
+    if (!currentPatientId) { alert(t('alertSelectPatient')); return; }
     if (!obsId) return;
-    btn.disabled = true; btn.textContent = 'Marking...';
+    btn.disabled = true; btn.textContent = t('marking');
     const token = await ensureToken();
-    if (!token) { btn.disabled = false; btn.textContent = 'Mark as reviewed'; return; }
+    if (!token) { btn.disabled = false; btn.textContent = t('markReviewed'); return; }
     try {
       const getRes = await fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' } });
       if (!getRes.ok) throw new Error('GET failed: ' + getRes.status);
       const obs = await getRes.json();
       const currentDoctorId = document.getElementById('doctorSelect').value;
-      const updatedExtensions = [...(obs.extension || []), { url: 'https://telemed-bogheanu.ro/fhir/ext/reviewed-by', valueString: 'Practitioner/' + currentDoctorId }];
-      const patchRes = await fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, { method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json-patch+json', 'Accept': 'application/fhir+json' }, body: JSON.stringify([{ op: 'replace', path: '/extension', value: updatedExtensions }]) });
-      if (patchRes.ok) { entryEl.classList.add('reviewed'); btn.textContent = 'Reviewed ✓'; btn.style.cssText = 'width:100%;margin-top:8px;padding:8px;background:#16A34A;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:default;'; btn.disabled = true; reviewedInSession.add(obsId); updateFinalizeButton(); }
-      else { btn.disabled = false; btn.textContent = 'Mark as reviewed'; }
-    } catch(e) { btn.disabled = false; btn.textContent = 'Mark as reviewed'; console.error('Mark reviewed error:', e); }
+      const updatedExtensions = [
+        ...(obs.extension || []),
+        { url: 'https://telemed-bogheanu.ro/fhir/ext/reviewed-by', valueString: 'Practitioner/' + currentDoctorId },
+        { url: 'https://telemed-bogheanu.ro/fhir/ext/summary-refresh-needed', valueBoolean: true },
+      ];
+      const patchRes = await fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, {
+        method: 'PATCH',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json-patch+json', 'Accept': 'application/fhir+json' },
+        body: JSON.stringify([{ op: 'replace', path: '/extension', value: updatedExtensions }]),
+      });
+      if (patchRes.ok) {
+        entryEl.classList.add('reviewed');
+        btn.textContent = t('reviewedDone');
+        btn.style.cssText = 'flex:1;padding:7px;background:#16A34A;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:default;';
+        btn.disabled = true;
+        reviewedInSession.add(obsId);
+        updateFinalizeButton();
+        // Lock the card: remove chat section, note button, transcript toggle
+        const chatSection = entryEl.querySelector('.obs-chat-section');
+        if (chatSection) chatSection.remove();
+        const noteBtn = entryEl.querySelector('.btn-add-note');
+        if (noteBtn) noteBtn.parentElement?.remove(); // remove actionsRow
+        const convBtn = entryEl.querySelector('.btn-toggle-conv');
+        if (convBtn) { convBtn.nextElementSibling?.remove(); convBtn.remove(); }
+      } else { btn.disabled = false; btn.textContent = t('markReviewed'); }
+    } catch(e) { btn.disabled = false; btn.textContent = t('markReviewed'); console.error('Mark reviewed error:', e); }
   }
 
   async function finalizeReport(btn) {
-    if (!currentPatientId) { alert('Please select a patient first.'); return; }
+    if (!currentPatientId) { alert(t('alertSelectPatient')); return; }
     if (reviewedInSession.size === 0) return;
-    btn.disabled = true; btn.textContent = 'Finalizing...';
+    btn.disabled = true; btn.textContent = t('finalizing');
     const token = await ensureToken();
-    if (!token) { btn.disabled = false; btn.textContent = 'Finalize consultation report'; return; }
+    if (!token) { btn.disabled = false; btn.textContent = t('finalizeReport'); return; }
     try {
       await Promise.all([...reviewedInSession].map(obsId =>
-        fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, { method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json-patch+json', 'Accept': 'application/fhir+json' }, body: JSON.stringify([{ op: 'replace', path: '/status', value: 'final' }]) })
-        .then(r => { if (!r.ok) throw new Error('PATCH ' + obsId + ' failed: ' + r.status); })
+        fetch(MEDPLUM_BASE + '/fhir/R4/Observation/' + obsId, {
+          method: 'PATCH',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json-patch+json', 'Accept': 'application/fhir+json' },
+          body: JSON.stringify([{ op: 'replace', path: '/status', value: 'final' }]),
+        }).then(r => { if (!r.ok) throw new Error('PATCH ' + obsId + ' failed: ' + r.status); })
       ));
-      btn.textContent = 'Report finalized ✓'; btn.style.background = '#16A34A'; btn.disabled = true; reviewedInSession.clear();
-    } catch(e) { btn.disabled = false; btn.textContent = 'Finalize consultation report'; console.error('Finalize error:', e); }
+      btn.textContent = t('reportFinalized'); btn.style.background = '#16A34A'; btn.disabled = true; reviewedInSession.clear();
+    } catch(e) { btn.disabled = false; btn.textContent = t('finalizeReport'); console.error('Finalize error:', e); }
   }
 
   function updateFinalizeButton() {
@@ -786,12 +1028,12 @@
     finBtn.disabled = reviewedInSession.size === 0;
   }
 
-  // ── PDF upload (Medplum only, no WebSocket) ───────────────────────────────────
+  // ── PDF upload ────────────────────────────────────────────────────────────────
   async function uploadAndSendPdf(file) {
     const filename = file.name;
     try {
       const token = await ensureToken();
-      if (!token) throw new Error('Not authenticated');
+      if (!token) throw new Error(t('alertNotAuth'));
       const base = MEDPLUM_BASE + '/fhir/R4';
       const arrayBuffer = await file.arrayBuffer();
       const binRes = await fetch(base + '/Binary', { method: 'POST', headers: { 'Content-Type': 'application/pdf', 'Authorization': 'Bearer ' + token }, body: arrayBuffer });
@@ -802,8 +1044,8 @@
       if (currentPatientId) docRefPayload.subject = { reference: 'Patient/' + currentPatientId };
       const drRes = await fetch(base + '/DocumentReference', { method: 'POST', headers: { 'Content-Type': 'application/fhir+json', 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' }, body: JSON.stringify(docRefPayload) });
       if (!drRes.ok) throw new Error('DocumentReference creation failed: ' + drRes.status);
-      alert('📄 ' + filename + ' uploaded successfully.');
-    } catch (e) { console.error('PDF upload error:', e); alert('Failed to upload PDF: ' + e.message); }
+      alert(t('alertPdfUploaded', { name: filename }));
+    } catch(e) { console.error('PDF upload error:', e); alert(t('alertPdfFailed', { error: e.message })); }
   }
 
   // ── WebRTC / signaling ────────────────────────────────────────────────────────
@@ -813,31 +1055,27 @@
     if (appt) {
       const patRef = (appt.participant || []).find(p => p.actor?.reference?.startsWith('Patient/'));
       currentPatientId   = patRef?.actor?.reference?.replace('Patient/', '') || '';
-      currentPatientName = (allPatients[currentPatientId] || {}).name || 'Patient';
+      currentPatientName = (allPatients[currentPatientId] || {}).name || t('patientFallback');
     }
     joinCall();
   }
 
   async function joinCall() {
     const appointmentId = document.getElementById('appointmentInput').value.trim();
-    if (!appointmentId) { setJoinStatus('Enter an appointment code.'); return; }
+    if (!appointmentId) { setJoinStatus(t('enterApptCode')); return; }
     currentRoom = appointmentId;
-    setJoinStatus('Connecting...');
+    setJoinStatus(t('connecting'));
     document.getElementById('joinBtn').disabled = true;
     try {
       localStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width:     { ideal: 640, max: 640 },
-          height:    { ideal: 480, max: 480 },
-          frameRate: { ideal: 24,  max: 30  }
-        },
+        video: { width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 24, max: 30 } },
         audio: true
       });
       document.getElementById('localVideo').srcObject = localStream;
       pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, sdpSemantics: 'unified-plan' });
-      localStream.getTracks().forEach(t => {
-        const sender = pc.addTrack(t, localStream);
-        if (t.kind === 'video') {
+      localStream.getTracks().forEach(tr => {
+        const sender = pc.addTrack(tr, localStream);
+        if (tr.kind === 'video') {
           const params = sender.getParameters();
           if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
           params.encodings[0].maxBitrate = 500000;
@@ -846,24 +1084,31 @@
           sender.setParameters(params).catch(e => console.warn('setParameters error:', e));
         }
       });
-      pc.ontrack = (event) => { document.getElementById('remoteVideo').srcObject = event.streams[0]; setCallStatus('In consultation'); };
-      pc.onicecandidate = (event) => {
+      pc.ontrack = event => { document.getElementById('remoteVideo').srcObject = event.streams[0]; setCallStatus(t('inConsultation')); };
+      pc.onicecandidate = event => {
         if (!event.candidate) return;
         safeSend({ type: 'candidate', room: currentRoom, candidate: event.candidate.candidate, sdpMid: event.candidate.sdpMid, sdpMLineIndex: event.candidate.sdpMLineIndex });
+      };
+      pc.onconnectionstatechange = () => {
+        const s = pc.connectionState;
+        if (s === 'disconnected' || s === 'failed' || s === 'closed') showPeerLeft();
+      };
+      pc.oniceconnectionstatechange = () => {
+        const s = pc.iceConnectionState;
+        if (s === 'disconnected' || s === 'failed') showPeerLeft();
       };
       signalingSocket = new WebSocket(SIGNALING_URL);
       signalingSocket.onopen = () => {
         safeSend({ type: 'join', room: currentRoom });
         setJoinStatus('');
         showCallUI();
-        setCallStatus('Waiting for patient...');
-        // Show patient report read-only during call
+        setCallStatus(t('waitingForPatient'));
         if (currentPatientId) viewPatientReport(currentPatientId, currentPatientName);
       };
-      signalingSocket.onmessage = async (event) => {
+      signalingSocket.onmessage = async event => {
         const msg = JSON.parse(event.data);
         if (msg.type === 'offer') {
-          setCallStatus('Patient connected — establishing call...');
+          setCallStatus(t('connectingCall'));
           await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }));
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
@@ -872,11 +1117,7 @@
         if (msg.type === 'candidate') {
           try { await pc.addIceCandidate(new RTCIceCandidate({ candidate: msg.candidate, sdpMid: msg.sdpMid, sdpMLineIndex: msg.sdpMLineIndex })); } catch(e) { console.warn('ICE candidate error:', e); }
         }
-        if (msg.type === 'leave') {
-          document.getElementById('peerLeftOverlay').style.display = 'flex';
-          const rv = document.getElementById('remoteVideo');
-          rv.srcObject = null; rv.style.display = 'none';
-        }
+        if (msg.type === 'leave') showPeerLeft();
         if (msg.type === 'peer_joined') {
           setTimeout(() => {
             if (currentPatientId && (!fetchedObservations || fetchedObservations.length === 0)) {
@@ -884,9 +1125,8 @@
             }
           }, 100);
         }
-        // FIX 5: WebSocket 'chat' messages removed — chat is async via Medplum only
       };
-      signalingSocket.onerror = () => setCallStatus('Signaling connection error.');
+      signalingSocket.onerror = () => setCallStatus(t('signalingError'));
       signalingSocket.onclose = () => {};
     } catch(e) {
       setJoinStatus('Error: ' + e.message);
@@ -895,11 +1135,16 @@
     }
   }
 
+  function showPeerLeft() {
+    document.getElementById('peerLeftOverlay').style.display = 'flex';
+    const rv = document.getElementById('remoteVideo');
+    rv.srcObject = null; rv.style.display = 'none';
+  }
+
   function endCall() {
     safeSend({ type: 'leave', room: currentRoom });
-    signalingSocket?.close();
-    pc?.close();
-    localStream?.getTracks().forEach(t => t.stop());
+    signalingSocket?.close(); pc?.close();
+    localStream?.getTracks().forEach(tr => tr.stop());
     location.reload();
   }
 
@@ -909,7 +1154,7 @@
     isMuted = !isMuted; track.enabled = !isMuted;
     document.querySelector('#muteBtn .ctrl-circle').textContent = isMuted ? '🔇' : '🎤';
     document.querySelector('#muteBtn .ctrl-circle').style.background = isMuted ? '#5BA4CF' : '#f3f3f3';
-    document.querySelector('#muteBtn .ctrl-label').textContent = isMuted ? 'Unmute' : 'Mute';
+    document.getElementById('muteBtnLabel').textContent = isMuted ? t('unmute') : t('mute');
   }
 
   function toggleCamera() {
@@ -918,21 +1163,20 @@
     isCameraOff = !isCameraOff; track.enabled = !isCameraOff;
     document.querySelector('#cameraBtn .ctrl-circle').textContent = isCameraOff ? '🚫' : '📷';
     document.querySelector('#cameraBtn .ctrl-circle').style.background = isCameraOff ? '#5BA4CF' : '#f3f3f3';
-    document.querySelector('#cameraBtn .ctrl-label').textContent = isCameraOff ? 'Start video' : 'Stop video';
+    document.getElementById('cameraBtnLabel').textContent = isCameraOff ? t('startVideo') : t('stopVideo');
   }
 
   function showCallUI() {
     isCallActive = true;
-    document.getElementById('chatStripeBtn').classList.add('hidden');
+    document.getElementById('langToggle').classList.add('hidden');
     document.getElementById('joinScreen').style.display = 'none';
     document.getElementById('callScreen').style.display = 'block';
-    updateBackBtn(); // hide back button during calls
+    updateBackBtn();
+    updateChatStripeVisibility();
   }
 
   function safeSend(obj) {
-    if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) {
-      signalingSocket.send(JSON.stringify(obj));
-    }
+    if (signalingSocket && signalingSocket.readyState === WebSocket.OPEN) signalingSocket.send(JSON.stringify(obj));
   }
 
   function setJoinStatus(msg) { document.getElementById('statusText').textContent = msg; }
@@ -940,13 +1184,18 @@
 
   // ── Init ──────────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
-    // Defer DOM-populating calls by 50ms to guarantee Safari has fully
-    // parsed and rendered the select element before options are injected.
-    setTimeout(() => {
-      populateDoctorDropdown();
-      showTodayDate();
-      loadAppointments();
-    }, 50);
+    applyStrings();
+
+    setTimeout(() => { populateDoctorDropdown(); showTodayDate(); loadAppointments(); }, 50);
+
+    document.getElementById('langRO').addEventListener('click', () => {
+      if (currentLang === 'ro') return;
+      localStorage.setItem('doctorUiLang', 'ro'); location.reload();
+    });
+    document.getElementById('langEN').addEventListener('click', () => {
+      if (currentLang === 'en') return;
+      localStorage.setItem('doctorUiLang', 'en'); location.reload();
+    });
 
     document.getElementById('doctorSelect').addEventListener('change', loadAppointments);
     document.getElementById('joinBtn').addEventListener('click', joinCall);
@@ -954,23 +1203,22 @@
     document.getElementById('muteBtn').addEventListener('click', toggleMute);
     document.getElementById('cameraBtn').addEventListener('click', toggleCamera);
     document.getElementById('panelBtn').addEventListener('click', () => {
-      if (panelOpen && currentPanelState === 'report') {
-        closePanel();
-      } else if (currentPatientId) {
-        viewPatientReport(currentPatientId, currentPatientName);
-      } else {
-        openPanel();
-      }
+      if (panelOpen && currentPanelState === 'report') { closePanel(); }
+      else if (currentPatientId) { viewPatientReport(currentPatientId, currentPatientName); }
+      else { openPanel(); }
     });
     document.getElementById('panelCloseBtn').addEventListener('click', () => { if (panelOpen) togglePanel(); });
+
+    // Stripe button now opens Patient Report panel
     const stripeBtn = document.getElementById('chatStripeBtn');
-    stripeBtn.addEventListener('click', () => showPanelState('chat'));
-    stripeBtn.addEventListener('touchstart', (e) => {
+    stripeBtn.addEventListener('click', () => {
+      if (currentPatientId) showPanelState('report');
+    });
+    stripeBtn.addEventListener('touchstart', e => {
       e.preventDefault();
-      showPanelState('chat');
+      if (currentPatientId) showPanelState('report');
     }, { passive: false });
-    document.getElementById('asyncChatSendBtn').addEventListener('click', sendMedplumChatMessage);
-    document.getElementById('asyncChatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMedplumChatMessage(); });
+
     document.getElementById('peerLeftEndBtn').addEventListener('click', endCall);
     document.getElementById('appointmentInput').addEventListener('keydown', e => { if (e.key === 'Enter') joinCall(); });
   });

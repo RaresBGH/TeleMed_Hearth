@@ -1,29 +1,51 @@
 // Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
 // You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/date_formatter.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/patient_history_provider.dart';
+import '../../core/providers/medplum_auth_provider.dart';
+import '../../core/services/ai_engine_service.dart';
+import '../../data/repositories/fhir_repository.dart';
 import '../theme/theme.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/dialog_detail_sheet.dart';
 import '../widgets/language_toggle.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/utils/fhir_extension_utils.dart';
+import 'observation_thread_screen.dart';
 
-class HistoryScreen extends ConsumerWidget {
+class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends ConsumerState<HistoryScreen> {
+  bool _hasTriggeredRefresh = false;
+
+  @override
+  Widget build(BuildContext context) {
     // patientHistoryProvider is invalidated by finalizeConsultation() in
     // MedicalSessionNotifier — after the FHIR write completes, not on idle
     // transition (which could fire before the write finishes).
     final historyAsync = ref.watch(patientHistoryProvider);
     final String lang = ref.watch(languageProvider);
+
+    // Trigger summary refresh once per screen open after data loads.
+    historyAsync.whenData((data) {
+      if (!_hasTriggeredRefresh) {
+        _hasTriggeredRefresh = true;
+        _triggerSummaryRefreshIfNeeded(data, lang);
+      }
+    });
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -233,6 +255,33 @@ class HistoryScreen extends ConsumerWidget {
                                                   ),
                                                 ),
                                               ],
+                                              // Per-Observation thread button (Observations only, not Conditions)
+                                              if (item['resourceType'] == 'Observation' &&
+                                                  status != 'final') ...[
+                                                const SizedBox(height: 10),
+                                                SizedBox(
+                                                  width: double.infinity,
+                                                  child: OutlinedButton(
+                                                    onPressed: () => Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (_) => ObservationThreadScreen(
+                                                          observationId: item['id'] as String? ?? '',
+                                                          observation: item,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    style: OutlinedButton.styleFrom(
+                                                      foregroundColor: const Color(0xFF5BA4CF),
+                                                      side: const BorderSide(color: Color(0xFF5BA4CF)),
+                                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                    ),
+                                                    child: Text(AppStrings.of(lang, 'dossier.view_conversation'),
+                                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                                                  ),
+                                                ),
+                                              ],
                                             ],
                                           ),
                                         ),
@@ -348,6 +397,82 @@ class HistoryScreen extends ConsumerWidget {
           color: fg,
         ),
       ),
+    );
+  }
+
+  // ── Summary refresh ───────────────────────────────────────────────────────────
+
+  void _triggerSummaryRefreshIfNeeded(List<Map<String, dynamic>> data, String lang) {
+    final needsRefresh = data.where((obs) {
+      if (obs['resourceType'] != 'Observation') return false;
+      final exts = (obs['extension'] as List?) ?? [];
+      return exts.any((e) =>
+          e['url'] == FhirExtensionUtils.summaryRefreshNeededUrl &&
+          e['valueBoolean'] == true);
+    }).toList();
+    if (needsRefresh.isEmpty) return;
+    unawaited(_runRefreshSequentially(needsRefresh, lang));
+  }
+
+  Future<void> _runRefreshSequentially(List<Map<String, dynamic>> observations, String lang) async {
+    for (final obs in observations) {
+      if (!mounted) return;
+      try {
+        await _refreshObservationSummary(obs, lang);
+      } catch (_) {
+        // Leave flag for next Dossier open — don't trap
+      }
+    }
+    // Invalidate so the Dossier shows updated summaries
+    if (mounted) {
+      try { ref.invalidate(patientHistoryProvider); } catch (_) {}
+    }
+  }
+
+  Future<void> _refreshObservationSummary(Map<String, dynamic> obs, String lang) async {
+    final obsId = obs['id'] as String?;
+    if (obsId == null || obsId.isEmpty) return;
+
+    final cnp = ref.read(loginCnpProvider);
+    final noteText = ((obs['note'] as List?)?.firstOrNull?['text'] as String?) ?? '';
+
+    // Fetch Communications for this Observation
+    final comms = await ref.read(fhirRepositoryProvider).getCommunications(
+      cnp: cnp,
+      aboutReference: 'Observation/$obsId',
+    );
+    comms.sort((a, b) =>
+        (a['sent'] as String? ?? '').compareTo(b['sent'] as String? ?? ''));
+    final commText = comms
+        .map((c) => (c['payload'] as List?)?.firstOrNull?['contentString'] as String? ?? '')
+        .where((t) => t.isNotEmpty)
+        .join('\n');
+
+    final combined = [noteText, commText].where((s) => s.isNotEmpty).join('\n\n');
+    final summaryRequest = lang == 'ro'
+        ? 'Pe baza conversației de mai sus, generează un rezumat clinic scurt de o propoziție.'
+        : 'Based on the conversation above, generate a brief one-sentence clinical summary.';
+    final combinedPrompt = combined.isNotEmpty ? '$combined\n\n$summaryRequest' : summaryRequest;
+
+    final result = await ref.read(aiEngineServiceProvider)
+        .evaluateText(combinedPrompt)
+        .timeout(const Duration(seconds: 30));
+
+    final raw = result['response'] as String?;
+    if (raw == null || raw.isEmpty) return;
+
+    // Build updated extension list with the refresh flag removed
+    final currentExts = List<Map<String, dynamic>>.from(
+      ((obs['extension'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+    );
+    final cleanedExts = currentExts
+        .where((e) => e['url'] != FhirExtensionUtils.summaryRefreshNeededUrl)
+        .toList();
+
+    await ref.read(medplumRepositoryProvider).patchObservationValueString(
+      obsId: obsId,
+      newSummary: raw,
+      updatedExtensions: cleanedExts,
     );
   }
 }
