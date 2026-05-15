@@ -1,9 +1,9 @@
 # TeleMed_K — Handoff Summary
-**Date:** 2026-05-14  
-**Deadline:** May 18, 2026 — **4 days remaining**  
+**Date:** 2026-05-15  
+**Deadline:** May 18, 2026 — **3 days remaining**  
 **Repo:** https://github.com/RaresBGH/TeleMed_K (still PRIVATE — must go public before deadline)  
-**Latest Flutter commit:** build #107 (CI building).  
-**Latest device-tested:** build #105 release — AI confirmed working. Build #107 awaiting CI + device test.  
+**Latest Flutter commit:** build #110 pushed; #111 staged locally, CI building.  
+**Latest device-tested:** build #110 — see confirmed working list below.  
 **Kaggle Writeup:** drafted at /home/corb_d/sovereign-factory/mobile-workspace/TeleMed_K_Writeup.md, finalized to 1498 words, currently at 6/7 on the Kaggle submission checklist (video pending).  
 **HuggingFace adapter:** https://huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical (public).
 
@@ -60,7 +60,6 @@ FHIR backend: Google Android FHIR SDK (local encrypted SQLite) + Medplum 5.1.10 
 - Dosar Medical detail tap + replay
 - Resume from history (loads prior messages into MedicalResponseScreen)
 - Back button exit dialog (PopScope, hardware back handled)
-- Emergency 112 routing
 - Session guard (auth/download routes protected)
 - LiteRT-LM E4B dual-path model lookup
 - Audio recording (WAV 16kHz, AAC transcode)
@@ -76,8 +75,8 @@ FHIR backend: Google Android FHIR SDK (local encrypted SQLite) + Medplum 5.1.10 
 - WebRTC two-device video call confirmed end-to-end — patient Pixel 9 Pro + doctor Brave browser
 - Waiting room mute/video buttons apply to actual media tracks
 - Triage chat: voice bubble shows play button; photo bubble shows tappable thumbnail
-- AI conversation context maintained across turns (history passed as customPrompt)
-- On-device AI inference: WORKING — LiteRT-LM 0.11.0, ENGINE_INIT_ERROR resolved. Green pill confirmed. Voice inference confirmed working. Photo: fallback message returned, no crash, thumbnail tappable. Vision encoder not yet producing responses within 60s timeout.
+- AI text inference: conversation history passed as context; audio/photo inference: NO customPrompt (removed — caused E4B context overflow); history capped at 10 messages
+- On-device AI inference: WORKING — LiteRT-LM 0.11.0, ENGINE_INIT_ERROR resolved. Green pill confirmed. Voice inference confirmed working. Photo: AI responds correctly to images (vision encoder working, no customPrompt); permanent copy stored before temp deletion; thumbnail tappable and full-screen viewable.
 - GitHub Actions secrets MEDPLUM_CLIENT_ID and MEDPLUM_CLIENT_SECRET confirmed set and working
 - Doctor UI sliding panel deployed at https://telemed-doctor.duckdns.org: 2-state panel outside call (Patient Report / Chat); in-call shows Patient Report only; patient triage report with chronic conditions, unreviewed dialogues, Mark reviewed → PATCH reviewed-by extension, Finalize → PATCH status:final; In-Call panel: Activity tab only (last 5 Observations) — Chat removed in build #76; responsive 320px desktop / 280px tablet overlay / full-width mobile; join window -60min to +120min
 - All practitioner names replaced with approved mock names throughout app and Medplum
@@ -90,21 +89,20 @@ FHIR backend: Google Android FHIR SDK (local encrypted SQLite) + Medplum 5.1.10 
 
 ---
 
-## Built — Awaiting Device Test
+## Built — Awaiting Confirmation on #111
 
-The following are code-complete but not yet confirmed on Pixel 9 Pro:
-
-| Feature | Key risk |
+| Feature | Status |
 |---|---|
-| Returning vs new user detection | FHIR query on seed data |
-| Profile completion (new user flow) | FHIR Patient write |
-| Dashboard (FHIR condition/medication/appointment) | FHIR read from local SDK |
-| H3: ML Kit OCR + voice in Ajutor | ML Kit 15s timeout; first-launch warm-up |
-| H5: Back button + Trimite mesaj routing | Navigator.push/pop stack |
-| H8: Voice confirm dialog | Dialog dismiss path |
-| H9: Document attachment + audio replay | FilePicker + just_audio |
-| H12: WebRTC signaling | Requires both peers on same signaling room |
-| AI engine rewrite (system prompt, session isolation, streaming shim) | First inference latency |
+| Clinical summary in Dossier | pending #111 |
+| Photo thumbnail (no broken image) | pending #111 |
+| In-chat voice AI understanding | pending #111 |
+| OTP button permanent disable | pending #111 |
+| Activity panel dismiss (snap:false) | pending #111 |
+| Peer left overlay (black screen) | pending #111 |
+| AI 5-question limit enforced | pending #111 |
+| AppBar generic title | pending #111 |
+
+Emergency 112: tel: URI launch never device-tested — pending.
 
 ---
 
@@ -112,20 +110,43 @@ The following are code-complete but not yet confirmed on Pixel 9 Pro:
 
 ### P0 — NONE
 
-### P1 — RESOLVED (builds #103–#107)
-- First photo from home screen not tappable in chat — RESOLVED (initialImagePath wired)
-- Finalize button always grey until AI signals ready — RESOLVED (always blue when active)
-- Appointment status labels missing — RESOLVED (fulfilled/cancelled/noshow chips added)
-- Doctor Communications bleeding across sessions — RESOLVED (7-day filter)
-- Raw file paths in dialogue replay — RESOLVED #103
+### CONFIRMED WORKING ON #110
+- Auto language switch on login (Maria/Ion→RO, Sarah/George→EN) ✓
+- Dashboard data correct per patient (condition/medication/appointment) ✓
+- Voice bubble playback (AAC path fix) ✓
+- Photo suggestion by AI (conditional — only when no photo sent yet) ✓
+- Info card in chat (dismissible) ✓
+- Finalize button works (no longer stuck) ✓
+- Dialogue numbering in Dossier (#1, #2…) ✓
+- Clinical Summary label in Dossier ✓
+- Conversation continuation from Dossier ✓
+- Doctor UI: clinical summary, expand conversation, back to appointments ✓
+- Video call stable 5+ minutes (laptop Brave + Pixel 9 Pro) ✓
+- Appointment status labels (Completed/Cancelled/Missed) ✓
+- Past appointments hide Enter button ✓
+- Join window -60/+120min ✓
+- Dr. name resolved in Communications bubbles ✓
+- Activity panel title added ✓
+- Mic released after video call ✓
+- All 4 patients correct in Medplum ✓
+- All 9 practitioners named in Medplum ✓
 
-### P1 — CONFIRMED OPEN
-- Video call quality — needs two-device test (TURN fix applied 2026-05-08, unconfirmed)
-- iPad Safari: chat stripe tap unresponsive, doctor list empty
-- Emergency routing: tel:112 device test pending
-- Mic not released after video call ends — needs device retest
-- Activity panel (VideoConsultationScreen): tap-outside dismiss + title — needs device retest
-- withOpacity → withValues migration pending CI upgrade past Flutter 3.32.x
+### PENDING — test on #111
+- Clinical summary appears in Dossier after finalization
+- Photo thumbnail shows correctly (not broken image)
+- In-chat voice AI understands correctly (customPrompt removed)
+- OTP button stays disabled after tap (permanent disable)
+- Activity panel dismisses by swipe/tap-outside (snap:false)
+- Peer left overlay shows black screen (fully opaque)
+- AI stops at 5 questions + delivers finalize prompt
+- AppBar shows generic title (patient name removed)
+
+### STILL OPEN — not yet fixed
+- Emergency 112 device test
+- Fine-tuned adapter deployment (base model + engineered prompt in use; adapter published on HuggingFace as artifact)
+- Repo must go public before May 18
+- Demo video not recorded
+- withOpacity→withValues migration pending CI upgrade
 
 ---
 
@@ -372,14 +393,38 @@ PATCH format confirmed: application/json-patch+json (not merge-patch — Medplum
 
 ---
 
-## Next Actions (2026-05-14 — 4 days to deadline)
+## Next Actions (2026-05-15 — 3 days to deadline)
 
-1. Install build #107 release APK — full regression test (text/voice/photo/finalize/dossier)
-2. Two-device video call test (confirm TURN fix)
-3. Device test: Activity panel dismiss + title
-4. Device test: mic release after call
-5. Device test: emergency 112 dial
-6. iPad Safari fixes
-7. Make repo public on GitHub
-8. Record demo video (TeleMed Hearth, Maria story)
-9. Final Kaggle submission before May 18
+**IMMEDIATE (before May 18):**
+1. Test #111 release APK — full regression checklist (voice/photo/finalize/dossier/video call)
+2. Fix anything #111 surfaces
+3. Make repo public on GitHub
+4. Create demo appointments in Medplum for filming date
+5. Record demo video (Maria RO story + Sarah EN story; doctor on laptop Brave)
+6. YouTube upload → Kaggle submission
+7. Deploy fine-tuned adapter (Path A3 — next session after testing complete)
+
+## Medplum Patient Data (verified 2026-05-15)
+
+| Patient | CNP | Medplum ID | Lang | Condition | Medication |
+|---|---|---|---|---|---|
+| Maria Ionescu | 2540203150013 | 0c6daf94-7c53-499e-9c46-7d8e77e99b8f | RO | Hipertensiune arterială | Amlodipină 5mg |
+| Ion Popescu | 1490815150027 | ba0c27f1-d943-4eda-9789-2a2a77ba3d13 | RO | Diabet zaharat tip 2 | Metformin 1000mg |
+| Sarah Dumitrescu | 2621105150032 | f4fd5d5d-6553-4b44-9561-06119b0c8f04 | EN | Hypertension | Amlodipine 5mg |
+| George Constantin | 1551220150048 | b79e4919-ef7e-4c1a-9274-6869eafbe444 | EN | Type 2 Diabetes | Metformin 1000mg |
+
+Duplicate patients cleaned up. Only 1 patient per CNP. Appointments: each patient has upcoming + 2 past fulfilled. George's upcoming: 2598af45 (May 16 10:00).
+
+## Doctor UI Credential Injection
+
+**CRITICAL: After every cp deploy of doctor UI, inject credentials:**
+```
+python3 -c "
+content = open('/home/corb_d/sovereign-factory/doctor-ui/index.html').read()
+content = content.replace(\"const CLIENT_ID     = '';\", \"const CLIENT_ID     = 'c18b54d9-f511-46db-903e-882b47dc3c63';\")
+content = content.replace(\"const CLIENT_SECRET = '';\", \"const CLIENT_SECRET = '7f86f3b5c08e94d711f61a4565c7d577cb303e78a5d57b5d340b74baf8c0b283';\")
+content = content.replace(\"const TURN_PASSWORD = '';\", \"const TURN_PASSWORD = 'TeleMed_TURN_2026!';\")
+content = content.replace(\"const TURN_USERNAME = '';\", \"const TURN_USERNAME = 'telemed';\")
+open('/home/corb_d/sovereign-factory/doctor-ui/index.html', 'w').write(content)
+"
+```

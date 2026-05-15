@@ -526,6 +526,33 @@ class _MedicalResponseScreenState
     return buffer.toString();
   }
 
+  /// Builds a shorter conversation history string for audio inference turns.
+  /// Uses [maxMessages] instead of the standard 10-message cap to keep the
+  /// combined audio + context payload within E4B's effective context window.
+  /// Filter rules, header format, and speaker labels are identical to
+  /// [_buildConversationHistory].
+  String _buildTruncatedConversationHistory(int maxMessages) {
+    final recentMessages = _messages.length > maxMessages
+        ? _messages.sublist(_messages.length - maxMessages)
+        : _messages;
+    final aiCount = recentMessages.where((m) => m.role == 'ai').length;
+    final remaining = 5 - aiCount;
+    final header = remaining > 0
+        ? '\nCONVERSATION SO FAR (AI responses: $aiCount/5 — ask up to $remaining more questions):\n'
+        : '\nCONVERSATION SO FAR (AI responses: $aiCount/5 — PROVIDE SUMMARY AND FINALIZE):\n';
+    final buffer = StringBuffer(header);
+    for (final msg in recentMessages) {
+      if (msg.attachmentType == AttachmentType.pdf ||
+          msg.attachmentType == AttachmentType.document) continue;
+      if (msg.role == 'doctor') continue;
+      final text = msg.text.trim();
+      if (text.isEmpty) continue;
+      final speaker = msg.role == 'ai' ? 'Assistant' : 'Patient';
+      buffer.writeln('$speaker: $text');
+    }
+    return buffer.toString();
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -619,7 +646,9 @@ class _MedicalResponseScreenState
 
       try {
         final result =
-            await ref.read(aiEngineServiceProvider).evaluateAudio(File(wavPath));
+            await ref.read(aiEngineServiceProvider).evaluateAudio(
+                File(wavPath),
+                customPrompt: _buildTruncatedConversationHistory(4));
         audioService.deleteWavFile(wavPath);
         // Update voice bubble with AAC path if background transcoding finished
         // during inference. Falls back to old WAV path gracefully via existsSync check.
@@ -893,10 +922,11 @@ class _MedicalResponseScreenState
       );
 
       await Future.delayed(const Duration(milliseconds: 1400));
-      if (mounted) setState(() => _isFinalizing = false);
       if (!mounted) return;
 
       // Explicit patient finalization — reset session and return to dashboard.
+      // _isFinalizing stays true until widget is disposed by navigation;
+      // it is only reset to false in the catch block below on error.
       await ref.read(medicalSessionProvider.notifier).reset();
     } catch (e) {
       if (!mounted) return;

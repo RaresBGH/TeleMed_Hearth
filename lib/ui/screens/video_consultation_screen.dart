@@ -390,9 +390,14 @@ class _VideoConsultationScreenState
         await _createOffer();
         break;
       case 'leave':
-        // The other peer left the room — show the overlay so the patient
-        // knows the call has ended and can tap the end-call button.
-        if (mounted) setState(() => _peerLeft = true);
+        // The other peer left the room — clear the remote renderer and show
+        // the overlay. Nulling srcObject stops the RTCVideoRenderer from
+        // buffering frames; removing RTCVideoView from the tree (via _peerLeft)
+        // eliminates the SurfaceView punch-through on Android.
+        if (mounted) setState(() {
+          _peerLeft = true;
+          _remoteRenderer.srcObject = null;
+        });
         break;
       // 'chat' case removed — in-call chat replaced by Activity panel (FIX 4).
     }
@@ -776,21 +781,55 @@ class _VideoConsultationScreenState
 
           // Layer 7 — Slide-up chat panel (toggled by chat strip tap)
           if (_chatOpen) ...[
-            // Full-screen transparent barrier: tapping anywhere outside the
-            // sheet dismisses it. The sheet itself is on top in the Stack so
-            // taps on the sheet content are not intercepted by this barrier.
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _sheetController.animateTo(
-                  0.0,
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOut,
-                ),
-                child: const SizedBox.expand(),
-              ),
-            ),
+            // chatPanel first → lower z-order; barrier second → higher z-order.
+            // Barrier is Positioned to cover only the EMPTY area above the visible
+            // sheet (top ~55% of screen). This prevents the full-screen
+            // DraggableScrollableSheet from absorbing taps in the empty area
+            // while leaving the sheet content (bottom 45%) and its close button
+            // fully interactive. Drag gestures still reach the sheet via the
+            // gesture arena (VerticalDragGestureRecognizer beats TapGestureRecognizer).
             _buildChatPanel(),
+            // Dynamic barrier: tracks the sheet's current extent so it always
+            // covers exactly the empty area above the sheet, regardless of drag
+            // position. AnimatedBuilder re-runs on every controller notification
+            // (each animation frame and each drag update).
+            AnimatedBuilder(
+              animation: _sheetController,
+              builder: (_, __) {
+                double sheetFraction;
+                try {
+                  sheetFraction = _sheetController.isAttached
+                      ? _sheetController.size
+                      : 0.45;
+                } catch (_) {
+                  sheetFraction = 0.45; // fallback before first layout
+                }
+                final screenHeight = MediaQuery.sizeOf(context).height;
+                return Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  // bottom tracks the sheet's current top edge.
+                  bottom: screenHeight * sheetFraction,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      try {
+                        _sheetController.animateTo(
+                          0.0,
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOut,
+                        );
+                      } catch (_) {
+                        // Controller detached — close panel directly.
+                        if (mounted) setState(() => _chatOpen = false);
+                      }
+                    },
+                    child: const SizedBox.expand(),
+                  ),
+                );
+              },
+            ),
           ],
         ],
       ),
@@ -800,6 +839,14 @@ class _VideoConsultationScreenState
   // ── Layer 1: Remote video ──────────────────────────────────────────────────
 
   Widget _buildRemoteVideo() {
+    if (_peerLeft) {
+      // Peer has disconnected — return a plain black container to remove
+      // the RTCVideoView (SurfaceView) from the widget tree. SurfaceView on
+      // Android renders below Flutter's layer ("punches through"), so an
+      // overlay widget cannot visually cover it. Removing it from the tree
+      // is the only reliable way to prevent the frozen last frame from showing.
+      return Container(color: Colors.black);
+    }
     if (_isConnecting) {
       return Container(
         color: Colors.black,

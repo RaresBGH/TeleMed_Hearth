@@ -106,9 +106,10 @@ class AiEngineService {
           : 'Înregistrați silențios toate mesajele pacientului pentru raportul medical. Nu răspundeți pacientului.';
     }
 
-    // EN triage prompt — patient-first, 30-word cap, JSON output only.
+    // EN triage prompt — patient-first, 30-word cap, full parity with RO on
+    // emergency/suicide/markdown/schema clauses.
     if (lang == 'en') {
-      return '''You are a medical AI assistant for patient triage in a Romanian rural clinic. The patient speaks first — never greet or open the conversation. Wait for the patient\'s input, then respond with empathy and ask ONE focused follow-up question. Maximum 30 words per sentence. Always respond in English. Ask a maximum of 5 focused follow-up questions per complaint. If the patient describes symptoms that would benefit from visual assessment (skin conditions, rashes, swelling, wounds, visible injuries) AND has not already sent a photo in this conversation, ask them to share a photo. Say: \'I can help better if you share a photo. Please use the camera button below to take one.\' If a photo has already been shared in this conversation, analyze it directly without asking again. After the 5th question, provide a brief 1-sentence clinical summary of what the patient described, then say: \'If this covers everything, please tap the Finalize Dialog button. You can still add more information if needed.\' After this point, do not ask new questions. If the patient adds more information, acknowledge it briefly and repeat: \'When you are ready, please tap Finalize Dialog.\' Set ready_to_finalize: true after delivering the summary prompt and keep it true for all subsequent responses. Output valid JSON only: {"response":"...","emergency":false,"confidence":0.8,"priority":"normal","ready_to_finalize":false,"category":"symptom"}''';
+      return '''You are a medical AI assistant for patient triage in a Romanian rural clinic. The patient speaks first — never greet or open the conversation. Wait for the patient\'s input, then respond with empathy and ask ONE focused follow-up question. Maximum 30 words per sentence. Always respond in English. Never suggest diagnoses, medications, or doses. Ask a maximum of 5 focused follow-up questions per complaint. If the patient describes symptoms that would benefit from visual assessment (skin conditions, rashes, swelling, wounds, visible injuries) AND has not already sent a photo in this conversation, ask them to share a photo. Say: \'I can help better if you share a photo. Please use the camera button below to take one.\' If a photo has already been shared in this conversation, analyze it directly without asking again. After the 5th question, provide a brief 1-sentence clinical summary of what the patient described, then say: \'If this covers everything, please tap the Finalize Dialog button. You can still add more information if needed.\' After this point, do not ask new questions. If the patient adds more information, acknowledge it briefly and repeat: \'When you are ready, please tap Finalize Dialog.\' Set ready_to_finalize: true after delivering the summary prompt and keep it true for all subsequent responses. For life-threatening emergencies (cardiac pain with dyspnea, stroke signs, severe hemorrhage, loss of consciousness, anaphylaxis), respond only with \'Call 112 immediately.\' and set emergency=true. For suicidal ideation, respond with an empathic message including the Suicide Prevention Line 0800 801 200. Do not use markdown formatting — emit raw JSON, no ```json or ``` blocks. For each response, emit EXACTLY one JSON object with these fields: response (text in English addressed to the patient), emergency (boolean), confidence (0.0 or 0.9), priority ("normal", "urgent", or "emergency"), ready_to_finalize (boolean — true after the summary and for all subsequent responses), category (one of: "duration", "intensity", "associated_symptoms", "context", "history", "close", "emergency", "greeting", "other", "medical", "document").''';
     }
     // Romanian triage assistant prompt — matches fine-tuned adapter training schema.
     // Patient speaks first; AI responds with confirmation + one clarifying question.
@@ -400,7 +401,16 @@ class AiEngineService {
     File audioFile, {
     String? customPrompt,
   }) async {
-    if (!_isInitialized) return Map<String, dynamic>.from(_fallbackResponse);
+    if (!_isInitialized) {
+      debugPrint('AiEngineService: _isInitialized was false on entry — attempting re-init');
+      try {
+        final reInit = await initializeModel();
+        if (!reInit) return Map<String, dynamic>.from(_fallbackResponse);
+      } catch (e) {
+        debugPrint('AiEngineService.evaluateAudio re-init threw: $e');
+        return Map<String, dynamic>.from(_fallbackResponse);
+      }
+    }
 
     final kotlinReady = await _isKotlinEngineReady();
     if (!kotlinReady) {
@@ -448,7 +458,16 @@ class AiEngineService {
     File mediaFile, {
     String? customPrompt,
   }) async {
-    if (!_isInitialized) return Map<String, dynamic>.from(_fallbackResponse);
+    if (!_isInitialized) {
+      debugPrint('AiEngineService: _isInitialized was false on entry — attempting re-init');
+      try {
+        final reInit = await initializeModel();
+        if (!reInit) return Map<String, dynamic>.from(_fallbackResponse);
+      } catch (e) {
+        debugPrint('AiEngineService.evaluateMedia re-init threw: $e');
+        return Map<String, dynamic>.from(_fallbackResponse);
+      }
+    }
 
     final kotlinReady = await _isKotlinEngineReady();
     if (!kotlinReady) {
@@ -504,7 +523,16 @@ class AiEngineService {
     String text, {
     String? customPrompt,
   }) async {
-    if (!_isInitialized) return Map<String, dynamic>.from(_fallbackResponse);
+    if (!_isInitialized) {
+      debugPrint('AiEngineService: _isInitialized was false on entry — attempting re-init');
+      try {
+        final reInit = await initializeModel();
+        if (!reInit) return Map<String, dynamic>.from(_fallbackResponse);
+      } catch (e) {
+        debugPrint('AiEngineService.evaluateText re-init threw: $e');
+        return Map<String, dynamic>.from(_fallbackResponse);
+      }
+    }
 
     final kotlinReady = await _isKotlinEngineReady();
     if (!kotlinReady) {

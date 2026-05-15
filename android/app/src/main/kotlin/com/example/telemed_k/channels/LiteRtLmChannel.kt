@@ -6,12 +6,15 @@
 package com.example.telemed_k.channels
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Environment
 import android.util.Log
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.ConversationConfig
+import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import io.flutter.plugin.common.MethodCall
@@ -335,12 +338,15 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
                         // timeout scope. withTimeout(60_000L) only cancels the await(); it
                         // never cancels the native sendMessageAsync() call itself. The
                         // abandoned native call completes silently on the IO thread pool.
+                        // Preprocess: resize to max 1024px to avoid OOM / token-budget
+                        // overflow on high-resolution camera output (Pixel 9 Pro = 50MP).
+                        val inferPath = preprocessImageForInference(filePath)
                         // Pass conversation history as second content item if available;
                         // otherwise send image alone (system prompt is the instruction).
                         val imageContents = if (conversationContext.isNotEmpty()) {
-                            listOf(Content.ImageFile(filePath), Content.Text(conversationContext))
+                            listOf(Content.ImageFile(inferPath), Content.Text(conversationContext))
                         } else {
-                            listOf(Content.ImageFile(filePath))
+                            listOf(Content.ImageFile(inferPath))
                         }
                         val inferenceDeferred = scope.async(Dispatchers.IO) {
                             runEngineInference(
@@ -425,8 +431,19 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
     ): String {
         val liveEngine = checkNotNull(engine) { "Engine is null inside runEngineInference" }
 
+        // Sampling parameters: low temperature for instruction-following discipline
+        // (JSON output, 5-question limit, response length). topK=40 is the standard
+        // Gemma default; the API requires it as a positional arg (no library default).
+        // seed omitted — defaults to 0 (random, no fixed seed needed for demo).
+        val samplerConfig = SamplerConfig(
+            topK = 40,
+            topP = 0.9,
+            temperature = 0.3,
+        )
+        Log.d(TAG, "Sampling config: temperature=0.3 topP=0.9 topK=40")
         val conversationConfig = ConversationConfig(
             systemInstruction = Contents.of(systemPrompt),
+            samplerConfig = samplerConfig,
         )
 
         return liveEngine.createConversation(conversationConfig).use { conversation ->
@@ -533,5 +550,75 @@ class LiteRtLmChannel(private val context: Context) : MethodChannel.MethodCallHa
                 "Sistemul AI nu este disponibil momentan. Vă rugăm descrieți simptomele medicului.")
             put("fallback", true)
         }.toString()
+    }
+
+    /**
+     * Resizes a JPEG image so its longest side is at most MAX_INFER_DIM pixels,
+     * then saves the result to the app cache directory.
+     *
+     * High-resolution camera images (Pixel 9 Pro = 50MP) exceed the LiteRT-LM
+     * vision encoder's effective token budget and cause IMAGE_INFERENCE_ERROR.
+     * Constraining to 1024px largest side keeps the payload manageable.
+     *
+     * Returns the path of the processed file (may equal [sourcePath] if the
+     * image is already within bounds or if decoding fails).
+     */
+    private fun preprocessImageForInference(sourcePath: String): String {
+        val MAX_DIM = 1024
+        try {
+            // Decode bounds first (no pixel allocation).
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(sourcePath, bounds)
+            val origW = bounds.outWidth
+            val origH = bounds.outHeight
+
+            // Log actual image dimensions — always-on for diagnosis; remove post-hackathon.
+            val sourceFile = File(sourcePath)
+            Log.d(TAG, "Image for inference: ${sourceFile.length() / 1024}KB ${origW}x${origH} path=$sourcePath")
+
+            if (origW <= 0 || origH <= 0) {
+                Log.w(TAG, "preprocessImageForInference: invalid bounds ($origW x $origH) — using original")
+                return sourcePath
+            }
+
+            if (origW <= MAX_DIM && origH <= MAX_DIM) {
+                // Already within limits — pass original path directly.
+                Log.d(TAG, "Image within ${MAX_DIM}px limit — no resize needed")
+                return sourcePath
+            }
+
+            // Use inSampleSize for a fast first-pass decode before fine-scaling.
+            val longestSide = maxOf(origW, origH)
+            val sampleSize = maxOf(1, Integer.highestOneBit(longestSide / MAX_DIM))
+            val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+            val raw = BitmapFactory.decodeFile(sourcePath, decodeOpts)
+                ?: run {
+                    Log.w(TAG, "preprocessImageForInference: BitmapFactory.decodeFile returned null — using original")
+                    return sourcePath
+                }
+
+            // Fine-scale to exact MAX_DIM on the longest side.
+            val scale = MAX_DIM.toFloat() / maxOf(raw.width, raw.height).toFloat()
+            val targetW = (raw.width * scale).toInt().coerceAtLeast(1)
+            val targetH = (raw.height * scale).toInt().coerceAtLeast(1)
+            val scaled = Bitmap.createScaledBitmap(raw, targetW, targetH, true)
+            raw.recycle()
+
+            Log.d(TAG, "Image resized: ${origW}x${origH} → ${scaled.width}x${scaled.height}")
+
+            // Save resized image to app cache dir as JPEG.
+            val destFile = File(context.cacheDir, "telemed_infer_${System.currentTimeMillis()}.jpg")
+            destFile.outputStream().use { fos ->
+                scaled.compress(Bitmap.CompressFormat.JPEG, 85, fos)
+            }
+            scaled.recycle()
+
+            Log.d(TAG, "Preprocessed image saved: ${destFile.length() / 1024}KB → ${destFile.absolutePath}")
+            return destFile.absolutePath
+
+        } catch (e: Exception) {
+            Log.e(TAG, "preprocessImageForInference error — using original path", e)
+            return sourcePath
+        }
     }
 }

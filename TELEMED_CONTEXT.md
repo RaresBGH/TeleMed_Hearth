@@ -1,9 +1,9 @@
 # TeleMed_K — Project Context for AI Assistant
-Last updated: 2026-05-14 (Latest Flutter build: #107)
+Last updated: 2026-05-15 (Latest Flutter build: #111 CI building)
 
 ## What This Is
 Flutter telemedicine app for rural Romania. MVP for Dr. Bogheanu's clinic in Brănești, Dâmbovița.
-Competition: Kaggle Gemma 4 Good Hackathon — deadline May 18, 2026 (4 days remaining).
+Competition: Kaggle Gemma 4 Good Hackathon — deadline May 18, 2026 (3 days remaining).
 Repo: https://github.com/RaresBGH/TeleMed_K (currently PRIVATE — must make public before deadline)
 
 ## Owner / Clinical Partners
@@ -95,7 +95,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 - **Waiting room mute/video** — buttons correctly disable/enable actual MediaStream tracks
 - **Triage chat attachments** — voice bubble shows play/stop button with correct `attachmentPath`; photo bubble shows tappable thumbnail; both open full-screen on tap
 - **AI conversation context** — conversation history passed as `customPrompt` to every `evaluateText`/`evaluateAudio`/`evaluateMedia` call; AI no longer repeats Turn 1 greeting
-- **On-device AI inference** — WORKING — LiteRT-LM 0.11.0 resolves ENGINE_INIT_ERROR (libLiteRt.so bundled). Voice inference confirmed. Photo: fallback returned, no crash, thumbnail tappable. Vision encoder not yet producing responses within 60s on E4B.
+- **On-device AI inference** — WORKING — LiteRT-LM 0.11.0 resolves ENGINE_INIT_ERROR (libLiteRt.so bundled). Voice inference confirmed working. Photo: AI responds correctly to images (vision encoder working as of build #109, no customPrompt); permanent copy stored before temp deletion; thumbnail tappable and full-screen viewable. customPrompt removed from audio/photo evaluations in builds #109–#110 to fix E4B context overflow.
 - **GitHub Actions secrets** — `MEDPLUM_CLIENT_ID` and `MEDPLUM_CLIENT_SECRET` confirmed set with correct values; build #60+ have working Medplum credentials
 - **Doctor UI rewrite** — English interface confirmed loading at telemed-doctor.duckdns.org; doctor dropdown with 9 practitioners; appointment join window -60min/+120min; peer-left overlay present
 - **Practitioner names** — all mock names confirmed in Medplum and Flutter constants; 9 real Medplum Practitioner UUIDs in practitioner_constants.dart
@@ -122,7 +122,7 @@ NGO provides devices + digital literacy to elderly patients who cannot afford go
 
 ### BUILT — AWAITING DEVICE TEST
 
-- **Mock patient DB (5 patients)** — `FhirEngineChannel.kt` seeds 5 realistic Romanian patients (Maria Ionescu CNP 2540203150013, Ion Popescu CNP 1490815150027, Elena Dumitrescu CNP 2621105150032, Gheorghe Stan CNP 1551220150048, Ana Constantin CNP 2480430150058) each with valid checksum CNP, name, DOB, phone, and one clinical Condition (Hipertensiune / Diabet tip 2 / Artrită / Insuficiență cardiacă / BPOC)
+- **Mock patient DB (4 patients)** — `FhirEngineChannel.kt` seeds 4 patients matching Medplum (Maria Ionescu CNP 2540203150013, Ion Popescu CNP 1490815150027, Sarah Dumitrescu CNP 2621105150032, George Constantin CNP 1551220150048) each with valid CNP, gender, DOB, phone, Condition, and individual MedicationRequest. 5th patient (Ana Constantin) removed in build #106.
 - **Returning vs new user detection** — `PatientAuthNotifier.loadPatient(cnp)` searches FHIR by `urn:oid:1.2.40.0.10.1.4.3.1` identifier; returning user → first name extracted, `isReturningUser=true`, navigates to home/download; new user → navigates to `AppRoute.profileCompletion`
 - **Profile completion screen** — new users enter first name, last name, phone; creates FHIR Patient resource via `handleSavePatient`; sets `patientFirstName`; navigates to home or model download based on model presence
 - **Dynamic patient name greeting** — home screen reads `patientAuthProvider.patientFirstName`; shows "Bună ziua, [Prenume]!" or "Bună ziua!" if name not loaded; reactive to `patientAuthProvider` via `ref.watch`
@@ -736,4 +736,36 @@ Still open (device test required):
 - Two-device video call (TURN fix applied 2026-05-08, unconfirmed)
 - Emergency routing: tel:112 dialer launch
 - iPad Safari: chat stripe + doctor list
+
+### BUILDS #108–#111 — SESSION 2026-05-15
+
+Build #108: Engine Kotlin/Dart state sync (isEngineReady MethodChannel); auto language on login (_patientLanguage map + HomeScreen initState sync); join window -60/+120min; peer left overlay fully opaque black.
+
+Build #109: 5-question limit; CLASSIFY removed from context; turn counter in history header; AAC path fix (updateAudioPath); home photo permanent path copy (updateImagePath); activity panel snap:false; Doctor UI clinical summary/back-to-appointments/expand-conversation; evaluateAudio customPrompt removed.
+
+Build #110: Dialogue numbering (#N oldest=1); summary card → static info card (dismissible); finalize stuck fix; clinical summary at finalization (combined prompt + fallback detection); category stored; Clinical Summary label in Dossier; evaluateMedia customPrompt removed; OTP permanent disable fix; activity panel snap:false confirmed.
+
+CONFIRMED WORKING ON #110 (full device test):
+- All 4 patients login correctly with language, dashboard, conditions, medications ✓
+- Maria (RO): voice triage, finalize, dialogue in Dossier ✓
+- Sarah (EN): text triage, photo, AI responds correctly ✓
+- Video call Pixel 9 Pro + laptop Brave: stable 5+ min ✓
+- Doctor UI: appointments, report, mark reviewed, expand conversation ✓
+- Medical Dossier: dialogue numbering, Clinical Summary label, continue conversation ✓
+- Appointment status chips, past appointment button hidden, join window correct ✓
+- Mic released after video call, activity panel title shown ✓
+- Dr. name resolved in Communications bubbles ✓
+- All 4 Medplum patients + 9 practitioners correct ✓
+
+Build #111 (CI building): Clinical summary combined prompt (history embedded, no customPrompt); photo thumbnail try/catch copy (existsSync removed); photo AI suggestion conditional; OTP permanent disable corrected; AppBar generic title; snap:false confirmed; credential injection documented.
+
+PENDING on #111:
+- Clinical summary appears in Dossier after finalization
+- Photo thumbnail not broken
+- In-chat voice AI understands correctly
+- OTP button stays disabled after tap
+- Activity panel dismisses (snap:false)
+- Peer left overlay black
+- AI 5-question limit enforced
+- AppBar generic title confirmed
 

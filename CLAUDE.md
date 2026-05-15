@@ -1,4 +1,4 @@
-# TeleMed_K — Claude Code Session Context
+# TeleMed Hearth — Claude Code Session Context
 
 ## Project
 Flutter telemedicine app for rural Romania. Dr. Bogheanu clinic in Brănești, Dâmbovița.
@@ -46,7 +46,7 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 - All inference isolated per session (fresh Conversation per call)
 - Single FHIR Observation per dialog, saved only on explicit "Finalizează Dialogul"
 - Language switching via AppStrings (120 keys, reactive, no restart)
-- Mock patient DB: 5 Romanian patients seeded in FhirEngineChannel.kt
+- Mock patient DB: 4 patients seeded in FhirEngineChannel.kt (Maria/Ion/Sarah/George)
 - Shared bottom nav widget: AppBottomNavBar (Acasă / Dosar Medical / Medic)
 - Medplum sync layer: FhirRepository online-first reads + dual-write; local FHIR SDK is offline cache
 - Practitioner IDs in lib/core/constants/practitioner_constants.dart — never hardcode
@@ -63,6 +63,15 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 - AppointmentsScreen: showBookingButton=false by default (read-only from dashboard); screenTitle parameter for contextual title; family doctor scoped to familyDoctorId explicitly
 - Doctor profile: specialty shown as AppBar top label; entitlement string (from Practitioners.*entitlement) shown below name
 - Medplum-first reads: getMostRecentEncounter uses fulfilled Appointments; getMostRecentMedicationRequest and getPatientHistory (Conditions + Observations) all online-first with local fallback
+- _patientLanguage map in PatientAuthNotifier: CNP→lang lookup for auto language switch at login; AI engine language synced via HomeScreen initState() post-frame callback
+- AI inference: systemPromptOnly separate from conversationContext; NO customPrompt for audio/photo evaluations (causes context overflow with E4B); history capped at 10 messages; 3 Observations max in FHIR context; turn counter in conversation header
+- 5-question limit: in system prompt both EN/RO; turn counter in conversation header; ready_to_finalize kept true after summary delivered
+- Clinical summary: generated at finalization via evaluateText(history + summaryRequest, no customPrompt); stored as Observation.valueString; displayed as "Clinical Summary"/"Rezumat Clinic" in Dossier
+- Audio: WAV → inference, AAC → playback; updateAudioPath() stores AAC after transcoding; home screen audio path fixed via updateAudioPath() in home_screen.dart
+- Photo: permanent copy made before temp deletion for both home screen and in-chat; existsSync removed (direct try/catch copy); updateImagePath() stores permanent path
+- Doctor UI: credentials injected at deploy time only (never in source); clinical summary from obs.note last [AI] line; expand conversation toggle; back to appointments button; peer left overlay fully opaque black
+- WebRTC: 640×480 @ 24fps, 500kbps both sides; confirmed stable 5+ minutes laptop+phone
+- Dialogue numbering: oldest=#1 in history_screen.dart; passed to DialogDetailSheet as optional param
 
 ## Open Issues (carry to next session)
 
@@ -71,36 +80,50 @@ Medplum project: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8
 - Release APK crash on inference: RESOLVED build #102 — ProGuard keep rules for LiteRT-LM JNI callbacks (R8 was renaming onMessage/onDone, causing NoSuchMethodError).
 - Release APK model download DNS failure: RESOLVED build #99 — network_security_config.xml domain-config for duckdns.org.
 
-### P0 — NONE. All critical and high items resolved.
+### P1 — CONFIRMED WORKING ON DEVICE (#110)
+- Auto language switch on login (Maria/Ion→RO, Sarah/George→EN) ✓
+- Dashboard data correct per patient (condition/medication/appointment) ✓
+- Voice bubble playback (AAC path fix) ✓
+- Photo suggestion by AI (conditional — only when no photo sent yet) ✓
+- Info card in chat (dismissible) ✓
+- Finalize button works (no longer stuck) ✓
+- Dialogue numbering in Dossier (#1, #2…) ✓
+- Clinical Summary label in Dossier ✓
+- Conversation continuation from Dossier ✓
+- Doctor UI: clinical summary from obs.note, expand conversation, back to appointments ✓
+- Video call stable 5+ minutes (laptop Brave + Pixel 9 Pro) ✓
+- Appointment status labels (Completed/Cancelled/Missed) ✓
+- Past appointments hide Enter button ✓
+- Join window -60/+120min ✓
+- Dr. name resolved in Communications bubbles ✓
+- Activity panel title added ✓
+- Mic released after video call ✓
+- All 4 patients correct in Medplum ✓
+- All 9 practitioners named in Medplum ✓
 
-### P1 — RESOLVED (builds #103–#107)
-- First photo from home screen not tappable in chat — RESOLVED #103 (initialImagePath wired)
-- Finalize button always grey until AI says ready_to_finalize — RESOLVED (always blue when active)
-- Appointment status labels missing (fulfilled/cancelled/noshow) — RESOLVED (chips added)
-- Doctor Communications bleeding into new sessions (old messages shown) — RESOLVED (7-day filter)
-- Raw file paths in dialogue replay ([Voice:/data/...]) — RESOLVED #103
+### P1 — PENDING (test on #111)
+- Clinical summary appears in Dossier after finalization
+- Photo thumbnail shows correctly (not broken image)
+- In-chat voice AI understands correctly (customPrompt removed)
+- OTP button stays disabled after tap (permanent disable)
+- Activity panel dismisses by swipe/tap-outside (snap:false fix)
+- Peer left overlay shows black screen (fully opaque)
+- AI stops at 5 questions + delivers finalize prompt
+- AppBar shows generic title (patient name removed)
 
 ### P1 — STILL OPEN
-- Video call quality — needs two-device test (TURN fix applied 2026-05-08, unconfirmed)
-- iPad Safari: chat stripe tap unresponsive, doctor list empty
 - Emergency routing: EmergencyScreen → tel:112 — device test pending
-- Mic not released after video call ends — needs device retest
-- Activity panel (VideoConsultationScreen): tap-outside dismiss + title — needs device retest
-- "Your medical assistant" AppBar title in chat — consider renaming to doctor name or clinic name
-
-### Post-hackathon
-- T4: Triage back button background not white
-- D3: Could not load photo error on profile photo upload
-- Patient PDF send: plain text notification only
-- Doctor Communications polling: not real-time
+- Fine-tuned adapter deployment (Path A3 — base model + engineered prompt in use; adapter at huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical available as artifact)
+- withOpacity→withValues migration pending CI upgrade past Flutter 3.32.x
 
 ## Current State
 See TELEMED_CONTEXT.md for full verified/awaiting-test/broken breakdown.
-Last updated: 2026-05-14
-Latest build: #107 (CI building).
-Last device-tested: #105 release — AI confirmed working. Build #107 awaiting CI + device test.
-4 patients created in Medplum (Maria/Ion/Sarah/George) with conditions, medications, appointments.
-All 9 practitioners named in Medplum.
+Last updated: 2026-05-15
+Latest build: #111 (CI building — staged locally).
+Last device-tested: #110 release.
+3 days to deadline (May 18, 2026).
+App name: TeleMed Hearth.
+Repo: PRIVATE — must go public before May 18.
 
 ## ADB Commands
 adb -s 4C041FDAP006Z1 logcat -d | grep -E "LiteRtLm|flutter|com.example.telemed_k" | tail -40
@@ -122,6 +145,34 @@ The doctor UI is a static HTML file served by Caddy.
 - NEVER edit files directly in `/home/corb_d/sovereign-factory/doctor-ui/` — that folder is deploy-only.
 - NEVER create or edit any doctor UI files outside the repository.
 
+**CRITICAL: After every cp deploy, inject credentials (they are empty strings in source for security):**
+```python
+python3 -c "
+content = open('/home/corb_d/sovereign-factory/doctor-ui/index.html').read()
+content = content.replace(\"const CLIENT_ID     = '';\", \"const CLIENT_ID     = 'c18b54d9-f511-46db-903e-882b47dc3c63';\")
+content = content.replace(\"const CLIENT_SECRET = '';\", \"const CLIENT_SECRET = '7f86f3b5c08e94d711f61a4565c7d577cb303e78a5d57b5d340b74baf8c0b283';\")
+content = content.replace(\"const TURN_PASSWORD = '';\", \"const TURN_PASSWORD = 'TeleMed_TURN_2026!';\")
+content = content.replace(\"const TURN_USERNAME = '';\", \"const TURN_USERNAME = 'telemed';\")
+open('/home/corb_d/sovereign-factory/doctor-ui/index.html', 'w').write(content)
+"
+```
+Basic auth gate at Caddy: **demo / telemed2026** (credentials published in Kaggle writeup demo section).
+
+## Medplum Patient Data (verified 2026-05-15)
+
+| Patient | CNP | Medplum ID | Lang | Condition | Medication |
+|---|---|---|---|---|---|
+| Maria Ionescu | 2540203150013 | 0c6daf94-7c53-499e-9c46-7d8e77e99b8f | RO | Hipertensiune arterială | Amlodipină 5mg |
+| Ion Popescu | 1490815150027 | ba0c27f1-d943-4eda-9789-2a2a77ba3d13 | RO | Diabet zaharat tip 2 | Metformin 1000mg |
+| Sarah Dumitrescu | 2621105150032 | f4fd5d5d-6553-4b44-9561-06119b0c8f04 | EN | Hypertension | Amlodipine 5mg |
+| George Constantin | 1551220150048 | b79e4919-ef7e-4c1a-9274-6869eafbe444 | EN | Type 2 Diabetes | Metformin 1000mg |
+
+Duplicate patients cleaned up — old records (a0e44abc, 510b8c93, 118149bf, 6955bb14) deleted. Only 1 patient per CNP now.
+
+Practitioners: 9 in Medplum with correct names (familyDoctorId = 733e1972-b42d-4bd0-82c7-66db72b2d311 = Dr. Elena Ionescu)
+
+Appointments: Each patient has upcoming + 2 past fulfilled appointments. George's upcoming: 2598af45 (May 16 10:00)
+
 ## Session Notes — 2026-05-11 (Fine-Tune Data Pipeline, Steps 5–10)
 
 NO Flutter code modified this session. All work was in tools/finetune/ (Python) and datasets on the GX10.
@@ -133,13 +184,15 @@ NO Flutter code modified this session. All work was in tools/finetune/ (Python) 
 - b1590af — Step 9: generate_synthetic.py + seed_examples.py; 121 synthetic dialogues (synth-001..121) across 13 themes
 - dcc5b60 — Step 10: merge_train_eval.py; train.jsonl (109) + eval.jsonl (12) + merge_manifest.json
 
-**Fine-tune pipeline state (Step 11 = Unsloth training, NEXT):**
+**Fine-tune pipeline state (Steps 1–13b = COMPLETE):**
 - tools/finetune/ at repo root, uv-managed Python 3.12 project
 - Training data: /home/corb_d/sovereign-factory/datasets/training/train.jsonl (109 dialogues, 688 turns)
 - Eval data: /home/corb_d/sovereign-factory/datasets/training/eval.jsonl (12 dialogues, 66 turns)
 - Model target: Gemma 4 E4B (same model as LiteRT-LM uses) via Unsloth QLoRA on GX10
-- Adapter output target: /home/corb_d/sovereign-factory/models/telemed-k-gemma4-e4b-adapter/
-- RISK: Unsloth aarch64 install is UNTESTED — first major blocker for Step 11
+- Adapter output: /home/corb_d/sovereign-factory/models/telemed-k-gemma4-e4b-adapter/
+- Unsloth aarch64 confirmed working on GX10 — Step 11 completed successfully.
+- Steps 11–13b complete. Adapter at huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical.
+- Path A3 chosen for deployment (base model + engineered system prompt).
 
 **Step 8 lessons (Gemini quota):**
 - Free-tier daily limit: ~100 RPD (requests per day) on Gemini 3 Flash; hit wall at ~80 rows
@@ -150,18 +203,13 @@ NO Flutter code modified this session. All work was in tools/finetune/ (Python) 
 **Architecture discoveries (affect Flutter before deployment):**
 1. JSON schema: engine expects 6-field JSON per turn {response, emergency, confidence, priority, ready_to_finalize, category}
 2. Emergency routing: wired but unverified end-to-end (tel:112 launch from EmergencyScreen TBD)
-3. Patient-first conversation: AI must NOT greet in Turn 1 — system prompt needs updating
-4. Sentence cap: system prompt says 15 words; training data uses 30-word cap — must align
+3. Patient-first conversation: AI must NOT greet in Turn 1 — RESOLVED — system prompt updated build #104 commit b2161ea
+4. Sentence cap: system prompt says 15 words; training data uses 30-word cap — RESOLVED — 30-word cap in system prompt build #104
 
 **Clinical review: Rareș Bogheanu (project lead, Senior QA architect) + Dr. Adriana Bogheanu + Dr. Mariana Andronescu reviewed all 121 dialogues in real-time (physically present). No deferred review.**
 
-**Next session must:**
-1. Verify Unsloth installs on aarch64 (Step 11 first risk)
-2. Run QLoRA fine-tune on train.jsonl
-3. Evaluate on eval.jsonl (12 dialogues, manual read)
-4. Update system prompt in ai_engine_service.dart (patient-first + 30-word cap)
-5. Verify emergency routing: EmergencyScreen → tel:112 → confirm url_launcher fires
-6. Resume Flutter P0 issues (E4B ENGINE_INIT_ERROR, C1 regression) — NOT touched this session
+**All steps complete. Fine-tune pipeline closed.**
+Steps 1–13b done. See HANDOFF.md for full fine-tune details and deployment decision (Path A3).
 
 ## Session Notes — 2026-05-12 (Builds #80–#86)
 
@@ -175,7 +223,7 @@ Build #83: FHIR subject reference fixed (CNP identifier → Patient/{medplumId} 
 
 Build #85: ref.watch/ref.read split corrected (local lang variable in build-path only; ref.read getter in async). Photo crash fixed — async deferred pattern, 60s timeout, native call never cancelled. Photo no longer crashes — returns Romanian fallback message.
 
-Build #86: C1 root cause confirmed — unawaited stopAndRelease() in dispose() completes after super.dispose() on dead ref. Fix: capture audioService before dispose(). Also: _showImagePreview() missing mounted check (deactivated ancestor). AWAITING DEVICE CONFIRMATION.
+Build #86: C1 root cause confirmed — unawaited stopAndRelease() in dispose() completes after super.dispose() on dead ref. Fix: capture audioService before dispose(). Also: _showImagePreview() missing mounted check (deactivated ancestor). RESOLVED — C1 confirmed debug-only in release build #102. Not user-facing.
 
 Confirmed working as of build #85:
 - E4B voice inference: working, AI responds correctly
@@ -234,14 +282,23 @@ Build #107: Chat UX improvements —
 - PDF/doc/docx file types added to file picker; OCR fallback uses chat.pdf_attached key.
 - FHIR history context limited to last 3 Observations (speeds up inference).
 
-## Session Notes — 2026-05-11 (Fine-Tune Steps 5–10)
+## Session Notes — 2026-05-15 (Builds #108–#111)
 
-NO Flutter code modified. All work in tools/finetune/.
-Commits: e70371a, 060f4b5, 3fc891c, b1590af, dcc5b60
-Training data: train.jsonl (109 dialogues) + eval.jsonl (12)
-Dr. Bogheanu reviewed all 121 synthetic dialogues in real-time.
-Architecture discoveries affect Flutter — see P1 Open Issues above.
-Next: Step 11 Unsloth QLoRA fine-tune on GX10.
+Build #108: Engine Kotlin/Dart state sync (isEngineReady MethodChannel added to LiteRtLmChannel.kt; Dart checks before every inference and auto-reinits on divergence); auto language on login (_patientLanguage map in PatientAuthNotifier + HomeScreen initState sync); join window restored to -60/+120min; peer left overlay fully opaque black.
+
+Build #109: 5-question limit updated; CLASSIFY instruction conflict removed from buildConversationContext(); turn counter added to conversation history header; CNP submit button permanent disable (OTP button still had bug); AAC path fix for audio replay (updateAudioPath()); home photo permanent path copy (updateImagePath()); activity panel snap:false; Doctor UI: clinical summary from obs.note last [AI] line, back-to-appointments button, expand conversation toggle; evaluateAudio() customPrompt removed (in-chat voice fix).
+
+Build #110: Dialogue numbering (#N oldest=1) in history_screen.dart + dialog_detail_sheet.dart; summary card replaced with static info card (dismissible); finalize button stuck fix (_isFinalizing reset on success); AI clinical summary generation at finalization (combined prompt, fallback detection); category stored from last AI result; Clinical Summary / Rezumat Clinic label in Dossier; evaluateMedia customPrompt removed; OTP button permanent disable fix in login_verification_screen.dart; activity panel snap:false confirmed.
+
+DEVICE-TESTED BUILD #110:
+- All 4 patients login correctly with correct language, dashboard, conditions, medications ✓
+- Maria (RO): voice triage, finalize, see dialogue in Dossier ✓
+- Sarah (EN): text triage, photo taken, AI responds correctly ✓
+- Video call Pixel 9 Pro (patient) + laptop Brave (doctor): stable 5+ minutes ✓
+- Doctor UI: see appointments, view report, mark reviewed, expand conversation ✓
+- Medical Dossier: dialogue numbering, Clinical Summary label, continue conversation ✓
+
+Build #111 (CI building): Clinical summary combined prompt fix (no customPrompt, history embedded in text); photo thumbnail existsSync removed (direct try/catch copy with fallback); photo AI suggestion conditional (only when no photo sent); OTP verification button permanent disable correct; AppBar title reverted to generic (patient name removed); snap:false confirmed. Credential injection reminder added to CLAUDE.md Doctor UI section.
 
 ## Post-Hackathon Roadmap
 - Gemma real-time call summarization (WebRTC audio → STT → Gemma → FHIR Observation)

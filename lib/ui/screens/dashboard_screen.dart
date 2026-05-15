@@ -21,6 +21,7 @@ import '../../core/providers/patient_history_provider.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/dialog_detail_sheet.dart';
 import '../widgets/language_toggle.dart';
+import 'appointments_screen.dart';
 
 // ── Design tokens (Horizon/Stitch palette) ────────────────────────────────────
 const Color _bg         = Color(0xFFF7F9FE);
@@ -138,16 +139,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     medAsync.when(
                       data: (med) => _buildQuickStatusRow(lang, med, nextApptText,
                           nextApptSpecialty: nextApptSpecialty,
-                          onApptTap: () => ref.read(appNavigationProvider.notifier)
-                              .navigateTo(AppRoute.appointments)),
+                          onApptTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => AppointmentsScreen(
+                                screenTitle: AppStrings.of(lang, 'appointment.title'))))),
                       loading: () => _buildQuickStatusRow(lang, null, nextApptText,
                           nextApptSpecialty: nextApptSpecialty,
-                          onApptTap: () => ref.read(appNavigationProvider.notifier)
-                              .navigateTo(AppRoute.appointments)),
+                          onApptTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => AppointmentsScreen(
+                                screenTitle: AppStrings.of(lang, 'appointment.title'))))),
                       error: (_, __) => _buildQuickStatusRow(lang, null, nextApptText,
                           nextApptSpecialty: nextApptSpecialty,
-                          onApptTap: () => ref.read(appNavigationProvider.notifier)
-                              .navigateTo(AppRoute.appointments)),
+                          onApptTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => AppointmentsScreen(
+                                screenTitle: AppStrings.of(lang, 'appointment.title'))))),
                     ),
                     const SizedBox(height: 24),
 
