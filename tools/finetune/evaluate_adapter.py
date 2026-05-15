@@ -1,5 +1,5 @@
 """
-Step 12 — Evaluate the TeleMed_K LoRA adapter on the stratified eval set.
+Step 12 — Evaluate the TeleMed Hearth LoRA adapter on the stratified eval set.
 Runs inside unsloth-gemma4-local:latest Docker container with bind mounts:
   /workspace/output/adapter/  ← trained LoRA weights from Step 11
   /workspace/data/eval.jsonl  ← 12 eval dialogues (system message already injected)
@@ -422,7 +422,7 @@ def main() -> None:
         + "\n"
     )
 
-    report = f"""# TeleMed_K Gemma 4 E4B Fine-Tune Evaluation
+    report = f"""# TeleMed Hearth Gemma 4 E4B Fine-Tune Evaluation
 
 **Model:** {BASE_MODEL_ID} + LoRA adapter (r=16, α=32)
 **Eval set:** {n} stratified dialogues from training/eval.jsonl

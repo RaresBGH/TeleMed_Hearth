@@ -1,7 +1,7 @@
 [project]
 name = "telemed-k-finetune"
 version = "0.1.0"
-description = "Dataset preparation and fine-tuning pipeline for TeleMed_K (Gemma 4 E4B + Unsloth)"
+description = "Dataset preparation and fine-tuning pipeline for TeleMed Hearth (Gemma 4 E4B + Unsloth)"
 requires-python = ">=3.12"
 dependencies = [
     "datasets>=3.0,<4.0",

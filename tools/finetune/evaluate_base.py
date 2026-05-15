@@ -1,5 +1,5 @@
 """
-Step 12b — Evaluate the TeleMed_K BASE Gemma 4 E4B model (no adapter) on the
+Step 12b — Evaluate the TeleMed Hearth BASE Gemma 4 E4B model (no adapter) on the
 same 12 stratified eval dialogues used for adapter evaluation, with the same
 engineered system prompt that conditioned adapter training. Produces head-to-head
 comparable outputs for hackathon writeup: adapter vs. base-model performance.
@@ -491,7 +491,7 @@ def main() -> None:
         + "\n"
     )
 
-    report = f"""# TeleMed_K Gemma 4 E4B BASE MODEL Evaluation (no adapter)
+    report = f"""# TeleMed Hearth Gemma 4 E4B BASE MODEL Evaluation (no adapter)
 
 **Model:** {BASE_MODEL_ID} (base, no adapter)
 **Eval set:** {n} stratified dialogues from training/eval.jsonl

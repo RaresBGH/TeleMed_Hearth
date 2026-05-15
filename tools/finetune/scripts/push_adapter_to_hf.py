@@ -1,5 +1,5 @@
 """
-Push TeleMed_K fine-tuned LoRA adapter + metadata to HuggingFace Hub.
+Push TeleMed Hearth fine-tuned LoRA adapter + metadata to HuggingFace Hub.
 
 Reads HF_TOKEN from env. Creates the repo if missing, uploads:
   - adapter_model.safetensors
@@ -61,10 +61,10 @@ datasets:
 pipeline_tag: text-generation
 ---
 
-# TeleMed_K — Gemma 4 E4B Romanian Rural Triage Adapter
+# TeleMed Hearth — Gemma 4 E4B Romanian Rural Triage Adapter
 
 A LoRA adapter fine-tuned on top of `unsloth/gemma-4-E4B-it-unsloth-bnb-4bit` for
-Romanian rural-elderly medical triage. Part of the TeleMed_K project for the
+Romanian rural-elderly medical triage. Part of the TeleMed Hearth project for the
 [Gemma 4 Good Hackathon](https://kaggle.com/competitions/gemma-4-good-hackathon),
 developed in collaboration with Clinica Medicală Dr. Bogheanu
 (Brănești, Dâmbovița County, Romania).
@@ -73,7 +73,7 @@ developed in collaboration with Clinica Medicală Dr. Bogheanu
 
 This adapter teaches Gemma 4 E4B to perform structured triage in Romanian for
 elderly rural patients before a family-doctor consultation, producing a strict
-JSON output that the TeleMed_K Flutter app parses and routes:
+JSON output that the TeleMed Hearth Flutter app parses and routes:
 
 ```json
 {{
@@ -156,7 +156,7 @@ model, tokenizer = FastLanguageModel.from_pretrained(
 )
 FastLanguageModel.for_inference(model)
 
-# See ai_engine_service.dart in the TeleMed_K Flutter app
+# See ai_engine_service.dart in the TeleMed Hearth Flutter app
 # for the production system prompt and runtime integration.
 ```
 
@@ -181,7 +181,7 @@ validation), O2 Telefónica UK (telecom billing migration), Ubisoft (AAA
 multiplayer QA leadership), and government digitalization projects (Trade
 Register CRM, national data integration). Currently pursuing the EITCA
 Artificial Intelligence Academy and ISTQB Advanced Level Test Manager
-certification. Responsible for TeleMed_K's data synthesis pipeline, Gemma 4
+certification. Responsible for TeleMed Hearth's data synthesis pipeline, Gemma 4
 fine-tuning, evaluation methodology, and Flutter application architecture.
 
 **Clinical Partner:** Clinica Medicală Dr. Bogheanu — Brănești, Dâmbovița
@@ -194,11 +194,11 @@ County, Romania.
   logic and patient-question phrasing against actual rural-family-practice
   consultation patterns.
 
-The clinic is also the demo deployment site for the TeleMed_K hackathon submission.
+The clinic is also the demo deployment site for the TeleMed Hearth hackathon submission.
 
 ## Citation
 @misc{{telemed_k_2026,
-title = {{TeleMed_K: Sovereign On-Device Triage for Rural Romanian Family Medicine}},
+title = {{TeleMed Hearth: Sovereign On-Device Triage for Rural Romanian Family Medicine}},
 author = {{Bogheanu, Rareș}},
 year = {{2026}},
 url = {{https://huggingface.co/{REPO_ID}}}
@@ -207,7 +207,7 @@ url = {{https://huggingface.co/{REPO_ID}}}
 ## License
 
 Apache 2.0 (inherits from base model). Training data: synthetic, co-developed
-with the physicians at Clinica Medicală Dr. Bogheanu under the TeleMed_K project.
+with the physicians at Clinica Medicală Dr. Bogheanu under the TeleMed Hearth project.
 """
 
 print("\n[1/4] Creating repo (if it doesn't exist)…")

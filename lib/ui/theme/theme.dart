@@ -1,7 +1,7 @@
 // Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
 // You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
 //
-// TeleMed_K: Offline-first telemedicine app for seniors
+// TeleMed Hearth: Offline-first telemedicine app for seniors
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';

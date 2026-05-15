@@ -44,7 +44,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# TeleMed_K: Sensitive data — never commit
+# TeleMed Hearth: Sensitive data — never commit
 **/secrets/**
 **/*.keystore
 **/*.jks
@@ -57,8 +57,27 @@ google-services.json
 patient_data/
 ai_triage_media/
 
-# Model training — contains fictional dataset references, not runnable
+# Model training, not runnable
 model_training/
 
 # Large binary model weights — never commit to git
 **/*.gguf
+cloudflared-linux-arm64.deb
+
+# Internal development docs — not for public repo
+CLAUDE.md
+HANDOFF.md
+TELEMED_CONTEXT.md
+implementation_plan.md
+
+# Stale / superseded HTML files
+doctor-ui-index.html
+login_identity_export.html
+my_doctor_export.html
+stitch_export.html
+waiting_room_export.html
+
+# Internal tooling
+.claude/
+.agents/
+

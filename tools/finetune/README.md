@@ -1,10 +1,10 @@
-# TeleMed_K Fine-Tune Pipeline
+# TeleMed Hearth Fine-Tune Pipeline
 
 Dataset preparation and Unsloth fine-tune pipeline for Gemma 4 E4B (on-device inference via LiteRT-LM).
 
 ## Purpose
 
-Adapt Gemma 4 E4B to Romanian medical triage dialogues so that on-device inference in the TeleMed_K app produces contextually accurate, Romanian-language patient interactions matching the Dr. Bogheanu clinic use case.
+Adapt Gemma 4 E4B to Romanian medical triage dialogues so that on-device inference in the TeleMed Hearth app produces contextually accurate, Romanian-language patient interactions matching the Dr. Bogheanu clinic use case.
 
 ## Setup
 

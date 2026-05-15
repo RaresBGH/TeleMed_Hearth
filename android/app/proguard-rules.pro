@@ -1,4 +1,4 @@
-# TeleMed_K ProGuard / R8 rules
+# TeleMed Hearth ProGuard / R8 rules
 
 # LiteRT-LM JNI callbacks — must not be renamed by R8
 -keep class com.google.ai.edge.litertlm.** { *; }

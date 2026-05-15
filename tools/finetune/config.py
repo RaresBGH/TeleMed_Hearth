@@ -1,5 +1,5 @@
 """
-Dataset registry for TeleMed_K fine-tune.
+Dataset registry for TeleMed Hearth fine-tune.
 All datasets pinned to specific revisions captured 2026-05-11.
 License snapshots: /home/corb_d/sovereign-factory/datasets/license_snapshots/
 """

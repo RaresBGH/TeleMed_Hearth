@@ -1,7 +1,7 @@
 // Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
 // You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
 //
-// TeleMed_K: Offline-first telemedicine app for seniors
+// TeleMed Hearth: Offline-first telemedicine app for seniors
 //
 // HTML sourced from Stitch designs (termeni_de_utilizare_updated / politica_de_confidentialitate).
 // Green/teal color values replaced with brand blue #5BA4CF.

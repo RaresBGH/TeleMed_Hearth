@@ -1,4 +1,4 @@
-// TeleMed_K — one-shot script: update 5 patient CNP identifiers on Medplum.
+// TeleMed Hearth — one-shot script: update 5 patient CNP identifiers on Medplum.
 //
 // Run from the repo root:
 //   dart tools/update_medplum_cnps.dart

@@ -1,5 +1,5 @@
 """
-Step 11 — Unsloth QLoRA fine-tune of Gemma 4 E4B on TeleMed_K synthetic triage data.
+Step 11 — Unsloth QLoRA fine-tune of Gemma 4 E4B on TeleMed Hearth synthetic triage data.
 Runs inside unsloth/unsloth:dgxspark-latest Docker container with bind mounts:
   /workspace/data/   ← /home/corb_d/sovereign-factory/datasets/training/
   /workspace/output/ ← /home/corb_d/sovereign-factory/models/telemed-k-gemma4-e4b-adapter/

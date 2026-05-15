@@ -1,7 +1,7 @@
 // Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
 // You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
 //
-// TeleMed_K: Offline-first telemedicine app for seniors
+// TeleMed Hearth: Offline-first telemedicine app for seniors
 
 /// Real Medplum Practitioner IDs and display names.
 /// Seeded in TeleMed Bogheanu project (ID: 7b4bc928-abd8-4332-b6f5-a9cae5737fa8).

@@ -1,7 +1,7 @@
 // Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
 // You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
 //
-// TeleMed_K: Offline-first telemedicine app for seniors
+// TeleMed Hearth: Offline-first telemedicine app for seniors
 // Phase 7.10 — Native Kotlin Bridge: FHIR Engine + LiteRT-LM + Telemedicine MethodChannels
 
 package com.example.telemed_k
@@ -19,7 +19,7 @@ import com.example.telemed_k.channels.TelemedicineChannel
 import com.example.telemed_k.services.ModelDownloadService
 
 /**
- * Main Activity for TeleMed_K.
+ * Main Activity for TeleMed Hearth.
  *
  * Extends [FlutterFragmentActivity] (required by smart_auth for Android SMS Retriever API
  * fragment lifecycle) instead of the default [FlutterActivity].

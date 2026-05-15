@@ -1,7 +1,7 @@
 // Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
 // You may obtain a copy of the License at https://creativecommons.org/licenses/by/4.0/
 //
-// TeleMed_K: Offline-first telemedicine app for seniors
+// TeleMed Hearth: Offline-first telemedicine app for seniors
 
 package com.example.telemed_k.services
 
@@ -156,7 +156,7 @@ class ModelDownloadForegroundService : Service() {
     private fun buildNotification(text: String, max: Int, current: Int): Notification =
         NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle("TeleMed_K — Descărcare model AI")
+            .setContentTitle("TeleMed Hearth — Descărcare model AI")
             .setContentText(text)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
