@@ -9,8 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
+import '../../core/providers/medical_session_provider.dart';
 import '../../core/utils/fhir_extension_utils.dart';
-import '../../data/repositories/fhir_repository.dart';
 
 class ObservationThreadScreen extends ConsumerStatefulWidget {
   final String observationId;
@@ -33,7 +33,6 @@ class _ObservationThreadScreenState extends ConsumerState<ObservationThreadScree
   List<Map<String, dynamic>> _communications = [];
   bool _loading = true;
   bool _sending = false;
-  late String _lang;
   late String _noteText;
   late bool _isReviewed;
 
@@ -42,7 +41,6 @@ class _ObservationThreadScreenState extends ConsumerState<ObservationThreadScree
   @override
   void initState() {
     super.initState();
-    _lang = ref.read(languageProvider);
     _noteText = ((widget.observation['note'] as List?)?.firstOrNull?['text'] as String?) ?? '';
     final status = widget.observation['status'] as String?;
     final exts = (widget.observation['extension'] as List?) ?? [];

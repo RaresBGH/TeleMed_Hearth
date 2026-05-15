@@ -7,7 +7,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import '../../core/constants/practitioner_constants.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/providers/language_provider.dart';
 
@@ -27,7 +26,6 @@ import '../../core/services/audio_recording_service.dart';
 import '../../core/services/camera_service.dart';
 import '../../core/services/ocr_service.dart';
 import '../widgets/image_preview_screen.dart';
-import '../../core/utils/fhir_extension_utils.dart';
 
 // ── Design tokens (matches Stitch palette from code.html) ─────────────────────
 
