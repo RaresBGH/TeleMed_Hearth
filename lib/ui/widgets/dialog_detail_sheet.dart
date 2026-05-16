@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/models/chat_message.dart';
 import '../../core/providers/medical_session_provider.dart';
+import '../../core/utils/fhir_extension_utils.dart';
 import '../screens/medical_response_screen.dart';
 
 /// Shared bottom sheet used by HistoryScreen and DashboardScreen to display
@@ -32,6 +33,15 @@ class DialogDetailSheet {
     final noteText    = noteList?.isNotEmpty == true
         ? ((noteList!.first as Map?)?['text'] as String?)
         : null;
+
+    // Doctor-reviewed lock: check for the exact reviewed-by extension URL
+    // (NOT reviewed-by-target, which is written by the patient on every finalize).
+    // Also respect status=='final' for backwards compat.
+    final extensions = item['extension'] as List? ?? const [];
+    final reviewedByDr = extensions.any(
+      (e) => (e['url'] as String? ?? '') == FhirExtensionUtils.reviewedByUrl,
+    );
+    final isLocked = status == 'final' || reviewedByDr;
 
     showModalBottomSheet<void>(
       context: context,
@@ -236,10 +246,10 @@ class DialogDetailSheet {
                   ],
                 ),
               ),
-              // Bottom action: continue (non-final) or finalized lock (final)
+              // Bottom action: continue (not locked) or locked notice (doctor-reviewed / final)
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                child: status == 'final'
+                child: isLocked
                     ? Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
@@ -255,7 +265,7 @@ class DialogDetailSheet {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                AppStrings.of(lang, 'history.finalized_label'),
+                                AppStrings.of(lang, 'dossier.consultation_locked'),
                                 style: const TextStyle(
                                   fontSize: 14,
                                   color: Color(0xFF40484E),
@@ -286,14 +296,14 @@ class DialogDetailSheet {
                             elevation: 0,
                           ),
                           onPressed: () {
-                            // Close the bottom sheet first using its own context.
                             Navigator.of(context).pop();
                             try {
                               final messages =
                                   _parseNoteToMessages(noteText ?? '');
                               final obsId = item['id'] as String?;
-                              // Navigator.push bypasses the flat-nav session guard,
-                              // preventing the idle-state → dashboard race condition.
+                              // Navigator.push bypasses the flat-nav session guard.
+                              // Pass observationId + existingObservation to activate
+                              // Area 1 re-join mode (loads doctor Communications).
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -301,11 +311,15 @@ class DialogDetailSheet {
                                     initialResponse: valueString ?? '',
                                     isEmergency: false,
                                     initialMessages: messages,
+                                    observationId: (obsId != null && obsId.isNotEmpty)
+                                        ? obsId
+                                        : null,
+                                    existingObservation: item,
                                   ),
                                 ),
                               );
-                              // Persist the observationId so finalizeConsultation
-                              // calls updateObservation (not saveObservation).
+                              // Persist observationId so finalizeConsultation calls
+                              // updateObservation (not saveObservation).
                               if (obsId != null && obsId.isNotEmpty) {
                                 ref
                                     .read(medicalSessionProvider.notifier)

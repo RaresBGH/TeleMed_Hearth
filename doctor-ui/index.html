@@ -533,7 +533,8 @@
   let allAppointments = [], allPatients = {};
   let reviewedInSession = new Set();
   let fetchedObservations = [];
-  let observationCache = {}; // patientId → Observation[] — populated by prefetch in loadAppointments
+  let observationCache   = {}; // patientId → Observation[] — populated by prefetch in loadAppointments
+  let communicationCache = {}; // patientId → Communication[] — populated lazily by fetchObservationCommunications
   let isCallActive = false;
 
   function esc(str) {
@@ -616,19 +617,32 @@
 
   // ── Per-Observation chat ──────────────────────────────────────────────────────
 
+  // Medplum 5.1.10 registers Communication.about as a SearchParameter but does
+  // not index it (reindex requires super-admin). Using &about= returns HTTP 400.
+  // Workaround: fetch ALL Communications for the patient (capped at 200 to cover
+  // multiple Observation threads), cache per-patient, filter client-side per obsId.
   async function fetchObservationCommunications(observationId) {
     const token = await ensureToken();
     if (!token) throw new Error(t('alertNotAuth'));
-    // Pass the reference unencoded: Medplum 5.1.10 does not decode '%2F' in the
-    // 'about' search parameter, treating it as a literal string → HTTP 400.
-    const res = await fetch(
-      MEDPLUM_BASE + '/fhir/R4/Communication?subject=Patient/' + currentPatientId +
-      '&about=Observation/' + observationId + '&_sort=sent&_count=50',
-      { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' } }
+    const patId = currentPatientId;
+
+    // Cache miss — fetch all Communications for this patient.
+    if (!communicationCache[patId]) {
+      const res = await fetch(
+        MEDPLUM_BASE + '/fhir/R4/Communication?subject=Patient/' + patId +
+        '&_sort=sent&_count=200', // 200: hard cap covering multiple Observation threads
+        { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' } }
+      );
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const bundle = await res.json();
+      communicationCache[patId] = (bundle.entry || []).map(e => e.resource).filter(Boolean);
+    }
+
+    // Client-side filter: keep only Communications whose about[] references this Observation.
+    const targetRef = 'Observation/' + observationId;
+    return communicationCache[patId].filter(c =>
+      (c.about || []).some(a => a.reference === targetRef)
     );
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const bundle = await res.json();
-    return (bundle.entry || []).map(e => e.resource).filter(Boolean);
   }
 
   function appendObsBubble(container, text, isPatient, sentStr) {
@@ -665,6 +679,8 @@
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
+      // Invalidate Communication cache so the next thread open re-fetches.
+      delete communicationCache[currentPatientId];
       // Remove "no messages" placeholder if present
       const emptyEl = msgsEl.querySelector('.chat-empty');
       if (emptyEl) emptyEl.remove();
@@ -764,7 +780,8 @@
   async function loadAppointments() {
     const listEl = document.getElementById('appointmentsList');
     const doctorId = document.getElementById('doctorSelect').value;
-    observationCache = {}; // clear cache for fresh session
+    observationCache   = {}; // clear caches for fresh session
+    communicationCache = {};
     listEl.innerHTML = '<p class="empty-state">' + esc(t('loadingAppts')) + '</p>';
     medplumToken = await fetchMedplumToken();
     if (!medplumToken) { listEl.innerHTML = '<p class="empty-state">' + esc(t('authErrAppts')) + '</p>'; return; }
@@ -811,7 +828,7 @@
     await Promise.all(uniquePatIds.map(async patId => {
       try {
         const res = await fetch(
-          MEDPLUM_BASE + '/fhir/R4/Observation?subject=Patient/' + patId + '&_sort=-effectiveDateTime&_count=20',
+          MEDPLUM_BASE + '/fhir/R4/Observation?subject=Patient/' + patId + '&_sort=-date&_count=20',
           { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' } }
         );
         observationCache[patId] = res.ok

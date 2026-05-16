@@ -367,22 +367,40 @@ class MedplumRepository {
     }
   }
 
-  /// Returns Communication resources for [patientId], newest first (max 50).
-  /// [since] filters by sent timestamp. [aboutReference] filters by about (e.g. 'Observation/{id}').
+  /// Returns Communication resources for [patientId], ascending by sent.
+  /// [since] filters by sent timestamp (not applied when [aboutReference] is set).
+  /// [aboutReference] — Medplum 5.1.10 registers Communication.about as a
+  /// SearchParameter but does not index it; using &about= returns HTTP 400.
+  /// When [aboutReference] is provided, all Communications for the patient are
+  /// fetched (capped at 200 to cover multiple Observation threads) and filtered
+  /// client-side by matching about[].reference. Callers see a transparent result.
   Future<List<Map<String, dynamic>>> getCommunications(String patientId, {DateTime? since, String? aboutReference}) async {
     if (!await auth.isOnline()) return [];
     try {
+      if (aboutReference != null && aboutReference.isNotEmpty) {
+        // Client-side filter path: fetch all patient Communications, filter by about.
+        final uri = Uri.parse(
+            '$_base/Communication?subject=Patient/$patientId&_sort=sent&_count=200');
+        final response = await client.get(uri, headers: await _headers());
+        if (response.statusCode == 200) {
+          final bundle = jsonDecode(response.body) as Map<String, dynamic>;
+          final all = _extractEntries(bundle);
+          return all.where((c) {
+            final about = c['about'] as List?;
+            if (about == null) return false;
+            return about.any((a) => (a['reference'] as String?) == aboutReference);
+          }).toList();
+        }
+        debugPrint('MedplumRepository.getCommunications (about-filter): ${response.statusCode}');
+        return [];
+      }
+
+      // Standard path: no about filter.
       final sinceParam = since != null
           ? '&sent=ge${Uri.encodeComponent(since.toUtc().toIso8601String())}'
           : '';
-      // Pass the reference unencoded: FHIR servers expect 'Observation/id' literally
-      // in the query string. Uri.encodeComponent would encode '/' as '%2F' which
-      // Medplum 5.1.10 does not decode in the 'about' search parameter → HTTP 400.
-      final aboutParam = aboutReference != null && aboutReference.isNotEmpty
-          ? '&about=$aboutReference'
-          : '';
       final uri = Uri.parse(
-          '$_base/Communication?subject=Patient/$patientId&_sort=sent&_count=50$sinceParam$aboutParam');
+          '$_base/Communication?subject=Patient/$patientId&_sort=sent&_count=50$sinceParam');
       final response = await client.get(uri, headers: await _headers());
       if (response.statusCode == 200) {
         final bundle = jsonDecode(response.body) as Map<String, dynamic>;

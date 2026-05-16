@@ -17,9 +17,7 @@ import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/dialog_detail_sheet.dart';
 import '../widgets/language_toggle.dart';
 import '../../core/l10n/app_strings.dart';
-import '../../core/models/chat_message.dart';
 import '../../core/utils/fhir_extension_utils.dart';
-import 'medical_response_screen.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -158,13 +156,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                             color: Colors.transparent,
                             child: AccessibleTouchTarget(
                               semanticLabel: AppStrings.of(lang, 'history.open_details'),
-                              onTap: () {
-                                if (item['resourceType'] == 'Observation') {
-                                  _showObservationSheet(context, ref, item, lang, dialogueNumber);
-                                } else {
-                                  DialogDetailSheet.show(context, ref, lang, item, dateStr, status, dialogueNumber: dialogueNumber);
-                                }
-                              },
+                              onTap: () => DialogDetailSheet.show(
+                                context, ref, lang, item, dateStr, status,
+                                dialogueNumber: dialogueNumber,
+                              ),
                               child: Padding(
                                 padding: const EdgeInsets.all(20.0),
                                 child: Column(
@@ -329,113 +324,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   // ── Observation detail sheet ──────────────────────────────────────────────────
-
-  void _showObservationSheet(BuildContext ctx, WidgetRef ref, Map<String, dynamic> obs, String lang, int? dialogueNumber) {
-    final valueString = obs['valueString'] as String? ?? '';
-    final isoDate = obs['effectiveDateTime'] as String? ?? obs['recordedDate'] as String? ?? '';
-    final dateStr = DateFormatter.format(isoDate, includeTime: true, fallback: AppStrings.of(lang, 'history.recent_date'));
-    final status = obs['status'] as String?;
-    final exts = (obs['extension'] as List?) ?? [];
-    final isReviewed = status == 'final' || exts.any((e) => (e['url'] as String? ?? '').contains('reviewed-by'));
-    final obsId = obs['id'] as String? ?? '';
-
-    showModalBottomSheet(
-      context: ctx,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: EdgeInsets.fromLTRB(24, 16, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE0E0E0), borderRadius: BorderRadius.circular(2)))),
-            const SizedBox(height: 16),
-            if (dialogueNumber != null)
-              Text(
-                AppStrings.of(lang, 'history.dialogue_title').replaceAll('{n}', dialogueNumber.toString()),
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF5BA4CF)),
-              ),
-            const SizedBox(height: 4),
-            Text(dateStr, style: const TextStyle(fontSize: 13, color: Color(0xFF40484E))),
-            if (valueString.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(valueString, style: const TextStyle(fontSize: 15, color: Color(0xFF1A1C1C), height: 1.5)),
-            ],
-            const SizedBox(height: 20),
-            if (isReviewed)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: const Color(0xFFF3F3F3), borderRadius: BorderRadius.circular(8)),
-                child: Text(AppStrings.of(lang, 'dossier.consultation_locked'), style: const TextStyle(fontSize: 13, color: Color(0xFF40484E))),
-              )
-            else
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5BA4CF),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _continueConversation(context, ref, obs, obsId, lang);
-                  },
-                  child: Text(AppStrings.of(lang, 'dossier.continue_conversation'),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _continueConversation(BuildContext ctx, WidgetRef ref, Map<String, dynamic> obs, String obsId, String lang) {
-    try {
-      final noteText = ((obs['note'] as List?)?.firstOrNull?['text'] as String?) ?? '';
-      final messages = _parseNoteToMessages(noteText);
-      final valueString = obs['valueString'] as String? ?? '';
-      // Set existingObservationId so finalizeConsultation() calls updateObservation().
-      ref.read(medicalSessionProvider.notifier).prepareResume(
-        aiResponse: valueString,
-        messages: messages,
-        existingObservationId: obsId,
-      );
-      Navigator.push(
-        ctx,
-        MaterialPageRoute(
-          builder: (_) => MedicalResponseScreen(
-            initialResponse: valueString,
-            isEmergency: false,
-            initialMessages: messages,
-            observationId: obsId.isEmpty ? null : obsId,
-            existingObservation: obs,
-          ),
-        ),
-      );
-    } catch (e) {
-      debugPrint('_continueConversation error: $e');
-    }
-  }
-
-  static List<ChatMessage> _parseNoteToMessages(String noteText) {
-    if (noteText.trim().isEmpty) return [];
-    return noteText.trim().split('\n')
-        .where((l) => l.trim().isNotEmpty)
-        .map((line) {
-          final isAi = line.startsWith('[AI]');
-          final isPacient = line.startsWith('[Patient]') || line.startsWith('[Pacient]');
-          if (!isAi && !isPacient) return null;
-          final text = line.replaceFirst(RegExp(r'^\[[^\]]+\]\s*\d+:\d+:\s*'), '').trim();
-          if (text.isEmpty) return null;
-          return ChatMessage(role: isAi ? 'ai' : 'patient', text: text, timestamp: DateTime.now());
-        })
-        .whereType<ChatMessage>()
-        .toList();
-  }
 
   String _getFallbackText(Map<String, dynamic> item, String lang) {
     if (item['resourceType'] == 'Observation')
