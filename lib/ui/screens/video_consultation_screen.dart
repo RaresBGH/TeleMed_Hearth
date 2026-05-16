@@ -96,6 +96,7 @@ class _VideoConsultationScreenState
 
   // ── Animation (voice visualizer bars) ─────────────────────────────────────
   Timer?               _durationTimer;
+  Timer?               _disconnectDebounce; // fires _peerLeft after sustained Disconnected state
   late AnimationController      _animController;
   late List<Animation<double>>  _barAnimations;
 
@@ -153,6 +154,7 @@ class _VideoConsultationScreenState
   @override
   void dispose() {
     _durationTimer?.cancel();
+    _disconnectDebounce?.cancel();
     _animController.dispose();
     _sheetController.dispose();
     // Restore normal AI mode when call ends.
@@ -279,30 +281,67 @@ class _VideoConsultationScreenState
       };
 
       // Peer-left detection via peer-connection and ICE state transitions.
-      // These fire even when the remote peer disconnects without sending a
-      // signaling 'leave' message (e.g. browser tab closed, network drop).
+      // RTCPeerConnectionStateDisconnected and RTCIceConnectionStateDisconnected
+      // are TRANSIENT — they fire during ICE renegotiation and network changes
+      // and routinely resolve back to Connected within a few seconds.
+      // Only Failed/Closed are definitive disconnects. Disconnected starts a
+      // 10-second debounce; if the peer recovers, the timer is cancelled.
       _peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
-        debugPrint('VideoConsultationScreen: peer connection state → $state');
-        if ((state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
-             state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
-             state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) &&
-            mounted && !_peerLeft) {
-          setState(() {
-            _peerLeft = true;
-            _remoteRenderer.srcObject = null;
+        debugPrint('VideoConsultationScreen: peer connectionState → $state');
+        if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
+            state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+          _disconnectDebounce?.cancel();
+          _disconnectDebounce = null;
+          if (mounted && !_peerLeft) {
+            setState(() {
+              _peerLeft = true;
+              _remoteRenderer.srcObject = null;
+            });
+          }
+        } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+          // Transient — start debounce; cancel if peer recovers.
+          _disconnectDebounce ??= Timer(const Duration(seconds: 10), () {
+            debugPrint('VideoConsultationScreen: peer stayed Disconnected for 10s → peerLeft');
+            if (mounted && !_peerLeft) {
+              setState(() {
+                _peerLeft = true;
+                _remoteRenderer.srcObject = null;
+              });
+            }
           });
+        } else {
+          // Connected, Connecting, Completed, New — peer is alive; cancel debounce.
+          _disconnectDebounce?.cancel();
+          _disconnectDebounce = null;
         }
       };
 
       _peerConnection!.onIceConnectionState = (RTCIceConnectionState state) {
-        debugPrint('VideoConsultationScreen: ICE state → $state');
-        if ((state == RTCIceConnectionState.RTCIceConnectionStateDisconnected ||
-             state == RTCIceConnectionState.RTCIceConnectionStateFailed) &&
-            mounted && !_peerLeft) {
-          setState(() {
-            _peerLeft = true;
-            _remoteRenderer.srcObject = null;
+        debugPrint('VideoConsultationScreen: ICE connectionState → $state');
+        if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+          _disconnectDebounce?.cancel();
+          _disconnectDebounce = null;
+          if (mounted && !_peerLeft) {
+            setState(() {
+              _peerLeft = true;
+              _remoteRenderer.srcObject = null;
+            });
+          }
+        } else if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+          // Transient — share the same 10s debounce as connectionState.
+          _disconnectDebounce ??= Timer(const Duration(seconds: 10), () {
+            debugPrint('VideoConsultationScreen: ICE stayed Disconnected for 10s → peerLeft');
+            if (mounted && !_peerLeft) {
+              setState(() {
+                _peerLeft = true;
+                _remoteRenderer.srcObject = null;
+              });
+            }
           });
+        } else {
+          // Connected, Completed, Checking, New — cancel debounce.
+          _disconnectDebounce?.cancel();
+          _disconnectDebounce = null;
         }
       };
 
@@ -418,10 +457,10 @@ class _VideoConsultationScreenState
         await _createOffer();
         break;
       case 'leave':
-        // The other peer left the room — clear the remote renderer and show
-        // the overlay. Nulling srcObject stops the RTCVideoRenderer from
-        // buffering frames; removing RTCVideoView from the tree (via _peerLeft)
-        // eliminates the SurfaceView punch-through on Android.
+        // Explicit peer-exit signal — always trustworthy, no debounce needed.
+        // Cancel any pending debounce so it doesn't double-fire later.
+        _disconnectDebounce?.cancel();
+        _disconnectDebounce = null;
         if (mounted) setState(() {
           _peerLeft = true;
           _remoteRenderer.srcObject = null;
@@ -489,6 +528,33 @@ class _VideoConsultationScreenState
     } else {
       ref.read(appNavigationProvider.notifier).navigateTo(AppRoute.myDoctor);
     }
+  }
+
+  // ── Panel close ───────────────────────────────────────────────────────────────
+
+  /// Closes the activity panel reliably. Belt-and-suspenders: starts the sheet
+  /// animation for visual smoothness, then guarantees _chatOpen = false after
+  /// the animation duration regardless of whether the size listener fires.
+  /// Belt is required because the size<0.05 listener occasionally misses a
+  /// notification if the controller detaches mid-animation or the rebuild cycle
+  /// invalidates the listener before it fires.
+  void _closePanel() {
+    try {
+      _sheetController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    } catch (_) {
+      // Controller not attached — close immediately.
+      if (mounted && _chatOpen) setState(() => _chatOpen = false);
+      return;
+    }
+    // Fallback: ensure _chatOpen becomes false after the animation duration
+    // even if the size listener misses the threshold crossing.
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted && _chatOpen) setState(() => _chatOpen = false);
+    });
   }
 
   // ── Chat — attach file ────────────────────────────────────────────────────────
@@ -594,11 +660,7 @@ class _VideoConsultationScreenState
                   onVerticalDragEnd: (details) {
                     if (details.primaryVelocity != null &&
                         details.primaryVelocity! > 200) {
-                      _sheetController.animateTo(
-                        0.0,
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOut,
-                      );
+                      _closePanel();
                     }
                   },
                   child: Padding(
@@ -613,11 +675,7 @@ class _VideoConsultationScreenState
                         const Spacer(),
                         IconButton(
                           icon: const Icon(Icons.close),
-                          onPressed: () => _sheetController.animateTo(
-                            0.0,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOut,
-                          ),
+                          onPressed: _closePanel,
                         ),
                       ],
                     ),
@@ -841,18 +899,7 @@ class _VideoConsultationScreenState
                   bottom: screenHeight * sheetFraction,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      try {
-                        _sheetController.animateTo(
-                          0.0,
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeOut,
-                        );
-                      } catch (_) {
-                        // Controller detached — close panel directly.
-                        if (mounted) setState(() => _chatOpen = false);
-                      }
-                    },
+                    onTap: _closePanel,
                     child: const SizedBox.expand(),
                   ),
                 );

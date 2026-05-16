@@ -416,6 +416,7 @@ class FhirRepository {
     required bool isPatient,
     required DateTime timestamp,
     String? practitionerId,
+    Map<String, dynamic>? contentAttachment,
   }) async {
     if (_medplum == null) return;
     await _medplum.saveCommunication(
@@ -426,6 +427,7 @@ class FhirRepository {
       isPatient: isPatient,
       timestamp: timestamp,
       practitionerId: practitionerId,
+      contentAttachment: contentAttachment,
     );
   }
 

@@ -5,6 +5,7 @@
 // Design reference: stitch_telemed_k/chat_screen/screen.png + code.html
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import '../../core/l10n/app_strings.dart';
@@ -158,8 +159,22 @@ class _MedicalResponseScreenState
         }
       });
     } else if (widget.initialMessages != null && widget.initialMessages!.isNotEmpty) {
-      // Resume from Dosar Medical or doctor preseed — restore prior conversation.
-      _messages.addAll(widget.initialMessages!);
+      // Re-join mode: parse transcript with real timestamps from the Observation note
+      // so that doctor Communications can be interleaved correctly when sorted.
+      // Standard resume path: use initialMessages as-is.
+      if (_isRejoinMode && widget.existingObservation != null) {
+        final noteText = ((widget.existingObservation!['note'] as List?)
+                ?.firstOrNull?['text'] as String?) ??
+            '';
+        final baseDateStr =
+            widget.existingObservation!['effectiveDateTime'] as String? ?? '';
+        final baseDate =
+            baseDateStr.isNotEmpty ? DateTime.tryParse(baseDateStr)?.toLocal() : null;
+        final timestamped = _parseTranscriptWithTimestamps(noteText, baseDate);
+        _messages.addAll(timestamped.isNotEmpty ? timestamped : widget.initialMessages!);
+      } else {
+        _messages.addAll(widget.initialMessages!);
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) ref.read(medicalSessionProvider.notifier).clearPreseed();
       });
@@ -235,27 +250,109 @@ class _MedicalResponseScreenState
         aboutReference: 'Observation/${widget.observationId}',
       );
       if (!mounted) return;
-      final commMessages = comms.map((c) {
-        final payload = (c['payload'] as List?)?.firstOrNull as Map?;
-        final text = payload?['contentString'] as String? ?? '';
+      final tmpDir = await getTemporaryDirectory();
+      final commMessages = await Future.wait(comms.map((c) async {
+        final payloadList = (c['payload'] as List?) ?? [];
+        final textPayload = payloadList.firstOrNull as Map?;
+        final text = textPayload?['contentString'] as String? ?? '';
         final sentStr = c['sent'] as String? ?? '';
         final ts = sentStr.isNotEmpty ? (DateTime.tryParse(sentStr) ?? DateTime.now()) : DateTime.now();
         final exts = (c['extension'] as List?) ?? [];
         final isPatient = exts.any((e) =>
             (e['url'] == FhirExtensionUtils.isPatientUrl || e['url'] == 'isPatient') &&
             e['valueBoolean'] == true);
+
+        // Check for inline attachment in payload[1].contentAttachment
+        Map? attachMap;
+        if (payloadList.length > 1) {
+          final p1 = payloadList[1] as Map?;
+          attachMap = p1 != null ? p1['contentAttachment'] as Map? : null;
+        }
+        if (attachMap != null) {
+          final base64Data = attachMap['data'] as String?;
+          final mimeType   = attachMap['contentType'] as String? ?? '';
+          final fileName   = attachMap['title'] as String? ?? 'attachment';
+          final commId     = c['id'] as String? ?? sentStr;
+          if (base64Data != null && base64Data.isNotEmpty) {
+            try {
+              final bytes = base64Decode(base64Data);
+              final dir   = Directory('${tmpDir.path}/comms/$commId');
+              await dir.create(recursive: true);
+              final localPath = '${dir.path}/$fileName';
+              await File(localPath).writeAsBytes(bytes);
+              final attachType = mimeType.startsWith('image/')
+                  ? AttachmentType.image
+                  : AttachmentType.pdf;
+              return ChatMessage(
+                role: isPatient ? 'patient' : 'doctor',
+                text: fileName,
+                timestamp: ts,
+                attachmentPath: localPath,
+                attachmentType: attachType,
+              );
+            } catch (e) {
+              debugPrint('_loadObservationCommunications: attachment decode error: $e');
+            }
+          }
+        }
+
         return ChatMessage(role: isPatient ? 'patient' : 'doctor', text: text, timestamp: ts);
-      }).toList();
+      }));
       final hasDoctor = commMessages.any((m) => m.role == 'doctor');
       setState(() {
         _messages.addAll(commMessages);
         _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
         _doctorHasJoined = hasDoctor;
+        // When doctor has posted, inject a synthetic AI acknowledgment bubble
+        // at the bottom of the chat so the patient sees it immediately.
+        // Guard: skip if the last message is already the synthetic announcement
+        // (prevents duplicates if this method is called more than once).
+        if (hasDoctor && (_messages.isEmpty || !_messages.last.isSyntheticAnnouncement)) {
+          _messages.add(ChatMessage(
+            role: 'ai',
+            text: AppStrings.of(_lang, 'chat.doctor_presence_acknowledged'),
+            timestamp: DateTime.now(),
+            isSyntheticAnnouncement: true,
+          ));
+        }
       });
       _scrollToBottom();
     } catch (e) {
       debugPrint('_loadObservationCommunications error: $e');
     }
+  }
+
+  /// Parses FHIR note text into ChatMessages with real timestamps.
+  /// Extracts HH:MM from each "[AI] HH:MM: text" or "[Patient] HH:MM: text" line
+  /// and combines with [baseDate] to produce a sortable DateTime. Falls back to
+  /// [baseDate] itself when the time cannot be parsed (voice/photo markers, etc.).
+  static List<ChatMessage> _parseTranscriptWithTimestamps(
+    String noteText,
+    DateTime? baseDate,
+  ) {
+    if (noteText.trim().isEmpty) return [];
+    final timeRe = RegExp(r'^\[[^\]]+\]\s*(\d{1,2}):(\d{2}):\s*');
+    final result = <ChatMessage>[];
+    for (final raw in noteText.trim().split('\n')) {
+      final line = raw.trim();
+      if (line.isEmpty) continue;
+      final isAi      = line.startsWith('[AI]');
+      final isPacient = line.startsWith('[Patient]') || line.startsWith('[Pacient]');
+      if (!isAi && !isPacient) continue;
+      final text = line.replaceFirst(RegExp(r'^\[[^\]]+\]\s*\d+:\d+:\s*'), '').trim();
+      if (text.isEmpty) continue;
+      DateTime ts = baseDate ?? DateTime.now();
+      if (baseDate != null) {
+        final m = timeRe.firstMatch(line);
+        if (m != null) {
+          final h   = int.tryParse(m.group(1) ?? '') ?? 0;
+          final min = int.tryParse(m.group(2) ?? '') ?? 0;
+          ts = DateTime(baseDate.year, baseDate.month, baseDate.day, h, min);
+        }
+      }
+      result.add(ChatMessage(role: isAi ? 'ai' : 'patient', text: text, timestamp: ts));
+    }
+    return result;
   }
 
   void _onTextChanged() {
@@ -282,6 +379,70 @@ class _MedicalResponseScreenState
   }
 
   // ── Document attachment ───────────────────────────────────────────────────────
+
+  /// PDF attach in re-join mode: pick PDF, validate, encode, send as Communication.
+  /// No AI inference — the file goes directly to the Observation thread.
+  Future<void> _onAttachPdfRejoin() async {
+    final lang = _lang;
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppStrings.of(lang, 'attachment.error_analyse'),
+            style: const TextStyle(fontSize: 16)),
+        backgroundColor: Colors.red.shade700,
+      ));
+      return;
+    }
+    if (!mounted || result == null || result.files.isEmpty) return;
+    final file = result.files.single;
+    final path = file.path;
+    if (path == null) return;
+    const maxBytes = 5 * 1024 * 1024;
+    if ((file.size) > maxBytes) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppStrings.of(lang, 'chat.file_too_large'),
+            style: const TextStyle(fontSize: 16)),
+        backgroundColor: Colors.red.shade700,
+      ));
+      return;
+    }
+    final fileName = file.name;
+    final bytes = await File(path).readAsBytes();
+    final base64Data = base64Encode(bytes);
+    final attachPayload = {
+      'contentType': 'application/pdf',
+      'data': base64Data,
+      'title': fileName,
+      'size': bytes.length,
+    };
+    // Add bubble immediately
+    setState(() {
+      _messages.add(ChatMessage(
+        role: 'patient',
+        text: fileName,
+        timestamp: DateTime.now(),
+        attachmentPath: path,
+        attachmentType: AttachmentType.pdf,
+      ));
+    });
+    _scrollToBottom();
+    // Send as Communication (fire-and-forget)
+    unawaited(ref.read(fhirRepositoryProvider).saveCommunication(
+      patientCnp: ref.read(loginCnpProvider),
+      observationId: widget.observationId,
+      text: '📎 $fileName',
+      isPatient: true,
+      timestamp: DateTime.now(),
+      contentAttachment: attachPayload,
+    ));
+  }
 
   Future<void> _onAttachDocument() async {
     final lang = _lang;
@@ -565,6 +726,7 @@ class _MedicalResponseScreenState
           msg.attachmentType == AttachmentType.document) continue;
       if (msg.role == 'doctor') continue;
       if (msg.isErrorFallback) continue; // exclude photo-failure fallbacks from AI context
+      if (msg.isSyntheticAnnouncement) continue; // exclude synthetic announcements from AI context
       final text = msg.text.trim();
       if (text.isEmpty) continue;
       final speaker = msg.role == 'ai' ? 'Assistant' : 'Patient';
@@ -1410,10 +1572,10 @@ class _MedicalResponseScreenState
           // Icon row + text field
           Row(
         children: [
-          // Attachment — opens file picker (pdf/image/audio)
+          // Attachment — re-join mode sends PDF as Communication; normal mode sends to AI
           _InputIconButton(
             icon: Icons.attach_file,
-            onTap: _isProcessing ? null : _onAttachDocument,
+            onTap: _isProcessing ? null : (_isRejoinMode ? _onAttachPdfRejoin : _onAttachDocument),
           ),
           const SizedBox(width: 6),
           // Mic — turns red while recording

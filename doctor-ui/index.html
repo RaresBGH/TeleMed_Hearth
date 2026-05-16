@@ -195,6 +195,17 @@
   .obs-chat-send-btn { height: 34px; padding: 0 14px; background: #5BA4CF; color: #fff; border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
   .obs-chat-send-btn:hover { background: #3a82aa; }
   .obs-chat-send-btn:disabled { background: #c4c4c4; cursor: not-allowed; }
+  .obs-chat-attach-btn { height: 34px; width: 34px; background: none; border: 1.5px solid #c0d8ec; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .obs-chat-attach-btn:hover { background: #e8f4fd; }
+  .obs-chat-attach-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .obs-attachment-card { background: #fff; border: 1px solid #d4e9f7; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; max-width: 90%; }
+  .obs-attachment-icon { font-size: 22px; flex-shrink: 0; }
+  .obs-attachment-info { flex: 1; min-width: 0; }
+  .obs-attachment-name { font-size: 12px; font-weight: 700; color: #1a1c1c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .obs-attachment-size { font-size: 11px; color: #40484e; }
+  .obs-attachment-open { padding: 4px 10px; background: #5BA4CF; color: #fff; border: none; border-radius: 5px; font-size: 11px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+  .obs-attachment-open:hover { background: #3a82aa; }
+  .obs-chat-file-error { font-size: 11px; color: #ab1118; padding: 2px 0; }
 
   /* ── SHARED BUBBLE STYLES (obs chat + legacy) ─────────────── */
   .async-msg { max-width: 90%; padding: 7px 11px; border-radius: 10px; font-size: 13px; line-height: 1.45; }
@@ -383,6 +394,9 @@
       apptStatusFinalized: 'Finalized',
       apptStatusPostponed: 'Postponed',
       apptStatusCancelled: 'Cancelled',
+      attachFile:          'Attach file',
+      fileTooLarge:        'File too large (max 5 MB)',
+      openAttachment:      'Open',
     },
     ro: {
       pageTitle:          'TeleMed Hearth — Interfață Medic',
@@ -466,6 +480,9 @@
       apptStatusFinalized: 'Finalizată',
       apptStatusPostponed: 'Reprogramată',
       apptStatusCancelled: 'Anulată',
+      attachFile:          'Atașează fișier',
+      fileTooLarge:        'Fișier prea mare (maxim 5 MB)',
+      openAttachment:      'Deschide',
     }
   };
 
@@ -535,7 +552,8 @@
   let fetchedObservations = [];
   let observationCache   = {}; // patientId → Observation[] — populated by prefetch in loadAppointments
   let communicationCache = {}; // patientId → Communication[] — populated lazily by fetchObservationCommunications
-  let isCallActive = false;
+  let isCallActive        = false;
+  let disconnectDebounce  = null; // setTimeout handle for sustained-Disconnected peer-left
 
   function esc(str) {
     if (!str) return '';
@@ -655,6 +673,63 @@
       (timeLabel ? ' · ' + timeLabel : '') + '</div>' +
       '<div>' + esc(text) + '</div>';
     container.appendChild(div);
+  }
+
+  // Renders a Communication with a contentAttachment as a clickable attachment card.
+  // Accepts inline base64 data OR a Communication resource (extracts from payload[1]).
+  function appendAttachmentBubble(container, title, size, contentType, base64Data, isPatient) {
+    const isPdf = (contentType || '').startsWith('application/pdf');
+    const icon  = isPdf ? '📄' : '🖼';
+    const humanSize = size > 1024 * 1024
+        ? (size / 1024 / 1024).toFixed(1) + ' MB'
+        : Math.round(size / 1024) + ' KB';
+    const wrap = document.createElement('div');
+    wrap.className = 'async-msg ' + (isPatient ? 'patient' : 'doctor');
+    const card = document.createElement('div');
+    card.className = 'obs-attachment-card';
+    const iconEl = document.createElement('span');
+    iconEl.className = 'obs-attachment-icon';
+    iconEl.textContent = icon;
+    const info = document.createElement('div');
+    info.className = 'obs-attachment-info';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'obs-attachment-name';
+    nameEl.textContent = title;
+    const sizeEl = document.createElement('div');
+    sizeEl.className = 'obs-attachment-size';
+    sizeEl.textContent = humanSize;
+    info.appendChild(nameEl);
+    info.appendChild(sizeEl);
+    const openBtn = document.createElement('button');
+    openBtn.className = 'obs-attachment-open';
+    openBtn.textContent = t('openAttachment');
+    openBtn.addEventListener('click', () => {
+      const byteChars = atob(base64Data);
+      const byteArr = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: contentType });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    });
+    card.appendChild(iconEl);
+    card.appendChild(info);
+    card.appendChild(openBtn);
+    wrap.appendChild(card);
+    container.appendChild(wrap);
+  }
+
+  // Renders a Communication that may carry text OR an attachment.
+  function renderCommBubble(container, comm) {
+    const payloadList = comm.payload || [];
+    const attachment = payloadList.find(p => p.contentAttachment)?.contentAttachment;
+    const isPatient = isPatientFlag(comm.extension || []);
+    const sentStr = comm.sent || '';
+    if (attachment && attachment.data) {
+      appendAttachmentBubble(container, attachment.title || 'file', attachment.size || 0, attachment.contentType || '', attachment.data, isPatient);
+    } else {
+      const text = payloadList[0]?.contentString || '';
+      appendObsBubble(container, text, isPatient, sentStr);
+    }
   }
 
   async function sendObservationMessage(observationId, text, msgsEl, inputEl, sendBtn) {
@@ -1009,14 +1084,70 @@
               '<div class="obs-chat-header">' + esc(t('transcriptLabel')) + '</div>' +
               '<div class="obs-chat-messages"></div>' +
               '<div class="obs-chat-input-row">' +
+                '<button class="obs-chat-attach-btn" title="' + esc(t('attachFile')) + '">📎</button>' +
+                '<input type="file" class="obs-chat-file-input" accept="application/pdf,image/*" style="display:none" />' +
                 '<input type="text" class="obs-chat-input" placeholder="' + esc(t('chatPlaceholder')) + '" />' +
                 '<button class="obs-chat-send-btn">' + esc(t('send')) + '</button>' +
-              '</div>';
+              '</div>' +
+              '<div class="obs-chat-file-error" style="display:none;padding:0 12px 6px;"></div>';
             entry.appendChild(chatSection);
 
-            const msgsEl    = chatSection.querySelector('.obs-chat-messages');
-            const inputEl   = chatSection.querySelector('.obs-chat-input');
-            const sendBtn   = chatSection.querySelector('.obs-chat-send-btn');
+            const msgsEl      = chatSection.querySelector('.obs-chat-messages');
+            const inputEl     = chatSection.querySelector('.obs-chat-input');
+            const sendBtn     = chatSection.querySelector('.obs-chat-send-btn');
+            const attachBtn   = chatSection.querySelector('.obs-chat-attach-btn');
+            const fileInput   = chatSection.querySelector('.obs-chat-file-input');
+            const fileErrEl   = chatSection.querySelector('.obs-chat-file-error');
+
+            // Paperclip button opens hidden file picker
+            attachBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', async () => {
+              const file = fileInput.files[0];
+              fileInput.value = '';
+              if (!file) return;
+              fileErrEl.style.display = 'none';
+              const MAX = 5 * 1024 * 1024;
+              if (file.size > MAX) { fileErrEl.textContent = t('fileTooLarge'); fileErrEl.style.display = 'block'; return; }
+              attachBtn.disabled = true; sendBtn.disabled = true;
+              const currentDoctorId = document.getElementById('doctorSelect').value;
+              try {
+                const base64 = await new Promise((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve(reader.result.split(',')[1]);
+                  reader.onerror = reject;
+                  reader.readAsDataURL(file);
+                });
+                const token = await ensureToken();
+                if (!token) throw new Error(t('alertNotAuth'));
+                const body = {
+                  resourceType: 'Communication', status: 'completed',
+                  sent: new Date().toISOString(),
+                  subject: { reference: 'Patient/' + currentPatientId },
+                  sender: { reference: 'Practitioner/' + currentDoctorId },
+                  about: [{ reference: 'Observation/' + obs.id }],
+                  payload: [
+                    { contentString: '📎 ' + file.name },
+                    { contentAttachment: { contentType: file.type, data: base64, title: file.name, size: file.size } }
+                  ],
+                  extension: [{ url: 'https://telemed-bogheanu.ro/fhir/ext/isPatient', valueBoolean: false }],
+                };
+                const res = await fetch(MEDPLUM_BASE + '/fhir/R4/Communication', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/fhir+json', 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' },
+                  body: JSON.stringify(body),
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                delete communicationCache[currentPatientId];
+                // Append local attachment bubble
+                appendAttachmentBubble(msgsEl, file.name, file.size, file.type, base64, false);
+                msgsEl.scrollTop = msgsEl.scrollHeight;
+              } catch(e) {
+                fileErrEl.textContent = t('alertSendFailed', { error: e.message });
+                fileErrEl.style.display = 'block';
+              } finally {
+                attachBtn.disabled = false; sendBtn.disabled = false;
+              }
+            });
 
             // Note button toggles chat section
             noteBtn.addEventListener('click', async () => {
@@ -1049,8 +1180,7 @@
                       msgsEl.appendChild(p);
                     } else {
                       comms.forEach(comm => {
-                        const isPatient = isPatientFlag(comm.extension || []);
-                        appendObsBubble(msgsEl, comm.payload?.[0]?.contentString || '', isPatient, comm.sent || '');
+                        renderCommBubble(msgsEl, comm);
                       });
                     }
                   } catch(e) {
@@ -1223,13 +1353,44 @@
         if (!event.candidate) return;
         safeSend({ type: 'candidate', room: currentRoom, candidate: event.candidate.candidate, sdpMid: event.candidate.sdpMid, sdpMLineIndex: event.candidate.sdpMLineIndex });
       };
+      // RTCPeerConnection/IceConnectionState 'disconnected' is TRANSIENT — fires during
+      // ICE renegotiation and normally resolves to 'connected' within seconds.
+      // Only 'failed'/'closed' are definitive; 'disconnected' starts a 10s debounce.
       pc.onconnectionstatechange = () => {
         const s = pc.connectionState;
-        if (s === 'disconnected' || s === 'failed' || s === 'closed') showPeerLeft();
+        console.log('Doctor UI: peer connectionState →', s);
+        if (s === 'failed' || s === 'closed') {
+          clearTimeout(disconnectDebounce); disconnectDebounce = null;
+          showPeerLeft();
+        } else if (s === 'disconnected') {
+          if (!disconnectDebounce) {
+            disconnectDebounce = setTimeout(() => {
+              console.log('Doctor UI: peer stayed Disconnected for 10s → showPeerLeft');
+              disconnectDebounce = null;
+              showPeerLeft();
+            }, 10000);
+          }
+        } else {
+          clearTimeout(disconnectDebounce); disconnectDebounce = null;
+        }
       };
       pc.oniceconnectionstatechange = () => {
         const s = pc.iceConnectionState;
-        if (s === 'disconnected' || s === 'failed') showPeerLeft();
+        console.log('Doctor UI: ICE connectionState →', s);
+        if (s === 'failed') {
+          clearTimeout(disconnectDebounce); disconnectDebounce = null;
+          showPeerLeft();
+        } else if (s === 'disconnected') {
+          if (!disconnectDebounce) {
+            disconnectDebounce = setTimeout(() => {
+              console.log('Doctor UI: ICE stayed Disconnected for 10s → showPeerLeft');
+              disconnectDebounce = null;
+              showPeerLeft();
+            }, 10000);
+          }
+        } else {
+          clearTimeout(disconnectDebounce); disconnectDebounce = null;
+        }
       };
       signalingSocket = new WebSocket(SIGNALING_URL);
       signalingSocket.onopen = () => {
@@ -1251,7 +1412,7 @@
         if (msg.type === 'candidate') {
           try { await pc.addIceCandidate(new RTCIceCandidate({ candidate: msg.candidate, sdpMid: msg.sdpMid, sdpMLineIndex: msg.sdpMLineIndex })); } catch(e) { console.warn('ICE candidate error:', e); }
         }
-        if (msg.type === 'leave') showPeerLeft();
+        if (msg.type === 'leave') { clearTimeout(disconnectDebounce); disconnectDebounce = null; showPeerLeft(); }
         if (msg.type === 'peer_joined') {
           setTimeout(() => {
             if (currentPatientId && (!fetchedObservations || fetchedObservations.length === 0)) {
@@ -1276,6 +1437,7 @@
   }
 
   function endCall() {
+    clearTimeout(disconnectDebounce); disconnectDebounce = null;
     safeSend({ type: 'leave', room: currentRoom });
     signalingSocket?.close(); pc?.close();
     localStream?.getTracks().forEach(tr => tr.stop());

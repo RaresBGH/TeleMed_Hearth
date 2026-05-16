@@ -63,6 +63,10 @@ class AppStrings {
     'attachment.error_analyse':  'Nu s-a putut analiza documentul.',
     'attachment.fallback_msg':   'Document atașat: {filename}.',
     'voice.message_label':       'Mesaj vocal',
+    'chat.doctor_presence_acknowledged': 'Văd că medicul s-a alăturat. Voi rămâne tăcută și voi păstra un rezumat complet.',
+    'chat.attachment_open':   'Deschide',
+    'chat.attachment_pdf_label': 'Document PDF',
+    'chat.file_too_large':    'Fișier prea mare (maxim 5 MB)',
     'chat.attachment_voice_label': 'Mesaj vocal',
     'chat.attachment_photo_label': 'Fotografie',
 
@@ -458,6 +462,10 @@ class AppStrings {
     'attachment.error_analyse':  'Could not analyse the document.',
     'attachment.fallback_msg':   'Document attached: {filename}.',
     'voice.message_label':       'Voice message',
+    'chat.doctor_presence_acknowledged': "I see the doctor is here. I'm going to go silent and keep a comprehensive summary.",
+    'chat.attachment_open':   'Open',
+    'chat.attachment_pdf_label': 'PDF document',
+    'chat.file_too_large':    'File too large (max 5 MB)',
     'chat.attachment_voice_label': 'Voice message',
     'chat.attachment_photo_label': 'Photo',
 

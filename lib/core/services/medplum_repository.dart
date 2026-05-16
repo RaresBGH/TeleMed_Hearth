@@ -308,6 +308,7 @@ class MedplumRepository {
     String? mimeType,
     String? attachmentTitle,
     String? practitionerId,
+    Map<String, dynamic>? contentAttachment, // {contentType, data(base64), title, size}
   }) async {
     if (!await auth.isOnline()) return null;
     try {
@@ -337,7 +338,9 @@ class MedplumRepository {
           'about': [{'reference': 'Appointment/$appointmentId'}],
         'payload': [
           {'contentString': text},
-          if (mimeType != null && attachmentTitle != null)
+          if (contentAttachment != null)
+            {'contentAttachment': contentAttachment}
+          else if (mimeType != null && attachmentTitle != null)
             {
               'contentAttachment': {
                 'contentType': mimeType,

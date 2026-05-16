@@ -19,6 +19,10 @@ class ChatMessage {
   /// True for AI error-fallback messages (e.g. photo analysis failure).
   /// These are shown in the UI but excluded from AI context and clinical summaries.
   final bool isErrorFallback;
+  /// True for synthetic AI announcement messages injected client-side (e.g. the
+  /// doctor-presence acknowledgment in re-join mode). Never saved to Medplum or
+  /// included in the AI's conversation-history context.
+  final bool isSyntheticAnnouncement;
 
   ChatMessage({
     required this.role,
@@ -28,5 +32,6 @@ class ChatMessage {
     this.attachmentType,
     this.senderName,
     this.isErrorFallback = false,
+    this.isSyntheticAnnouncement = false,
   });
 }

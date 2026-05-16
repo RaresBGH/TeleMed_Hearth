@@ -179,6 +179,7 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
         // Skip error-fallback messages (e.g. photo analysis failure) — they
         // are UI-only and must not appear in the FHIR note or clinical summary.
         if (msg.isErrorFallback) continue;
+        if (msg.isSyntheticAnnouncement) continue;
         final String prefix = msg.role == 'ai' ? '[$prefixAi]' : '[$prefixPatient]';
         final String timeStr =
             DateFormatter.formatTimeOfDay(msg.timestamp.hour, msg.timestamp.minute);
