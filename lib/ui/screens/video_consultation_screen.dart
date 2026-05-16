@@ -97,6 +97,8 @@ class _VideoConsultationScreenState
   // ── Animation (voice visualizer bars) ─────────────────────────────────────
   Timer?               _durationTimer;
   Timer?               _disconnectDebounce; // fires _peerLeft after sustained Disconnected state
+  Timer?               _heartbeatTimer;     // 20s ping to keep signaling WebSocket alive
+  String               _connStateLabel = ''; // displayed on-screen for diagnostics
   late AnimationController      _animController;
   late List<Animation<double>>  _barAnimations;
 
@@ -155,6 +157,7 @@ class _VideoConsultationScreenState
   void dispose() {
     _durationTimer?.cancel();
     _disconnectDebounce?.cancel();
+    _heartbeatTimer?.cancel();
     _animController.dispose();
     _sheetController.dispose();
     // Restore normal AI mode when call ends.
@@ -290,29 +293,40 @@ class _VideoConsultationScreenState
         debugPrint('VideoConsultationScreen: peer connectionState → $state');
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
             state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+          // Immediate — Failed and Closed are definitive, no debounce.
           _disconnectDebounce?.cancel();
           _disconnectDebounce = null;
           if (mounted && !_peerLeft) {
+            final stateKey = state == RTCPeerConnectionState.RTCPeerConnectionStateFailed
+                ? 'call.state_failed' : 'call.state_closed';
             setState(() {
               _peerLeft = true;
               _remoteRenderer.srcObject = null;
+              _connStateLabel = AppStrings.of(_lang, stateKey);
             });
           }
         } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
           // Transient — start debounce; cancel if peer recovers.
+          if (mounted) setState(() => _connStateLabel = AppStrings.of(_lang, 'call.state_disconnected'));
           _disconnectDebounce ??= Timer(const Duration(seconds: 10), () {
             debugPrint('VideoConsultationScreen: peer stayed Disconnected for 10s → peerLeft');
             if (mounted && !_peerLeft) {
               setState(() {
                 _peerLeft = true;
                 _remoteRenderer.srcObject = null;
+                _connStateLabel = AppStrings.of(_lang, 'call.state_closed');
               });
             }
           });
-        } else {
-          // Connected, Connecting, Completed, New — peer is alive; cancel debounce.
+        } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
           _disconnectDebounce?.cancel();
           _disconnectDebounce = null;
+          if (mounted) setState(() => _connStateLabel = AppStrings.of(_lang, 'call.state_connected'));
+        } else {
+          // Connecting, Completed, New — cancel debounce.
+          _disconnectDebounce?.cancel();
+          _disconnectDebounce = null;
+          if (mounted) setState(() => _connStateLabel = AppStrings.of(_lang, 'call.state_connecting'));
         }
       };
 
@@ -397,6 +411,14 @@ class _VideoConsultationScreenState
         onDone:  () => debugPrint('Signaling connection closed'),
       );
 
+      // 20-second heartbeat — keeps the signaling WebSocket alive past server
+      // idle timeouts (~45s). Without this, the relay server closes the socket
+      // and notifies the other peer with a 'leave', dropping the call at ~45s.
+      _heartbeatTimer?.cancel();
+      _heartbeatTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+        _signalingSocket?.add(jsonEncode({'type': 'ping'}));
+      });
+
       // Patient is always the initiator — create offer immediately after joining.
       if (_isInitiator) await _createOffer();
     } catch (e) {
@@ -467,6 +489,13 @@ class _VideoConsultationScreenState
         });
         break;
       // 'chat' case removed — in-call chat replaced by Activity panel (FIX 4).
+      case 'ping':
+        // Respond to server/peer keepalive; also keep our own WebSocket alive.
+        _signalingSocket?.add(jsonEncode({'type': 'pong'}));
+        break;
+      case 'pong':
+        // Heartbeat response from server — WebSocket is alive.
+        break;
     }
   }
 
@@ -520,6 +549,8 @@ class _VideoConsultationScreenState
 
   Future<void> _endCall() async {
     if (!mounted) return;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
     _localStream?.getTracks().forEach((track) => track.stop());
     _localStream?.dispose();
     _localStream = null;
@@ -857,6 +888,50 @@ class _VideoConsultationScreenState
                           style: const TextStyle(
                               fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Layer 5.8 — Connection state + duration diagnostic overlay (bottom-right)
+          if (!_peerLeft && _connStateLabel.isNotEmpty)
+            Positioned(
+              bottom: 120,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8, height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _connStateLabel == AppStrings.of(_lang, 'call.state_connected')
+                                ? Colors.greenAccent
+                                : _connStateLabel == AppStrings.of(_lang, 'call.state_disconnected')
+                                    ? Colors.orangeAccent
+                                    : _connStateLabel == AppStrings.of(_lang, 'call.state_failed') ||
+                                      _connStateLabel == AppStrings.of(_lang, 'call.state_closed')
+                                        ? Colors.redAccent
+                                        : Colors.yellowAccent,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(_connStateLabel,
+                            style: const TextStyle(color: Colors.white, fontSize: 11)),
+                      ],
+                    ),
+                    Text(_formatDuration(_callDuration),
+                        style: const TextStyle(color: Colors.white70, fontSize: 10)),
                   ],
                 ),
               ),

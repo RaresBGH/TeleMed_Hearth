@@ -16,7 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:open_filex/open_filex.dart';
 
 import '../../core/models/chat_message.dart';
 import '../../core/providers/auth_provider.dart';
@@ -106,6 +106,8 @@ class _MedicalResponseScreenState
   String? _lastAiCategory;
   // Re-join mode: true when a doctor has posted in this Observation's thread.
   bool _doctorHasJoined = false;
+  // Diagnostic status shown in re-join mode to surface thread-load results on device.
+  String? _threadStatus;
 
   bool get _isRejoinMode => widget.observationId != null && widget.observationId!.isNotEmpty;
 
@@ -245,11 +247,25 @@ class _MedicalResponseScreenState
   Future<void> _loadObservationCommunications() async {
     if (!_isRejoinMode) return;
     try {
-      final cnp = ref.read(loginCnpProvider);
-      final comms = await ref.read(fhirRepositoryProvider).getCommunications(
-        cnp: cnp,
-        aboutReference: 'Observation/${widget.observationId}',
-      );
+      // Prefer extracting the Medplum patient ID directly from the Observation
+      // subject reference to bypass getPatientByCnp (which can return null silently).
+      final subjectRef = widget.existingObservation?['subject']?['reference'] as String?;
+      final medplumPatientId = (subjectRef?.startsWith('Patient/') == true)
+          ? subjectRef!.substring('Patient/'.length)
+          : null;
+
+      final List<Map<String, dynamic>> comms;
+      if (medplumPatientId != null) {
+        comms = await ref.read(medplumRepositoryProvider).getCommunications(
+          medplumPatientId,
+          aboutReference: 'Observation/${widget.observationId}',
+        );
+      } else {
+        comms = await ref.read(fhirRepositoryProvider).getCommunications(
+          cnp: ref.read(loginCnpProvider),
+          aboutReference: 'Observation/${widget.observationId}',
+        );
+      }
       if (!mounted) return;
       final tmpDir = await getTemporaryDirectory();
       final commMessages = await Future.wait(comms.map((c) async {
@@ -306,10 +322,15 @@ class _MedicalResponseScreenState
         return ChatMessage(role: isPatient ? 'patient' : 'doctor', text: text, timestamp: ts);
       }));
       final hasDoctor = commMessages.any((m) => m.role == 'doctor');
+      final stateKey = hasDoctor ? 'chat.thread_status_present' : 'chat.thread_status_absent';
+      final statusText = AppStrings.of(_lang, 'chat.thread_status_loaded')
+          .replaceAll('{n}', commMessages.length.toString())
+          .replaceAll('{state}', AppStrings.of(_lang, stateKey));
       setState(() {
         _messages.addAll(commMessages);
         _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
         _doctorHasJoined = hasDoctor;
+        _threadStatus = statusText;
         // When doctor has posted, inject a synthetic AI acknowledgment bubble
         // at the bottom of the chat so the patient sees it immediately.
         // Guard: skip if the last message is already the synthetic announcement
@@ -326,6 +347,11 @@ class _MedicalResponseScreenState
       _scrollToBottom();
     } catch (e) {
       debugPrint('_loadObservationCommunications error: $e');
+      final errSnippet = e.toString().length > 80 ? e.toString().substring(0, 80) : e.toString();
+      if (mounted) setState(() {
+        _threadStatus = AppStrings.of(_lang, 'chat.thread_status_error')
+            .replaceAll('{error}', errSnippet);
+      });
     }
   }
 
@@ -639,7 +665,7 @@ class _MedicalResponseScreenState
               foregroundColor: Colors.white,
             ),
             child: Text(
-              AppStrings.of(_lang, _isRejoinMode ? 'chat.update_summary' : 'chat.finalize_btn'),
+              AppStrings.of(_lang, 'chat.finalize_btn'),
               style: const TextStyle(fontSize: 16),
             ),
           ),
@@ -1215,6 +1241,18 @@ class _MedicalResponseScreenState
         body: Column(
           children: [
             if (!_infoDismissed) _buildInfoCard(lang),
+            // Diagnostic thread-status line (re-join mode) — visible so device tests
+            // can confirm whether the Communication fetch ran and what it returned.
+            if (_isRejoinMode && _threadStatus != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                color: const Color(0xFFF0F0F0),
+                child: Text(
+                  _threadStatus!,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF40484E)),
+                ),
+              ),
             Expanded(
               child: ListView(
                 controller: _scrollController,
@@ -1468,12 +1506,25 @@ class _MedicalResponseScreenState
           onTap: () async {
             final path = msg.attachmentPath;
             if (path == null) return;
-            final uri = Uri.file(path);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri);
-            } else {
+            debugPrint('Opening PDF: $path');
+            try {
+              final result = await OpenFilex.open(path);
+              if (result.type != ResultType.done && mounted) {
+                final errMsg = AppStrings.of(_lang, 'chat.attachment_open_error')
+                    .replaceAll('{error}', result.message);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(errMsg, style: const TextStyle(fontSize: 15)),
+                  backgroundColor: Colors.red.shade700,
+                ));
+              }
+            } catch (e) {
+              debugPrint('OpenFilex error: $e');
               if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(AppStrings.of(_lang, 'error.pdf_open_failed')),
+                content: Text(
+                  AppStrings.of(_lang, 'chat.attachment_open_error')
+                      .replaceAll('{error}', e.toString()),
+                  style: const TextStyle(fontSize: 15),
+                ),
                 backgroundColor: Colors.red.shade700,
               ));
             }
@@ -1597,7 +1648,7 @@ class _MedicalResponseScreenState
                             color: Colors.white, strokeWidth: 2.5),
                       )
                     : Text(
-                        AppStrings.of(lang, _isRejoinMode ? 'chat.update_summary' : 'chat.finalize_btn'),
+                        AppStrings.of(lang, 'chat.finalize_btn'),
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,

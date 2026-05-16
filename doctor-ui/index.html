@@ -554,6 +554,8 @@
   let communicationCache = {}; // patientId → Communication[] — populated lazily by fetchObservationCommunications
   let isCallActive        = false;
   let disconnectDebounce  = null; // setTimeout handle for sustained-Disconnected peer-left
+  let heartbeatInterval   = null; // 20s ping to keep signaling WebSocket alive
+  let callStartTime       = null; // Date object set when call connects
 
   function esc(str) {
     if (!str) return '';
@@ -1348,7 +1350,28 @@
           sender.setParameters(params).catch(e => console.warn('setParameters error:', e));
         }
       });
-      pc.ontrack = event => { document.getElementById('remoteVideo').srcObject = event.streams[0]; setCallStatus(t('inConsultation')); };
+      pc.ontrack = event => {
+        document.getElementById('remoteVideo').srcObject = event.streams[0];
+        setCallStatus(t('inConsultation'));
+      };
+
+      // Call state indicator — updates #callStatus with connection state + duration.
+      function updateCallStateLabel(stateLabel, color) {
+        const elapsed = callStartTime ? Math.floor((Date.now() - callStartTime) / 1000) : 0;
+        const mm = String(Math.floor(elapsed/60)).padStart(2,'0');
+        const ss = String(elapsed%60).padStart(2,'0');
+        const el = document.getElementById('callStatus');
+        el.textContent = stateLabel + ' · ' + mm + ':' + ss;
+        el.style.background = color;
+      }
+      setInterval(() => {
+        if (!isCallActive || !callStartTime) return;
+        const cs = pc?.connectionState || 'new';
+        const colors = { connected:'rgba(22,163,74,0.85)', connecting:'rgba(202,138,4,0.85)',
+                         disconnected:'rgba(234,88,12,0.85)', failed:'rgba(171,17,24,0.85)',
+                         closed:'rgba(64,72,78,0.85)', new:'rgba(26,28,28,0.75)' };
+        updateCallStateLabel(cs.charAt(0).toUpperCase()+cs.slice(1), colors[cs]||colors.new);
+      }, 1000);
       pc.onicecandidate = event => {
         if (!event.candidate) return;
         safeSend({ type: 'candidate', room: currentRoom, candidate: event.candidate.candidate, sdpMid: event.candidate.sdpMid, sdpMLineIndex: event.candidate.sdpMLineIndex });
@@ -1398,10 +1421,16 @@
         setJoinStatus('');
         showCallUI();
         setCallStatus(t('waitingForPatient'));
+        callStartTime = new Date();
+        // 20s heartbeat — keeps WebSocket alive past server idle timeouts (~45s).
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = setInterval(() => safeSend({ type: 'ping' }), 20000);
         if (currentPatientId) viewPatientReport(currentPatientId, currentPatientName);
       };
       signalingSocket.onmessage = async event => {
         const msg = JSON.parse(event.data);
+        if (msg.type === 'ping') { safeSend({ type: 'pong' }); return; }
+        if (msg.type === 'pong') { return; }
         if (msg.type === 'offer') {
           setCallStatus(t('connectingCall'));
           await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }));
@@ -1438,6 +1467,7 @@
 
   function endCall() {
     clearTimeout(disconnectDebounce); disconnectDebounce = null;
+    clearInterval(heartbeatInterval); heartbeatInterval = null;
     safeSend({ type: 'leave', room: currentRoom });
     signalingSocket?.close(); pc?.close();
     localStream?.getTracks().forEach(tr => tr.stop());
