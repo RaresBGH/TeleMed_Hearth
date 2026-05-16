@@ -379,6 +379,10 @@
       specialtyOphtho:    'Ophthalmology',
       specialtyPsych:     'Psychiatry',
       specialtyGyne:      'Gynecology',
+      apptStatusConfirmed: 'Confirmed',
+      apptStatusFinalized: 'Finalized',
+      apptStatusPostponed: 'Postponed',
+      apptStatusCancelled: 'Cancelled',
     },
     ro: {
       pageTitle:          'TeleMed Hearth — Interfață Medic',
@@ -458,6 +462,10 @@
       specialtyOphtho:    'Oftalmologie',
       specialtyPsych:     'Psihiatrie',
       specialtyGyne:      'Ginecologie',
+      apptStatusConfirmed: 'Confirmată',
+      apptStatusFinalized: 'Finalizată',
+      apptStatusPostponed: 'Reprogramată',
+      apptStatusCancelled: 'Anulată',
     }
   };
 
@@ -525,6 +533,7 @@
   let allAppointments = [], allPatients = {};
   let reviewedInSession = new Set();
   let fetchedObservations = [];
+  let observationCache = {}; // patientId → Observation[] — populated by prefetch in loadAppointments
   let isCallActive = false;
 
   function esc(str) {
@@ -610,10 +619,11 @@
   async function fetchObservationCommunications(observationId) {
     const token = await ensureToken();
     if (!token) throw new Error(t('alertNotAuth'));
-    const aboutRef = encodeURIComponent('Observation/' + observationId);
+    // Pass the reference unencoded: Medplum 5.1.10 does not decode '%2F' in the
+    // 'about' search parameter, treating it as a literal string → HTTP 400.
     const res = await fetch(
       MEDPLUM_BASE + '/fhir/R4/Communication?subject=Patient/' + currentPatientId +
-      '&about=' + aboutRef + '&_sort=sent&_count=50',
+      '&about=Observation/' + observationId + '&_sort=sent&_count=50',
       { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' } }
     );
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -706,10 +716,55 @@
     return now >= start - 60 * 60 * 1000 && now <= start + 2 * 60 * 60 * 1000;
   }
 
+  // ── Appointment status derivation ────────────────────────────────────────────
+  // Returns a canonical code: 'booked' | 'fulfilled' | 'postponed' | 'cancelled'
+  function deriveApptStatusCode(appt, observations) {
+    const raw = (appt.status || '').toLowerCase();
+    if (raw === 'fulfilled') return 'fulfilled';
+    if (raw === 'cancelled' || raw === 'noshow') return 'cancelled';
+    if (raw !== 'booked' && raw !== 'confirmed') return 'booked';
+
+    const start = appt.start ? new Date(appt.start) : null;
+    if (!start) return 'booked';
+    const end = appt.end ? new Date(appt.end) : new Date(start.getTime() + 30 * 60 * 1000);
+    const pastThreshold = new Date(end.getTime() + 5 * 60 * 1000);
+
+    if (Date.now() < pastThreshold.getTime()) return 'booked';
+
+    // Past appointment — check for a linked Observation within ±2 hours.
+    const twoHours = 2 * 60 * 60 * 1000;
+    const hasObs = (observations || []).some(obs => {
+      const obsDateStr = obs.effectiveDateTime || obs.recordedDate || '';
+      if (!obsDateStr) return false;
+      const obsDate = new Date(obsDateStr);
+      return Math.abs(obsDate.getTime() - start.getTime()) <= twoHours;
+    });
+    return hasObs ? 'fulfilled' : 'postponed';
+  }
+
+  function deriveApptStatusLabel(appt, observations) {
+    switch (deriveApptStatusCode(appt, observations)) {
+      case 'fulfilled':  return t('apptStatusFinalized');
+      case 'cancelled':  return t('apptStatusCancelled');
+      case 'postponed':  return t('apptStatusPostponed');
+      default:           return t('apptStatusConfirmed');
+    }
+  }
+
+  function apptStatusColor(code) {
+    switch (code) {
+      case 'fulfilled':  return '#16A34A';
+      case 'cancelled':  return '#AB1118';
+      case 'postponed':  return '#D97706';
+      default:           return '#5BA4CF';
+    }
+  }
+
   // ── Appointments ─────────────────────────────────────────────────────────────
   async function loadAppointments() {
     const listEl = document.getElementById('appointmentsList');
     const doctorId = document.getElementById('doctorSelect').value;
+    observationCache = {}; // clear cache for fresh session
     listEl.innerHTML = '<p class="empty-state">' + esc(t('loadingAppts')) + '</p>';
     medplumToken = await fetchMedplumToken();
     if (!medplumToken) { listEl.innerHTML = '<p class="empty-state">' + esc(t('authErrAppts')) + '</p>'; return; }
@@ -734,10 +789,52 @@
         .filter(r => { if (r?.resourceType !== 'Appointment') return false; return (r.participant || []).some(p => p.actor?.reference === 'Practitioner/' + doctorId); })
         .sort((a, b) => new Date(a.start) - new Date(b.start));
       renderAppointments(listEl);
+      // Parallel-fetch each unique patient's Observations in the background,
+      // then update only the status chips in-place — no full list rebuild.
+      prefetchObservationsAndUpdateChips(listEl);
     } catch(e) {
       console.error('Appointment load error:', e);
       listEl.innerHTML = '<p class="empty-state">' + esc(t('errLoadAppts')) + '</p>';
     }
+  }
+
+  async function prefetchObservationsAndUpdateChips() {
+    const uniquePatIds = [...new Set(
+      allAppointments.map(appt => {
+        const patRef = (appt.participant || []).find(p => p.actor?.reference?.startsWith('Patient/'));
+        return patRef?.actor?.reference?.replace('Patient/', '') || '';
+      }).filter(Boolean)
+    )];
+    if (uniquePatIds.length === 0) return;
+    const token = await ensureToken();
+    if (!token) return;
+    await Promise.all(uniquePatIds.map(async patId => {
+      try {
+        const res = await fetch(
+          MEDPLUM_BASE + '/fhir/R4/Observation?subject=Patient/' + patId + '&_sort=-effectiveDateTime&_count=20',
+          { headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/fhir+json' } }
+        );
+        observationCache[patId] = res.ok
+          ? (await res.json()).entry?.map(e => e.resource).filter(Boolean) || []
+          : [];
+      } catch(_) {
+        observationCache[patId] = [];
+      }
+    }));
+    updateAppointmentStatusChips();
+  }
+
+  function updateAppointmentStatusChips() {
+    allAppointments.forEach(appt => {
+      const chipEl = document.querySelector('[data-appt-chip="' + CSS.escape(appt.id || '') + '"]');
+      if (!chipEl) return;
+      const patRef = (appt.participant || []).find(p => p.actor?.reference?.startsWith('Patient/'));
+      const patId  = patRef?.actor?.reference?.replace('Patient/', '') || '';
+      const obs    = observationCache[patId] || [];
+      const code   = deriveApptStatusCode(appt, obs);
+      chipEl.textContent = deriveApptStatusLabel(appt, obs);
+      chipEl.style.color = apptStatusColor(code);
+    });
   }
 
   function renderAppointments(listEl) {
@@ -755,10 +852,23 @@
       const patId  = patRef?.actor?.reference?.replace('Patient/', '') || '';
       const patName = (allPatients[patId] || {}).name || t('patientFallback');
       const joinable = start ? isJoinable(appt.start) : false;
+      // Use prefetch cache if available; falls back to fetchedObservations for
+      // the currently-selected patient (which may be more up-to-date after
+      // viewPatientReport loads it); otherwise empty (chip shows "Confirmed").
+      const apptObs = observationCache[patId]
+        || (patId && patId === currentPatientId ? fetchedObservations : []);
+      const statusCode  = deriveApptStatusCode(appt, apptObs);
+      const statusLabel = deriveApptStatusLabel(appt, apptObs);
+      const statusCol   = apptStatusColor(statusCode);
       const card = document.createElement('div');
       card.className = 'appt-card';
       card.innerHTML =
-        '<div style="flex:1;"><div class="appt-patient">' + esc(patName) + '</div><div class="appt-time">&#128336; ' + timeStr + '</div></div>' +
+        '<div style="flex:1;">' +
+          '<div class="appt-patient">' + esc(patName) + '</div>' +
+          '<div class="appt-time">&#128336; ' + timeStr +
+            ' <span data-appt-chip="' + esc(apptId) + '" style="margin-left:8px;font-size:11px;font-weight:700;color:' + esc(statusCol) + '">' + esc(statusLabel) + '</span>' +
+          '</div>' +
+        '</div>' +
         '<div class="appt-actions"><button class="join-btn"' + (joinable ? '' : ' disabled') + '>' + esc(t('joinConsultation')) + '</button>' +
         '<button class="view-report-btn">' + esc(t('viewReport')) + '</button></div>';
       card.querySelector('.join-btn').addEventListener('click', e => { e.stopPropagation(); joinWithId(apptId); });
@@ -1216,14 +1326,21 @@
     });
     document.getElementById('panelCloseBtn').addEventListener('click', () => { if (panelOpen) togglePanel(); });
 
-    // Stripe button now opens Patient Report panel
+    // Stripe button toggles the Patient Report panel.
+    // If the report panel is already open → close it. Otherwise → open it.
     const stripeBtn = document.getElementById('chatStripeBtn');
-    stripeBtn.addEventListener('click', () => {
-      if (currentPatientId) showPanelState('report');
-    });
+    const toggleReport = () => {
+      if (!currentPatientId) return;
+      if (panelOpen && currentPanelState === 'report') {
+        closePanel();
+      } else {
+        showPanelState('report');
+      }
+    };
+    stripeBtn.addEventListener('click', toggleReport);
     stripeBtn.addEventListener('touchstart', e => {
       e.preventDefault();
-      if (currentPatientId) showPanelState('report');
+      toggleReport();
     }, { passive: false });
 
     document.getElementById('peerLeftEndBtn').addEventListener('click', endCall);

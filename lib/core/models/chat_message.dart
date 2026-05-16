@@ -16,6 +16,9 @@ class ChatMessage {
   final AttachmentType? attachmentType;
   /// Resolved display name of the sender (used for role == 'doctor' bubbles).
   final String? senderName;
+  /// True for AI error-fallback messages (e.g. photo analysis failure).
+  /// These are shown in the UI but excluded from AI context and clinical summaries.
+  final bool isErrorFallback;
 
   ChatMessage({
     required this.role,
@@ -24,5 +27,6 @@ class ChatMessage {
     this.attachmentPath,
     this.attachmentType,
     this.senderName,
+    this.isErrorFallback = false,
   });
 }

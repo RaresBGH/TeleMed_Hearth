@@ -25,6 +25,7 @@ import '../../core/services/ai_engine_service.dart';
 import '../../core/services/audio_recording_service.dart';
 import '../../core/services/camera_service.dart';
 import '../../core/services/ocr_service.dart';
+import '../../core/utils/fhir_extension_utils.dart';
 import '../widgets/image_preview_screen.dart';
 
 // ── Design tokens (matches Stitch palette from code.html) ─────────────────────
@@ -58,6 +59,11 @@ class MedicalResponseScreen extends ConsumerStatefulWidget {
   /// When set, adds a patient message with this text and immediately triggers
   /// AI inference — used by the "Trimite mesaj" doctor flow.
   final String? initialPrompt;
+  /// Re-join mode: the Observation being continued. When non-null, the screen
+  /// loads Communications for the thread and adjusts AI + finalize behavior.
+  final Map<String, dynamic>? existingObservation;
+  /// FHIR ID of the Observation being continued in re-join mode.
+  final String? observationId;
 
   const MedicalResponseScreen({
     super.key,
@@ -68,6 +74,8 @@ class MedicalResponseScreen extends ConsumerStatefulWidget {
     required this.isEmergency,
     this.initialMessages,
     this.initialPrompt,
+    this.existingObservation,
+    this.observationId,
   });
 
   @override
@@ -94,6 +102,10 @@ class _MedicalResponseScreenState
   bool _readyToFinalize = false;
   // Category from the last AI inference result — stored for FHIR Observation.
   String? _lastAiCategory;
+  // Re-join mode: true when a doctor has posted in this Observation's thread.
+  bool _doctorHasJoined = false;
+
+  bool get _isRejoinMode => widget.observationId != null && widget.observationId!.isNotEmpty;
 
   // ── Streaming shim (Dart-side typewriter) ─────────────────────────────────
   /// Accumulates streaming text while an inference response is being typed out.
@@ -198,6 +210,52 @@ class _MedicalResponseScreenState
       }
     }
     _textController.addListener(_onTextChanged);
+    // Non-re-join: clear any stale lastResumeObservationId set by a prior Dossier
+    // "Continue conversation" tap the user backed out of without finalizing.
+    // Without this, finalizeConsultation() would UPDATE the wrong Observation.
+    if (!_isRejoinMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(medicalSessionProvider.notifier).clearRejoinState();
+      });
+    }
+    // Re-join mode: load doctor Communications for the Observation thread.
+    if (_isRejoinMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_loadObservationCommunications());
+      });
+    }
+  }
+
+  Future<void> _loadObservationCommunications() async {
+    if (!_isRejoinMode) return;
+    try {
+      final cnp = ref.read(loginCnpProvider);
+      final comms = await ref.read(fhirRepositoryProvider).getCommunications(
+        cnp: cnp,
+        aboutReference: 'Observation/${widget.observationId}',
+      );
+      if (!mounted) return;
+      final commMessages = comms.map((c) {
+        final payload = (c['payload'] as List?)?.firstOrNull as Map?;
+        final text = payload?['contentString'] as String? ?? '';
+        final sentStr = c['sent'] as String? ?? '';
+        final ts = sentStr.isNotEmpty ? (DateTime.tryParse(sentStr) ?? DateTime.now()) : DateTime.now();
+        final exts = (c['extension'] as List?) ?? [];
+        final isPatient = exts.any((e) =>
+            (e['url'] == FhirExtensionUtils.isPatientUrl || e['url'] == 'isPatient') &&
+            e['valueBoolean'] == true);
+        return ChatMessage(role: isPatient ? 'patient' : 'doctor', text: text, timestamp: ts);
+      }).toList();
+      final hasDoctor = commMessages.any((m) => m.role == 'doctor');
+      setState(() {
+        _messages.addAll(commMessages);
+        _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        _doctorHasJoined = hasDoctor;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      debugPrint('_loadObservationCommunications error: $e');
+    }
   }
 
   void _onTextChanged() {
@@ -410,7 +468,7 @@ class _MedicalResponseScreenState
               foregroundColor: Colors.white,
             ),
             child: Text(
-              AppStrings.of(_lang, 'chat.finalize_btn'),
+              AppStrings.of(_lang, _isRejoinMode ? 'chat.update_summary' : 'chat.finalize_btn'),
               style: const TextStyle(fontSize: 16),
             ),
           ),
@@ -506,10 +564,15 @@ class _MedicalResponseScreenState
       if (msg.attachmentType == AttachmentType.pdf ||
           msg.attachmentType == AttachmentType.document) continue;
       if (msg.role == 'doctor') continue;
+      if (msg.isErrorFallback) continue; // exclude photo-failure fallbacks from AI context
       final text = msg.text.trim();
       if (text.isEmpty) continue;
       final speaker = msg.role == 'ai' ? 'Assistant' : 'Patient';
       buffer.writeln('$speaker: $text');
+    }
+    // In re-join mode, prepend the doctor-joined directive when a doctor has posted.
+    if (_isRejoinMode && _doctorHasJoined) {
+      return '${AppStrings.of(_lang, 'ai.doctor_joined_directive')}\n\n${buffer.toString()}';
     }
     return buffer.toString();
   }
@@ -540,7 +603,12 @@ class _MedicalResponseScreenState
       _isProcessing = false;
       _isPhotoAnalyzing = false;
       _streamingText = '';
-      _messages.add(ChatMessage(role: 'ai', text: text, timestamp: DateTime.now()));
+      _messages.add(ChatMessage(
+        role: 'ai',
+        text: text,
+        timestamp: DateTime.now(),
+        isErrorFallback: result['is_error_fallback'] == true,
+      ));
       if (readyToFinalize) _readyToFinalize = true;
       if (category != null) _lastAiCategory = category;
     });
@@ -773,12 +841,22 @@ class _MedicalResponseScreenState
     if (text.isEmpty || _isProcessing) return;
 
     _textController.clear();
+    final patientMsg = ChatMessage(role: 'patient', text: text, timestamp: DateTime.now());
     setState(() {
-      _messages.add(ChatMessage(
-          role: 'patient', text: text, timestamp: DateTime.now()));
+      _messages.add(patientMsg);
       _isProcessing = true;
     });
     _scrollToBottom();
+    // Re-join mode: persist the patient's message to the Observation thread.
+    if (_isRejoinMode) {
+      unawaited(ref.read(fhirRepositoryProvider).saveCommunication(
+        patientCnp: ref.read(loginCnpProvider),
+        observationId: widget.observationId,
+        text: text,
+        isPatient: true,
+        timestamp: patientMsg.timestamp,
+      ));
+    }
 
     try {
       final result =
@@ -1065,6 +1143,38 @@ class _MedicalResponseScreenState
   // ── Chat bubbles ──────────────────────────────────────────────────────────────
 
   Widget _buildBubble(ChatMessage msg, String lang) {
+    // Doctor messages in re-join mode: left-aligned, green-tinted bubble.
+    if (msg.role == 'doctor') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F7EE),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(4), topRight: Radius.circular(20),
+                  bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20),
+                ),
+                boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 4, offset: Offset(0, 2))],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(AppStrings.of(lang, 'role.doctor'),
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF1A6A3A))),
+                  const SizedBox(height: 2),
+                  Text(msg.text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF1A1C1C), height: 1.45)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final bool isAi = msg.role == 'ai';
     final Widget content = _buildBubbleContent(msg, isAi, lang);
     return Padding(
@@ -1286,7 +1396,7 @@ class _MedicalResponseScreenState
                             color: Colors.white, strokeWidth: 2.5),
                       )
                     : Text(
-                        AppStrings.of(lang, 'chat.finalize_btn'),
+                        AppStrings.of(lang, _isRejoinMode ? 'chat.update_summary' : 'chat.finalize_btn'),
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,

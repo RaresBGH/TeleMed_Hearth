@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/repositories/fhir_repository.dart';
+import '../l10n/app_strings.dart';
 
 /// Exception thrown when the AI rules engine detects life-threatening conditions.
 class EmergencyFlagException implements Exception {
@@ -527,7 +528,8 @@ class AiEngineService {
         // Image-specific error — engine is still alive, do not reset _isInitialized.
         return {
           ...Map<String, dynamic>.from(_fallbackResponse),
-          'response': 'Nu am putut analiza fotografia. Vă rugăm descrieți simptomele prin voce sau text.',
+          'response': AppStrings.of(_lang, 'chat.photo_analysis_failed'),
+          'is_error_fallback': true,
         };
       }
       _isInitialized = false;

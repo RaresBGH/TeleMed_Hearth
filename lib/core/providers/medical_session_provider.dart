@@ -176,6 +176,9 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
 
       final StringBuffer noteBuffer = StringBuffer();
       for (final msg in messages) {
+        // Skip error-fallback messages (e.g. photo analysis failure) — they
+        // are UI-only and must not appear in the FHIR note or clinical summary.
+        if (msg.isErrorFallback) continue;
         final String prefix = msg.role == 'ai' ? '[$prefixAi]' : '[$prefixPatient]';
         final String timeStr =
             DateFormatter.formatTimeOfDay(msg.timestamp.hour, msg.timestamp.minute);
@@ -402,6 +405,28 @@ class MedicalSessionNotifier extends Notifier<MedicalSessionState> {
       lastResumeMessages: messages,
       lastResumeObservationId: existingObservationId,
       lastPractitionerRef: state.lastPractitionerRef,
+    );
+  }
+
+  /// Clears resume-observation state without changing sessionState.
+  /// Called by MedicalResponseScreen.initState for non-re-join sessions to
+  /// prevent stale lastResumeObservationId (set by Dossier "Continue conversation")
+  /// from causing finalizeConsultation to UPDATE the wrong Observation.
+  void clearRejoinState() {
+    if (state.lastResumeObservationId == null && state.lastResumeMessages == null) return;
+    state = MedicalSessionState(
+      sessionState: state.sessionState,
+      lastAiResponse: state.lastAiResponse,
+      lastIsEmergency: state.lastIsEmergency,
+      lastPatientMessage: state.lastPatientMessage,
+      errorMessage: state.errorMessage,
+      lastDoctorName: state.lastDoctorName,
+      lastPractitionerRef: state.lastPractitionerRef,
+      lastSessionCategory: state.lastSessionCategory,
+      lastSessionLanguage: state.lastSessionLanguage,
+      lastAudioPath: state.lastAudioPath,
+      lastImagePath: state.lastImagePath,
+      // lastResumeObservationId and lastResumeMessages intentionally cleared.
     );
   }
 

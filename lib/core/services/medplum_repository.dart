@@ -375,8 +375,11 @@ class MedplumRepository {
       final sinceParam = since != null
           ? '&sent=ge${Uri.encodeComponent(since.toUtc().toIso8601String())}'
           : '';
+      // Pass the reference unencoded: FHIR servers expect 'Observation/id' literally
+      // in the query string. Uri.encodeComponent would encode '/' as '%2F' which
+      // Medplum 5.1.10 does not decode in the 'about' search parameter → HTTP 400.
       final aboutParam = aboutReference != null && aboutReference.isNotEmpty
-          ? '&about=${Uri.encodeComponent(aboutReference)}'
+          ? '&about=$aboutReference'
           : '';
       final uri = Uri.parse(
           '$_base/Communication?subject=Patient/$patientId&_sort=sent&_count=50$sinceParam$aboutParam');

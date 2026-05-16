@@ -17,6 +17,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/providers/language_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/providers/patient_history_provider.dart';
+import '../../core/utils/appointment_status.dart';
 import '../../core/utils/date_formatter.dart';
 import 'waiting_room_screen.dart';
 
@@ -169,44 +170,33 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     return _appointmentsByDay[key] ?? [];
   }
 
-  Color _accentColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'booked':    return _brand;
-      case 'fulfilled': return _surfHigh;
-      case 'cancelled': return _errorRed;
-      case 'noshow':    return Colors.orange;
-      default:          return _brand;
+  Color _accentColor(String statusCode) {
+    switch (statusCode) {
+      case 'booked':     return _brand;
+      case 'fulfilled':  return _surfHigh;
+      case 'cancelled':  return _errorRed;
+      case 'postponed':  return Colors.orange;
+      default:           return _brand;
     }
   }
 
-  Color _chipBg(String status) {
-    switch (status.toLowerCase()) {
-      case 'booked':    return const Color(0x1A5BA4CF);
-      case 'fulfilled': return _surfHigh;
-      case 'cancelled': return const Color(0x1AAB1118);
-      case 'noshow':    return const Color(0x1AFF9800);
-      default:          return const Color(0x1A5BA4CF);
+  Color _chipBg(String statusCode) {
+    switch (statusCode) {
+      case 'booked':     return const Color(0x1A5BA4CF);
+      case 'fulfilled':  return _surfHigh;
+      case 'cancelled':  return const Color(0x1AAB1118);
+      case 'postponed':  return const Color(0x1AFF9800);
+      default:           return const Color(0x1A5BA4CF);
     }
   }
 
-  Color _chipFg(String status) {
-    switch (status.toLowerCase()) {
-      case 'booked':    return _brand;
-      case 'fulfilled': return _onSurfaceV;
-      case 'cancelled': return _errorRed;
-      case 'noshow':    return Colors.orange.shade700;
-      default:          return _brand;
-    }
-  }
-
-  String _chipLabel(String status, String lang) {
-    switch (status.toLowerCase()) {
-      case 'booked':
-      case 'confirmed': return AppStrings.of(lang, 'appointment.confirmed');
-      case 'fulfilled': return AppStrings.of(lang, 'appointment.completed');
-      case 'cancelled': return AppStrings.of(lang, 'appointment.cancelled');
-      case 'noshow':    return AppStrings.of(lang, 'appointment.missed');
-      default:          return AppStrings.of(lang, 'appointment.confirmed');
+  Color _chipFg(String statusCode) {
+    switch (statusCode) {
+      case 'booked':     return _brand;
+      case 'fulfilled':  return _onSurfaceV;
+      case 'cancelled':  return _errorRed;
+      case 'postponed':  return Colors.orange.shade700;
+      default:           return _brand;
     }
   }
 
@@ -231,6 +221,12 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
   @override
   Widget build(BuildContext context) {
     final lang = ref.watch(languageProvider);
+    // Load patient observations for appointment status derivation.
+    // Falls back to empty list if not yet available — chips show 'Confirmed' until loaded.
+    final observations = ref.watch(patientHistoryProvider).maybeWhen(
+      data: (items) => items.where((i) => i['resourceType'] == 'Observation').toList(),
+      orElse: () => <Map<String, dynamic>>[],
+    );
 
     return Scaffold(
       backgroundColor: _bg,
@@ -259,7 +255,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                             ),
                           ),
                         ),
-                        ..._buildAppointmentCards(lang),
+                        ..._buildAppointmentCards(lang, observations),
                         const SizedBox(height: 16),
                       ],
                     ),
@@ -410,7 +406,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
 
   // ── Appointment cards ─────────────────────────────────────────────────────
 
-  List<Widget> _buildAppointmentCards(String lang) {
+  List<Widget> _buildAppointmentCards(String lang, List<Map<String, dynamic>> observations) {
     final list = _filteredAppointments;
     if (list.isEmpty) {
       return [
@@ -428,13 +424,13 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     return list
         .map((appt) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: _buildAppointmentCard(appt, lang),
+              child: _buildAppointmentCard(appt, lang, observations),
             ))
         .toList();
   }
 
-  Widget _buildAppointmentCard(Map<String, dynamic> appt, String lang) {
-    final status  = (appt['status'] as String? ?? 'booked').toLowerCase();
+  Widget _buildAppointmentCard(Map<String, dynamic> appt, String lang, List<Map<String, dynamic>> observations) {
+    final statusCode = deriveStatusCode(appt, observations);
     final iso     = appt['start'] as String? ?? '';
     final rawDesc = appt['description'] as String?
         ?? AppStrings.of(lang, 'appointment.video_consult');
@@ -495,7 +491,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Left accent bar (4dp, tonal — not a 1px border)
-            Container(width: 4, color: _accentColor(status)),
+            Container(width: 4, color: _accentColor(statusCode)),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -534,15 +530,15 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: _chipBg(status),
+                            color: _chipBg(statusCode),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            _chipLabel(status, lang),
+                            deriveDisplayStatus(appt, observations, lang),
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: _chipFg(status),
+                              color: _chipFg(statusCode),
                             ),
                           ),
                         ),

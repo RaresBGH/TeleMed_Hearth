@@ -41,7 +41,7 @@ Sign in with one of the seeded patients:
 | Maria Ionescu, 72 | Hypertension | 2540203150013 | 150013 |
 | Ion Popescu, 77 | Type-2 Diabetes | 1490815150027 | 150027 |
 | Elena Dumitrescu, 63 | Arthritis | 2621105150032 | 150032 |
-| George Constantin, 70 | Heart condition | 1551220150048 | 150048 |
+| George Constantin, 70 | Atrial Fibrillation | 1551220150048 | 150048 |
 
 The OTP is the last 6 digits of the CNP — derived locally so judges can sign in without an SMS gateway. Production uses Google SmartAuth for real OTP retrieval.
 
