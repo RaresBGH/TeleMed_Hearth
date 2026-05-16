@@ -22,6 +22,7 @@ import '../../core/models/chat_message.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/medplum_auth_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
+import '../../core/providers/patient_history_provider.dart';
 import '../../core/services/ai_engine_service.dart';
 import '../../core/services/audio_recording_service.dart';
 import '../../core/services/camera_service.dart';
@@ -269,17 +270,23 @@ class _MedicalResponseScreenState
           attachMap = p1 != null ? p1['contentAttachment'] as Map? : null;
         }
         if (attachMap != null) {
-          final base64Data = attachMap['data'] as String?;
+          final base64Raw  = attachMap['data'] as String?;
           final mimeType   = attachMap['contentType'] as String? ?? '';
           final fileName   = attachMap['title'] as String? ?? 'attachment';
           final commId     = c['id'] as String? ?? sentStr;
-          if (base64Data != null && base64Data.isNotEmpty) {
+          debugPrint('_loadObsCommunications: attachment found commId=$commId mime=$mimeType base64Len=${base64Raw?.length}');
+          if (base64Raw != null && base64Raw.isNotEmpty) {
+            // Strip whitespace: FHIR base64Binary may contain line breaks that
+            // Dart's base64Decode does not handle by default → throws FormatException.
+            final base64Data = base64Raw.replaceAll(RegExp(r'\s'), '');
             try {
               final bytes = base64Decode(base64Data);
-              final dir   = Directory('${tmpDir.path}/comms/$commId');
+              debugPrint('_loadObsCommunications: decoded ${bytes.length} bytes, writing to cache');
+              final dir = Directory('${tmpDir.path}/comms/$commId');
               await dir.create(recursive: true);
               final localPath = '${dir.path}/$fileName';
               await File(localPath).writeAsBytes(bytes);
+              debugPrint('_loadObsCommunications: wrote $localPath');
               final attachType = mimeType.startsWith('image/')
                   ? AttachmentType.image
                   : AttachmentType.pdf;
@@ -291,7 +298,7 @@ class _MedicalResponseScreenState
                 attachmentType: attachType,
               );
             } catch (e) {
-              debugPrint('_loadObservationCommunications: attachment decode error: $e');
+              debugPrint('_loadObsCommunications: attachment decode/write error: $e');
             }
           }
         }
@@ -433,15 +440,18 @@ class _MedicalResponseScreenState
       ));
     });
     _scrollToBottom();
-    // Send as Communication (fire-and-forget)
-    unawaited(ref.read(fhirRepositoryProvider).saveCommunication(
+    // Send attachment as Communication. Not unawaited — log any failure for diagnostics.
+    debugPrint('_onAttachPdfRejoin: sending PDF observationId=${widget.observationId} size=${bytes.length}');
+    ref.read(fhirRepositoryProvider).saveCommunication(
       patientCnp: ref.read(loginCnpProvider),
       observationId: widget.observationId,
       text: '📎 $fileName',
       isPatient: true,
       timestamp: DateTime.now(),
       contentAttachment: attachPayload,
-    ));
+    ).catchError((e) {
+      debugPrint('_onAttachPdfRejoin: saveCommunication failed: $e');
+    });
   }
 
   Future<void> _onAttachDocument() async {
@@ -835,6 +845,12 @@ class _MedicalResponseScreenState
         return;
       }
 
+      // Re-join + doctor joined: skip voice inference; message persisted as bubble only.
+      if (_isRejoinMode && _doctorHasJoined) {
+        if (mounted) setState(() => _isProcessing = false);
+        return;
+      }
+
       try {
         final result =
             await ref.read(aiEngineServiceProvider).evaluateAudio(
@@ -966,6 +982,12 @@ class _MedicalResponseScreenState
     });
     _scrollToBottom();
 
+    // Re-join + doctor joined: skip photo inference; photo bubble shown only.
+    if (_isRejoinMode && _doctorHasJoined) {
+      if (mounted) setState(() { _isProcessing = false; _isPhotoAnalyzing = false; });
+      return;
+    }
+
     try {
       final result =
           await ref.read(aiEngineServiceProvider).evaluateMedia(File(imagePath));
@@ -1011,6 +1033,11 @@ class _MedicalResponseScreenState
     _scrollToBottom();
     // Re-join mode: persist the patient's message to the Observation thread.
     if (_isRejoinMode) {
+      // One-shot refresh of doctor-joined flag if still loading (timing race mitigation).
+      if (!_doctorHasJoined) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        // _doctorHasJoined may have been set by the async load completing in the meantime.
+      }
       unawaited(ref.read(fhirRepositoryProvider).saveCommunication(
         patientCnp: ref.read(loginCnpProvider),
         observationId: widget.observationId,
@@ -1018,6 +1045,11 @@ class _MedicalResponseScreenState
         isPatient: true,
         timestamp: patientMsg.timestamp,
       ));
+      // Doctor has joined: skip inference entirely. Message is saved; AI stays silent.
+      if (_doctorHasJoined) {
+        if (mounted) setState(() => _isProcessing = false);
+        return;
+      }
     }
 
     try {
@@ -1135,10 +1167,14 @@ class _MedicalResponseScreenState
       await Future.delayed(const Duration(milliseconds: 1400));
       if (!mounted) return;
 
-      // Explicit patient finalization — reset session and return to dashboard.
-      // _isFinalizing stays true until widget is disposed by navigation;
-      // it is only reset to false in the catch block below on error.
-      await ref.read(medicalSessionProvider.notifier).reset();
+      if (_isRejoinMode) {
+        // Re-join was Navigator.push'd — pop back to Dossier and refresh the list.
+        ref.invalidate(patientHistoryProvider);
+        Navigator.of(context).pop();
+      } else {
+        // New-session flow: clear session state, flat-nav routes to dashboard.
+        await ref.read(medicalSessionProvider.notifier).reset();
+      }
     } catch (e) {
       if (!mounted) return;
       // Reset both flags so the user can retry (Fix #5 left _screenFinalized
@@ -1156,6 +1192,9 @@ class _MedicalResponseScreenState
           backgroundColor: Colors.red.shade700,
         ),
       );
+    } finally {
+      // Guarantee the spinner always clears, even if navigation threw or was skipped.
+      if (mounted && _isFinalizing) setState(() => _isFinalizing = false);
     }
   }
 

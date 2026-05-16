@@ -354,15 +354,18 @@ class MedplumRepository {
           {'url': FhirExtensionUtils.isPatientUrl, 'valueBoolean': isPatient},
         ],
       };
+      final hasAttachment = contentAttachment != null;
+      debugPrint('MedplumRepository.saveCommunication: isPatient=$isPatient hasAttachment=$hasAttachment observationId=$observationId');
       final response = await client.post(
         Uri.parse('$_base/Communication'),
         headers: await _headers(),
         body: jsonEncode(payload),
       );
+      debugPrint('MedplumRepository.saveCommunication: response=${response.statusCode}');
       if (response.statusCode == 200 || response.statusCode == 201) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }
-      debugPrint('MedplumRepository.saveCommunication: ${response.statusCode}');
+      debugPrint('MedplumRepository.saveCommunication error body: ${response.body.substring(0, response.body.length.clamp(0, 200))}');
       return null;
     } catch (e) {
       debugPrint('MedplumRepository.saveCommunication error: $e');
