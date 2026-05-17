@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/models/chat_message.dart';
+import '../../core/providers/medplum_auth_provider.dart';
 import '../../core/providers/medical_session_provider.dart';
 import '../../core/utils/fhir_extension_utils.dart';
 import '../screens/medical_response_screen.dart';
@@ -52,7 +53,242 @@ class DialogDetailSheet {
         initialChildSize: 0.65,
         minChildSize: 0.4,
         maxChildSize: 0.92,
-        builder: (ctx, scrollCtrl) => Container(
+        builder: (ctx, scrollCtrl) => _DialogDetailSheetBody(
+          item: item,
+          dateStr: dateStr,
+          status: status,
+          dialogueNumber: dialogueNumber,
+          lang: lang,
+          scrollController: scrollCtrl,
+          valueString: valueString,
+          noteText: noteText,
+          isLocked: isLocked,
+          outerContext: context,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Private stateful body — ConsumerStatefulWidget for async doctor follow-up ──
+
+class _DialogDetailSheetBody extends ConsumerStatefulWidget {
+  const _DialogDetailSheetBody({
+    required this.item,
+    required this.dateStr,
+    this.status,
+    this.dialogueNumber,
+    required this.lang,
+    required this.scrollController,
+    this.valueString,
+    this.noteText,
+    required this.isLocked,
+    required this.outerContext,
+  });
+
+  final Map<String, dynamic> item;
+  final String dateStr;
+  final String? status;
+  final int? dialogueNumber;
+  final String lang;
+  final ScrollController scrollController;
+  final String? valueString;
+  final String? noteText;
+  final bool isLocked;
+  final BuildContext outerContext;
+
+  @override
+  ConsumerState<_DialogDetailSheetBody> createState() =>
+      _DialogDetailSheetBodyState();
+}
+
+class _DialogDetailSheetBodyState
+    extends ConsumerState<_DialogDetailSheetBody> {
+  bool _followupLoading = true;
+  List<Map<String, dynamic>> _followupMessages = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDoctorFollowup();
+  }
+
+  Future<void> _loadDoctorFollowup() async {
+    final subjectRef =
+        widget.item['subject']?['reference'] as String?;
+    final patientId =
+        (subjectRef?.startsWith('Patient/') == true)
+            ? subjectRef!.substring('Patient/'.length)
+            : null;
+    final obsId = widget.item['id'] as String?;
+
+    if (patientId == null || obsId == null || obsId.isEmpty) {
+      if (mounted) setState(() => _followupLoading = false);
+      return;
+    }
+
+    try {
+      final comms = await ref.read(medplumRepositoryProvider).getCommunications(
+        patientId,
+        aboutReference: 'Observation/$obsId',
+      );
+
+      // Filter: doctor-authored text-only Communications.
+      // Attachments are intentionally skipped — use Continue Conversation for those.
+      // Synthetic AI announcement bubble is intentionally NOT injected here.
+      final doctorText = comms.where((c) {
+        final exts = (c['extension'] as List?) ?? [];
+        final isPatient = exts.any((e) =>
+            (e['url'] == FhirExtensionUtils.isPatientUrl ||
+                e['url'] == 'isPatient') &&
+            e['valueBoolean'] == true);
+        if (isPatient) return false;
+        final payloadList = (c['payload'] as List?) ?? [];
+        final text =
+            (payloadList.firstOrNull as Map?)?['contentString'] as String?;
+        if (text == null || text.trim().isEmpty) return false;
+        // Skip if any payload entry carries an attachment.
+        if (payloadList.any((p) =>
+            (p as Map?)?.containsKey('contentAttachment') == true)) return false;
+        return true;
+      }).toList();
+
+      // Sort by sent ascending; Communications without a sent timestamp go last.
+      doctorText.sort((a, b) {
+        final aS = a['sent'] as String? ?? '';
+        final bS = b['sent'] as String? ?? '';
+        if (aS.isEmpty && bS.isEmpty) return 0;
+        if (aS.isEmpty) return 1;
+        if (bS.isEmpty) return -1;
+        return aS.compareTo(bS);
+      });
+
+      if (mounted) {
+        setState(() {
+          _followupMessages = doctorText;
+          _followupLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('DialogDetailSheet: doctor follow-up fetch failed: $e');
+      if (mounted) setState(() => _followupLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lang           = widget.lang;
+    final item           = widget.item;
+    final dateStr        = widget.dateStr;
+    final status         = widget.status;
+    final dialogueNumber = widget.dialogueNumber;
+    final valueString    = widget.valueString;
+    final noteText       = widget.noteText;
+    final isLocked       = widget.isLocked;
+    final scrollCtrl     = widget.scrollController;
+
+    // ── Follow-up section widget (rendered inside the ListView) ──────────────
+    Widget followupSection() {
+      if (_followupLoading) {
+        return Padding(
+          padding: const EdgeInsets.only(top: 20, bottom: 4),
+          child: Row(
+            children: [
+              Text(
+                AppStrings.of(lang, 'dossier.followup_section_title'),
+                style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.bold,
+                  color: Color(0xFF5BA4CF),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const SizedBox(
+                width: 16, height: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Color(0xFF5BA4CF)),
+              ),
+            ],
+          ),
+        );
+      }
+      if (_followupMessages.isEmpty) return const SizedBox.shrink();
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          Text(
+            AppStrings.of(lang, 'dossier.followup_section_title'),
+            style: const TextStyle(
+              fontSize: 16, fontWeight: FontWeight.bold,
+              color: Color(0xFF5BA4CF),
+            ),
+          ),
+          const SizedBox(height: 10),
+          ..._followupMessages.map((c) {
+            final payloadList = (c['payload'] as List?) ?? [];
+            final text =
+                (payloadList.firstOrNull as Map?)?['contentString'] as String? ??
+                    '';
+            // Doctor bubble — replicates _buildBubble doctor branch from
+            // medical_response_screen.dart lines 1387–1418.
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.82,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F7EE),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(4),
+                        topRight: Radius.circular(20),
+                        bottomLeft: Radius.circular(20),
+                        bottomRight: Radius.circular(20),
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                            color: Color(0x0A000000),
+                            blurRadius: 4,
+                            offset: Offset(0, 2)),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          AppStrings.of(lang, 'role.doctor'),
+                          style: const TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w700,
+                            color: Color(0xFF1A6A3A),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          text,
+                          style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w500,
+                            color: Color(0xFF1A1C1C), height: 1.45,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      );
+    }
+
+    return Container(
           decoration: const BoxDecoration(
             color: Color(0xFFF5F5F5),
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -242,6 +478,7 @@ class DialogDetailSheet {
                           ),
                         ),
                       ),
+                    followupSection(),
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -296,7 +533,7 @@ class DialogDetailSheet {
                             elevation: 0,
                           ),
                           onPressed: () {
-                            Navigator.of(context).pop();
+                            Navigator.of(widget.outerContext).pop();
                             try {
                               final messages =
                                   _parseNoteToMessages(noteText ?? '');
@@ -305,7 +542,7 @@ class DialogDetailSheet {
                               // Pass observationId + existingObservation to activate
                               // Area 1 re-join mode (loads doctor Communications).
                               Navigator.push(
-                                context,
+                                widget.outerContext,
                                 MaterialPageRoute(
                                   builder: (_) => MedicalResponseScreen(
                                     initialResponse: valueString ?? '',
@@ -339,8 +576,6 @@ class DialogDetailSheet {
               ),
             ],
           ),
-        ),
-      ),
     );
   }
 

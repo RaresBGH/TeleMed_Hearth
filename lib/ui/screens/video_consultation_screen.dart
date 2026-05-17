@@ -257,26 +257,6 @@ class _VideoConsultationScreenState
         await _peerConnection!.addTrack(track, _localStream!);
       }
 
-      // Cap outgoing video bitrate to prevent flooding the connection.
-      final senders = await _peerConnection!.getSenders();
-      for (final sender in senders) {
-        if (sender.track?.kind == 'video') {
-          final params = sender.parameters; // synchronous getter
-          final encodings = params.encodings ?? [];
-          if (encodings.isEmpty) {
-            encodings.add(RTCRtpEncoding(
-              maxBitrate: 500000,
-              maxFramerate: 24,
-            ));
-          } else {
-            // Mutate in-place to preserve ssrc and other immutable fields.
-            encodings[0].maxBitrate = 500000;
-            encodings[0].maxFramerate = 24;
-          }
-          params.encodings = encodings;
-          await sender.setParameters(params);
-        }
-      }
 
       // Fires when the remote peer adds a stream — shows remote video.
       _peerConnection!.onAddStream = (stream) {
@@ -503,6 +483,7 @@ class _VideoConsultationScreenState
     try {
       final offer = await _peerConnection!.createOffer({});
       await _peerConnection!.setLocalDescription(offer);
+      await _applyVideoBitrateCap();
       _signalingSocket?.add(jsonEncode({
         'type': 'offer',
         'room': widget.appointmentId ?? 'default',
@@ -523,6 +504,7 @@ class _VideoConsultationScreenState
     try {
       final answer = await _peerConnection!.createAnswer({});
       await _peerConnection!.setLocalDescription(answer);
+      await _applyVideoBitrateCap();
       _signalingSocket?.add(jsonEncode({
         'type': 'answer',
         'room': widget.appointmentId ?? 'default',
@@ -535,6 +517,35 @@ class _VideoConsultationScreenState
         setState(() => _isConnecting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppStrings.of(_lang, 'call.webrtc_error'))));
+      }
+    }
+  }
+
+  Future<void> _applyVideoBitrateCap() async {
+    final pc = _peerConnection;
+    if (pc == null) return;
+    final senders = await pc.getSenders();
+    for (final sender in senders) {
+      if (sender.track?.kind == 'video') {
+        try {
+          final params = sender.parameters;
+          final encodings = params.encodings ?? [];
+          if (encodings.isEmpty) {
+            encodings.add(RTCRtpEncoding(
+              maxBitrate: 500000,
+              maxFramerate: 24,
+              scaleResolutionDownBy: 1.0,
+            ));
+          } else {
+            encodings[0].maxBitrate = 500000;
+            encodings[0].maxFramerate = 24;
+            encodings[0].scaleResolutionDownBy = 1.0;
+          }
+          params.encodings = encodings;
+          await sender.setParameters(params);
+        } catch (e) {
+          debugPrint('_applyVideoBitrateCap failed: kind=${sender.track?.kind} error=$e');
+        }
       }
     }
   }

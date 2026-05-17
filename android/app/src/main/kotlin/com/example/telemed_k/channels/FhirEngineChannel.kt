@@ -719,7 +719,7 @@ class FhirEngineChannel(
                 val seeds = listOf(
                     PatientSeed("patient-2540203150013","2540203150013","Ionescu","Maria","female","1954-02-03","0721234567","Hipertensiune arterială","Amlodipină 5mg"),
                     PatientSeed("patient-1490815150027","1490815150027","Popescu","Ion","male","1949-08-15","0732345678","Diabet zaharat tip 2","Metformin 1000mg"),
-                    PatientSeed("patient-2621105150032","2621105150032","Dumitrescu","Sarah","female","1962-11-05","0743456789","Hypertension","Amlodipine 5mg"),
+                    PatientSeed("patient-2621105150032","2621105150032","Dumitrescu","Elena","female","1962-11-05","0743456789","Hypertension","Amlodipine 5mg"),
                     PatientSeed("patient-1551220150048","1551220150048","Constantin","George","male","1955-12-20","0754567890","Type 2 Diabetes","Metformin 1000mg")
                 )
                 val patients = seeds.map { s ->

@@ -4,7 +4,6 @@
 // TeleMed Hearth: Offline-first telemedicine app for seniors
 
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,7 +48,6 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
   bool _isLoadingData = true;
   bool _hasLoaded     = false;
   bool _isSaving      = false;
-  Uint8List?    _avatarBytes;
   String? _originalPhone;
   String? _originalEmail;
 
@@ -134,8 +132,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
       final photoData = (photos.first as Map)['data'] as String?;
       if (photoData != null) {
         try {
-          _avatarBytes = base64Decode(photoData);
-          ref.read(patientAvatarProvider.notifier).set(_avatarBytes);
+          ref.read(patientAvatarProvider.notifier).set(base64Decode(photoData));
         } catch (_) {}
       }
     }
@@ -219,20 +216,31 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
       );
       if (picked == null || !mounted) return;
 
-      final bytes      = await picked.readAsBytes();
-      final base64Data = base64Encode(bytes);
+      final bytes = await picked.readAsBytes();
+      // Optimistic update — UI reflects the new photo immediately.
+      final previousBytes = ref.read(patientAvatarProvider);
+      ref.read(patientAvatarProvider.notifier).set(bytes);
 
+      final base64Data = base64Encode(bytes);
       if (_patientData != null) {
         final updated = Map<String, dynamic>.from(_patientData!);
         updated['photo'] = [
           {'contentType': 'image/jpeg', 'data': base64Data}
         ];
-        await ref.read(fhirRepositoryProvider).updatePatient(updated);
-        _patientData = updated;
+        try {
+          await ref.read(fhirRepositoryProvider).updatePatient(updated);
+          _patientData = updated;
+        } catch (_) {
+          // Rollback on persistence failure (ref.read safe without mounted check).
+          ref.read(patientAvatarProvider.notifier).set(previousBytes);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppStrings.of(_lang, 'profil.photo_picker_error'),
+                style: const TextStyle(fontSize: 16)),
+            backgroundColor: Colors.red,
+          ));
+        }
       }
-      if (!mounted) return;
-      setState(() => _avatarBytes = bytes);
-      ref.read(patientAvatarProvider.notifier).set(bytes);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -491,6 +499,7 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
 
   // ── Avatar section ────────────────────────────────────────────────────────
   Widget _buildAvatar() {
+    final avatarBytes = ref.watch(patientAvatarProvider);
     final displayName =
         _firstName.isNotEmpty || _lastName.isNotEmpty
             ? '$_firstName $_lastName'.trim()
@@ -511,8 +520,8 @@ class _PatientProfileScreenState extends ConsumerState<PatientProfileScreen> {
                 ],
               ),
               clipBehavior: Clip.antiAlias,
-              child: _avatarBytes != null
-                  ? Image.memory(_avatarBytes!, fit: BoxFit.cover)
+              child: avatarBytes != null
+                  ? Image.memory(avatarBytes, fit: BoxFit.cover)
                   : const Icon(Icons.person, size: 56, color: Color(0xFF8A8E95)),
             ),
             Positioned(

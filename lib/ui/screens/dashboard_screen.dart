@@ -403,7 +403,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   ) {
     final observations = data
         .where((e) => e['resourceType'] == 'Observation')
-        .take(2)
+        .take(3)
         .toList();
 
     return Column(

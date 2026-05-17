@@ -1406,7 +1406,11 @@ class _MedicalResponseScreenState
                   Text(AppStrings.of(lang, 'role.doctor'),
                       style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF1A6A3A))),
                   const SizedBox(height: 2),
-                  Text(msg.text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF1A1C1C), height: 1.45)),
+                  // Attachment messages (PDF, image, audio) delegate to _buildBubbleContent;
+                  // plain text doctor messages keep the existing dark-text style.
+                  msg.attachmentType != null
+                      ? _buildBubbleContent(msg, false, lang)
+                      : Text(msg.text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF1A1C1C), height: 1.45)),
                 ],
               ),
             ),

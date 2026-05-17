@@ -863,11 +863,11 @@
     medplumToken = await fetchMedplumToken();
     if (!medplumToken) { listEl.innerHTML = '<p class="empty-state">' + esc(t('authErrAppts')) + '</p>'; return; }
     try {
-      const now = new Date(), pad = n => String(n).padStart(2, '0');
-      const localToday = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-      const tmr = new Date(now); tmr.setDate(tmr.getDate() + 1);
-      const localTomorrow = `${tmr.getFullYear()}-${pad(tmr.getMonth()+1)}-${pad(tmr.getDate())}`;
-      const url = MEDPLUM_BASE + '/fhir/R4/Appointment?date=ge' + localToday + 'T00:00:00Z&date=lt' + localTomorrow + 'T00:00:00Z&status=booked&_include=Appointment:actor&_count=50';
+      const now = new Date();
+      // UTC instants for local-midnight today and tomorrow (Date constructor uses local timezone).
+      const windowStartUtc = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const windowEndUtc   = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+      const url = MEDPLUM_BASE + '/fhir/R4/Appointment?date=ge' + windowStartUtc + '&date=lt' + windowEndUtc + '&status=booked&_include=Appointment:actor&_count=50';
       const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + medplumToken, 'Accept': 'application/fhir+json' } });
       if (!res.ok) throw new Error('Appointment fetch failed: ' + res.status);
       const bundle = await res.json();
@@ -1326,6 +1326,22 @@
     joinCall();
   }
 
+  async function applyVideoBitrateCap(pc) {
+    for (const sender of pc.getSenders()) {
+      if (sender.track?.kind !== 'video') continue;
+      try {
+        const params = sender.getParameters();
+        if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
+        params.encodings[0].maxBitrate = 500000;
+        params.encodings[0].scaleResolutionDownBy = 1.0;
+        params.encodings[0].maxFramerate = 24;
+        await sender.setParameters(params);
+      } catch (e) {
+        console.error('applyVideoBitrateCap failed', { kind: sender.track?.kind, error: e });
+      }
+    }
+  }
+
   async function joinCall() {
     const appointmentId = document.getElementById('appointmentInput').value.trim();
     if (!appointmentId) { setJoinStatus(t('enterApptCode')); return; }
@@ -1339,17 +1355,7 @@
       });
       document.getElementById('localVideo').srcObject = localStream;
       pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, sdpSemantics: 'unified-plan' });
-      localStream.getTracks().forEach(tr => {
-        const sender = pc.addTrack(tr, localStream);
-        if (tr.kind === 'video') {
-          const params = sender.getParameters();
-          if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
-          params.encodings[0].maxBitrate = 500000;
-          params.encodings[0].scaleResolutionDownBy = 1.0;
-          params.encodings[0].maxFramerate = 24;
-          sender.setParameters(params).catch(e => console.warn('setParameters error:', e));
-        }
-      });
+      localStream.getTracks().forEach(tr => pc.addTrack(tr, localStream));
       pc.ontrack = event => {
         document.getElementById('remoteVideo').srcObject = event.streams[0];
         setCallStatus(t('inConsultation'));
@@ -1415,6 +1421,16 @@
           clearTimeout(disconnectDebounce); disconnectDebounce = null;
         }
       };
+      pc.onnegotiationneeded = async () => {
+        try {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          await applyVideoBitrateCap(pc);
+          safeSend({ type: 'offer', room: currentRoom, sdp: offer.sdp });
+        } catch (err) {
+          console.error('negotiationneeded handler failed:', err);
+        }
+      };
       signalingSocket = new WebSocket(SIGNALING_URL);
       signalingSocket.onopen = () => {
         safeSend({ type: 'join', room: currentRoom });
@@ -1436,6 +1452,7 @@
           await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }));
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
+          await applyVideoBitrateCap(pc);
           safeSend({ type: 'answer', room: currentRoom, sdp: answer.sdp });
         }
         if (msg.type === 'candidate') {
