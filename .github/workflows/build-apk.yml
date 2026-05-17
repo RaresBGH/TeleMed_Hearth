@@ -1,10 +1,10 @@
 # Licensed under the Creative Commons Attribution 4.0 International License (CC-BY 4.0)
 # https://creativecommons.org/licenses/by/4.0/
 #
-# TeleMed_K — CI: Build debug APK
+# TeleMed Hearth — CI: Build release APK
 # Runs on every push to main. ubuntu-latest is x86_64, required for AAPT2.
 
-name: Build Debug APK
+name: Build Release APK
 
 on:
   push:
@@ -13,7 +13,7 @@ on:
 
 jobs:
   build:
-    name: Build debug APK
+    name: Build release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -47,16 +47,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build debug APK
-        run: |
-          flutter build apk --debug \
-            --dart-define=MEDPLUM_CLIENT_ID=${{ secrets.MEDPLUM_CLIENT_ID }} \
-            --dart-define=MEDPLUM_CLIENT_SECRET=${{ secrets.MEDPLUM_CLIENT_SECRET }} \
-            --dart-define=TURN_CREDENTIAL=${{ secrets.TURN_CREDENTIAL }} \
-            --dart-define=TURN_USERNAME=${{ secrets.TURN_USERNAME }}
-        env:
-          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
-
       - name: Build Release APK
         run: |
           flutter build apk --release \
@@ -66,13 +56,6 @@ jobs:
             --dart-define=TURN_USERNAME=${{ secrets.TURN_USERNAME }}
         env:
           GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
-
-      - name: Upload debug APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: telemed-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 7
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
