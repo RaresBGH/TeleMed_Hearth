@@ -81,3 +81,22 @@ waiting_room_export.html
 .claude/
 .agents/
 
+
+# Local-only context, credentials, and tooling — never commit
+CLAUDE.md
+HANDOFF.md
+TELEMED_CONTEXT.md
+.claude/
+.agents/
+
+# Local environment files (.env.example is published as a template)
+.env
+*.env
+!.env.example
+
+# Python virtualenvs anywhere in the tree
+**/.venv/
+**/venv/
+
+# Stray/legacy doctor-UI artifacts
+doctor-ui-index.html
