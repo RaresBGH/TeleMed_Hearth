@@ -387,7 +387,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       if (!mounted) return;
       try {
         await _refreshObservationSummary(obs, lang);
-      } catch (_) {
+      } catch (e) {
+        debugPrint('_runRefreshSequentially: summary refresh failed for obs ${obs['id']}: $e');
         // Leave flag for next Dossier open — don't trap
       }
     }

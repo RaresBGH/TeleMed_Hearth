@@ -81,26 +81,62 @@ class FhirRepository {
   }
 
   /// Updates an existing Patient resource.
-  /// Dual-write: Medplum best-effort + local guaranteed.
+  /// Each store is isolated in its own try; throws only when both fail.
   Future<void> updatePatient(Map<String, dynamic> patientJson) async {
-    if (_medplum != null) {
-      final id = patientJson['id'] as String?;
-      if (id != null) {
+    var medplumOk = false;
+    var medplumApplicable = true;
+    var localOk = false;
+    String? medplumError;
+    String? localError;
+
+    // Medplum write — first.
+    final id = patientJson['id'] as String?;
+    if (_medplum != null && id != null) {
+      try {
         final result = await _medplum.updatePatient(id, patientJson);
-        if (result == null) {
-          debugPrint(
-              'FhirRepository.updatePatient: Medplum sync failed — local only');
+        if (result != null) {
+          medplumOk = true;
+        } else {
+          medplumError = 'Medplum returned null (offline or non-2xx)';
         }
+      } catch (e) {
+        medplumError = e.toString();
       }
+    } else {
+      medplumApplicable = false;
+      medplumError = 'Medplum not configured for this resource';
     }
+
+    // Local FHIR SDK write — second.
     try {
       final String jsonString = jsonEncode(patientJson);
       await _channel
           .invokeMethod<void>('updatePatient', {'resource': jsonString});
+      localOk = true;
     } on PlatformException catch (e) {
-      throw Exception(
-          'Secure local FHIR Patient Update failed: Error ${e.code}');
+      localError = 'PlatformException ${e.code}: ${e.message}';
+    } catch (e) {
+      localError = e.toString();
     }
+
+    // At least one store accepted the write — log any partial failure and return.
+    if (medplumOk || localOk) {
+      if (medplumError != null || localError != null) {
+        debugPrint('FhirRepository.updatePatient partial: '
+            'medplumOk=$medplumOk medplumError=$medplumError '
+            'localOk=$localOk localError=$localError');
+      }
+      return;
+    }
+    // Both applicable writes failed.
+    if (!medplumApplicable) {
+      throw Exception(
+          'FhirRepository.updatePatient: local write failed and Medplum not '
+          'configured. Local: $localError');
+    }
+    throw Exception(
+        'FhirRepository.updatePatient: both writes failed. '
+        'Medplum: $medplumError. Local: $localError');
   }
 
   /// Deletes all FHIR resources for [cnp]. Used during account deletion.

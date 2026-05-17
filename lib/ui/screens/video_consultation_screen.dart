@@ -288,7 +288,7 @@ class _VideoConsultationScreenState
         } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
           // Transient — start debounce; cancel if peer recovers.
           if (mounted) setState(() => _connStateLabel = AppStrings.of(_lang, 'call.state_disconnected'));
-          _disconnectDebounce ??= Timer(const Duration(seconds: 10), () {
+          _disconnectDebounce ??= Timer(const Duration(seconds: 30), () {
             debugPrint('VideoConsultationScreen: peer stayed Disconnected for 10s → peerLeft');
             if (mounted && !_peerLeft) {
               setState(() {
@@ -323,7 +323,7 @@ class _VideoConsultationScreenState
           }
         } else if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
           // Transient — share the same 10s debounce as connectionState.
-          _disconnectDebounce ??= Timer(const Duration(seconds: 10), () {
+          _disconnectDebounce ??= Timer(const Duration(seconds: 30), () {
             debugPrint('VideoConsultationScreen: ICE stayed Disconnected for 10s → peerLeft');
             if (mounted && !_peerLeft) {
               setState(() {

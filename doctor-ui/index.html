@@ -1397,7 +1397,7 @@
               console.log('Doctor UI: peer stayed Disconnected for 10s → showPeerLeft');
               disconnectDebounce = null;
               showPeerLeft();
-            }, 10000);
+            }, 30000);
           }
         } else {
           clearTimeout(disconnectDebounce); disconnectDebounce = null;
@@ -1415,20 +1415,10 @@
               console.log('Doctor UI: ICE stayed Disconnected for 10s → showPeerLeft');
               disconnectDebounce = null;
               showPeerLeft();
-            }, 10000);
+            }, 30000);
           }
         } else {
           clearTimeout(disconnectDebounce); disconnectDebounce = null;
-        }
-      };
-      pc.onnegotiationneeded = async () => {
-        try {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          await applyVideoBitrateCap(pc);
-          safeSend({ type: 'offer', room: currentRoom, sdp: offer.sdp });
-        } catch (err) {
-          console.error('negotiationneeded handler failed:', err);
         }
       };
       signalingSocket = new WebSocket(SIGNALING_URL);
@@ -1480,6 +1470,8 @@
     document.getElementById('peerLeftOverlay').style.display = 'flex';
     const rv = document.getElementById('remoteVideo');
     rv.srcObject = null; rv.style.display = 'none';
+    localStream?.getTracks().forEach(tr => tr.stop());
+    localStream = null;
   }
 
   function endCall() {
@@ -1488,6 +1480,7 @@
     safeSend({ type: 'leave', room: currentRoom });
     signalingSocket?.close(); pc?.close();
     localStream?.getTracks().forEach(tr => tr.stop());
+    localStream = null;
     location.reload();
   }
 
