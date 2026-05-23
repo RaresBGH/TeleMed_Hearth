@@ -16,7 +16,7 @@ AI inference never crosses the public internet. Clinical records traverse a Wire
 
 ## Hackathon submission
 
-**Kaggle Gemma 4 Good** - Main Track eligibility
+**[Kaggle Gemma 4 Good](https://www.kaggle.com/competitions/gemma-4-good-hackathon)** - Main Track eligibility
 Special Technology eligibility: **LiteRT** (the unmodified `.litertlm` runs on device through LiteRT-LM 0.11.0). 
 Impact Track eligibility: **Health & Sciences** 
 
@@ -96,8 +96,7 @@ The adapter remains published as a hackathon deliverable artifact for server-med
 ├── model_training/               LoRA fine-tune pipeline (Gemma 4 E4B + Unsloth)
 ├── tools/                        Maintenance scripts (Medplum, CNP, finetune)
 ├── test/, integration_test/      Tests
-├── DESIGN.md                     Design system ("Empathetic Brutalism")
-└── TeleMed_Hearth_Writeup.md     Hackathon narrative
+└── DESIGN.md                     Design system ("Empathetic Brutalism")
 ```
 
 ---
