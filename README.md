@@ -1,6 +1,6 @@
 # TeleMed Hearth
 
-**Sovereign telehealth for rural Romanian family medicine.**
+**Local-first telehealth for rural Romanian family medicine.**
 
 From symptom intake to video consultation, on Gemma 4 E4B. Every word a patient speaks stays on their phone or in the clinic — never in the cloud.
 
@@ -12,8 +12,6 @@ An on-device clinical-intake and teleconsultation platform built for elderly rur
 
 AI inference never crosses the public internet. Clinical records traverse a WireGuard tunnel through a GCP reverse-proxy VPS that performs no storage or processing, then land in the clinic's self-hosted Medplum FHIR server. No third-party LLM API. No analytics SDKs. No telemetry.
 
-The full project narrative is in **[TeleMed_Hearth_Writeup.md](TeleMed_Hearth_Writeup.md)**.
-
 ---
 
 ## Hackathon submission
@@ -23,7 +21,7 @@ Special Technology eligibility: **LiteRT** (the unmodified `.litertlm` runs on d
 Impact Track eligibility: **Health & Sciences** 
 
 - **Code:** this repository
-- **Demo video:** <DEMO_VIDEO_URL>
+- **Demo video:** [youtu.be/O2J9_iT44N4](https://youtu.be/O2J9_iT44N4)
 - **LoRA adapter:** [huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical](https://huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical) — published as a deliverable artifact with full evaluation metrics and head-to-head comparison against the base model
 
 ---
@@ -57,14 +55,14 @@ See today's appointments, the AI-generated triage report, the WebRTC waiting roo
 
 ## How it works
 
-Four layers, one sovereignty boundary:
+Four layers, one trust boundary:
 
 1. **Patient app.** Flutter (Dart) + Android-native (Kotlin) bridge to LiteRT-LM. Encrypted SQLite at rest via SQLCipher 4.6.1. Local FHIR persistence through Google's Android FHIR SDK 1.2.0.
 2. **On-device AI.** Gemma 4 E4B in `.litertlm` form, driven by LiteRT-LM 0.11.0. Voice (WAV 16 kHz mono), photos (JPEG), and text all multiplex through the same `Engine` handle per session.
 3. **Clinical records.** Self-hosted Medplum 5.1.10 (FHIR R4) on an NVIDIA GB10 server (Grace Blackwell, ARM64, 128 GB unified memory). Dual-write: every Observation, Appointment, and Communication is written to the local FHIR SDK first, then best-effort to Medplum.
 4. **Doctor browser.** Vanilla-JS WebRTC client served by Caddy. Joins a signaling room keyed by `appointmentId`; the in-call side panel shows the AI triage report alongside the live video.
 
-The sovereignty boundary is precise: AI inference is air-gapped from the public internet. Records traverse a WireGuard tunnel from device → a small GCP e2-micro reverse proxy (Frankfurt) → Caddy → Medplum on the clinic's GB10. The VPS is an ingress only; no record processing or storage. WebRTC signaling rides the same tunnel; WebRTC media is peer-to-peer between phone and browser, with coturn on the VPS for NAT-traversal fallback. DuckDNS DNS-01 issues TLS for `telemed-medplum.duckdns.org`, `telemed-doctor.duckdns.org`, and `telemed-signal.duckdns.org`.
+The trust boundary is precise: AI inference is air-gapped from the public internet. Records traverse a WireGuard tunnel from device → a small GCP e2-micro reverse proxy (Frankfurt) → Caddy → Medplum on the clinic's GB10. The VPS is an ingress only; no record processing or storage. WebRTC signaling rides the same tunnel; WebRTC media is peer-to-peer between phone and browser, with coturn on the VPS for NAT-traversal fallback. DuckDNS DNS-01 issues TLS for `telemed-medplum.duckdns.org`, `telemed-doctor.duckdns.org`, and `telemed-signal.duckdns.org`.
 
 ---
 
@@ -179,13 +177,12 @@ TeleMed Hearth is not a diagnostic tool — it documents, triages, and routes; h
 
 The on-device AI is conditioned to never name medications, never interpret tests, never diagnose. The structured-output JSON the model emits is parsed by the application; the application is what makes routing decisions (emergency 112 dialer, finalize button, FHIR category). The model is a clinical-intake conversationalist with a strict output contract, not an oracle.
 
-The published LoRA adapter and the head-to-head evaluation against the base model are public deliberately. We believe a sovereign on-device medical-triage system is more credible when its model card discloses what its fine-tune did and did not improve.
+The published LoRA adapter and the head-to-head evaluation against the base model are public deliberately. We believe a local-first on-device medical-triage system is more credible when its model card discloses what its fine-tune did and did not improve.
 
 ---
 
 ## Documentation
 
-- **[TeleMed_Hearth_Writeup.md](TeleMed_Hearth_Writeup.md)** — hackathon narrative, the "what and why"
 - **[DESIGN.md](DESIGN.md)** — design system ("Empathetic Brutalism") for elderly-rural-patient UX
 - **HuggingFace model card** — [adapter card](https://huggingface.co/CoRBs/telemed-k-gemma4-e4b-ro-medical) with training config, head-to-head evaluation, and deployment-compatibility notes
 
@@ -193,7 +190,7 @@ The published LoRA adapter and the head-to-head evaluation against the base mode
 
 ## Authors
 
-**[Rareș Bogheanu](https://www.linkedin.com/in/corbd/)** — project lead. 
+**[Rareș Bogheanu](https://corbdigital.com)** — project lead. Available for AI agent reliability and local-first prototype work at [corbdigital.com](https://corbdigital.com) · [LinkedIn](https://www.linkedin.com/in/corbd/).
 
 **[Andra Inovan](https://www.linkedin.com/in/andra-tiana-inovan/)** — creative direction, video, design.
 
